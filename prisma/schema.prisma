@@ -1,0 +1,132 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  fullName      String
+  phone         String
+  role          String             @default("CUSTOMER") // "CUSTOMER", "OPERATOR", "ADMIN"
+  vehicles      Vehicle[]
+  subscriptions UserSubscription[]
+  appointments  Appointment[]
+  payments      Payment[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model Vehicle {
+  id            String             @id @default(uuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType   String             // "CAR", "SUV", "PICKUP"
+  brand         String
+  model         String
+  color         String?
+  subscriptions UserSubscription[]
+  appointments  Appointment[]
+  createdAt     DateTime           @default(now())
+}
+
+model SubscriptionPlan {
+  id                            String             @id @default(uuid())
+  code                          String             // "PLATA", "ORO", "PLATINO"
+  name                          String
+  vehicleType                   String             // "CAR", "SUV", "PICKUP"
+  monthlyPrice                  Float
+  washesPerMonth                Int
+  includesQuickWax              Boolean            @default(false)
+  includesPlasticHydration      Boolean            @default(false)
+  includesHomeDelivery          Boolean            @default(false)
+  includesDeepUpholsteryCleaning Boolean           @default(false)
+  benefitsDescription           String?
+  isActive                      Boolean            @default(true)
+  userSubscriptions             UserSubscription[]
+
+  @@unique([code, vehicleType])
+}
+
+model UserSubscription {
+  id                 String              @id @default(uuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  planId             String
+  plan               SubscriptionPlan    @relation(fields: [planId], references: [id])
+  vehicleId          String
+  vehicle            Vehicle             @relation(fields: [vehicleId], references: [id])
+  status             String              @default("PENDING") // "ACTIVE", "PAUSED", "CANCELLED"
+  remainingWashes    Int
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  mpPreapprovalId    String?
+  appointments       Appointment[]
+  usages             SubscriptionUsage[]
+  payments           Payment[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model Appointment {
+  id                    String             @id @default(uuid())
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id])
+  vehicleId             String
+  vehicle               Vehicle            @relation(fields: [vehicleId], references: [id])
+  subscriptionId        String?
+  subscription          UserSubscription?  @relation(fields: [subscriptionId], references: [id])
+  appointmentDate       DateTime
+  startTime             String             // "09:00"
+  endTime               String             // "11:00"
+  status                String             @default("PENDING_PAYMENT") // "CONFIRMED", "PENDING_PAYMENT", "IN_PROGRESS", "COMPLETED", "CANCELLED"
+  basePrice             Float
+  coveredBySubscription Boolean            @default(false)
+  homePickupDelivery    Boolean            @default(false)
+  deliveryAddress       String?
+  notes                 String?
+  payments              Payment[]
+  usage                 SubscriptionUsage?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
+
+model SubscriptionUsage {
+  id             String           @id @default(uuid())
+  subscriptionId String
+  subscription   UserSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  appointmentId  String           @unique
+  appointment    Appointment      @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  deductedAt     DateTime         @default(now())
+}
+
+model Payment {
+  id                 String            @id @default(uuid())
+  appointmentId      String?
+  appointment        Appointment?      @relation(fields: [appointmentId], references: [id])
+  userSubscriptionId String?
+  userSubscription   UserSubscription? @relation(fields: [userSubscriptionId], references: [id])
+  userId             String
+  user               User              @relation(fields: [userId], references: [id])
+  paymentMethod      String            // "MERCADO_PAGO", "CASH"
+  status             String            @default("PENDING") // "APPROVED", "PENDING", "PAID_ON_SITE", "REJECTED"
+  amount             Float
+  currency           String            @default("ARS")
+  mpPreferenceId     String?
+  mpPaymentId        String?           @unique
+  paidAt             DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model HolidayCache {
+  holidayDate String   @id // YYYY-MM-DD
+  reason      String
+  holidayType String   @default("NACIONAL") // "NACIONAL", "PROVINCIAL_MENDOZA"
+  year        Int
+  createdAt   DateTime @default(now())
+}
