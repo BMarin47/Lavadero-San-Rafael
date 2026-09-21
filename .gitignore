@@ -43,3 +43,6 @@ dev.db*
 # scripts temporales
 sync_github.bat
 
+# env files
+.env
+.env.local
