@@ -79,24 +79,27 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
   const currentVeh = VEHICLE_CONFIG[vehicleType];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-sm space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
+    <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 p-5 md:p-6 rounded-3xl shadow-xl shadow-black/20 space-y-5 transition-all">
+      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <h2 className="text-xs md:text-sm font-extrabold uppercase tracking-wider text-slate-100 flex items-center gap-2.5">
+          <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-xs font-black shadow-md shadow-blue-500/30">
             2
           </span>
           Modalidad del Servicio
         </h2>
+        <span className="text-[11px] text-cyan-400 font-bold bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+          Paso 2 de 4
+        </span>
       </div>
 
       {/* Switch Individual vs Suscripción */}
-      <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+      <div className="flex rounded-2xl bg-slate-950/90 p-1.5 border border-slate-800/90 shadow-inner">
         <button
           type="button"
           onClick={() => onModeChange('INDIVIDUAL')}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex-1 py-3 text-xs md:text-sm font-extrabold rounded-xl transition-all duration-200 ${
             mode === 'INDIVIDUAL'
-              ? 'bg-blue-600 text-white shadow'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-600/30'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -106,14 +109,14 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
         <button
           type="button"
           onClick={() => onModeChange('SUBSCRIPTION')}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-3 text-xs md:text-sm font-extrabold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
             mode === 'SUBSCRIPTION'
-              ? 'bg-blue-600 text-white shadow'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-600/30'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <span>Suscripción Mensual</span>
-          <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px] font-black">
+          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full text-[10px] font-black border border-emerald-500/30">
             -15% OFF
           </span>
         </button>
@@ -121,30 +124,49 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
 
       {/* Panel Individual */}
       {mode === 'INDIVIDUAL' && (
-        <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5 text-xs">
-          <div className="flex justify-between font-bold text-slate-100">
-            <span>Lavado Completo ({currentVeh.label})</span>
-            <span className="text-blue-400 font-extrabold text-sm">
-              ${currentVeh.price.toLocaleString('es-AR')}
-            </span>
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 backdrop-blur-md space-y-3">
+          <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
+            <div>
+              <span className="font-extrabold text-sm md:text-base text-white">
+                Lavado Completo ({currentVeh.label})
+              </span>
+              <p className="text-xs text-slate-400 mt-0.5">Turno individual presencial o con entrega</p>
+            </div>
+            <div className="text-right">
+              <span className="text-cyan-400 font-black text-xl md:text-2xl">
+                ${currentVeh.price.toLocaleString('es-AR')}
+              </span>
+              <span className="block text-[10px] text-slate-400 uppercase font-semibold">Precio Final</span>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            Lavado intensivo con champú pH neutro, espuma activa, aspirado completo interior de tapizados y baúl, secado con microfibra y acondicionador de cubiertas.
-          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs text-slate-300">
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400 font-bold">✓</span> Champú pH neutro y espuma activa
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400 font-bold">✓</span> Cera líquida con repelencia de agua
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400 font-bold">✓</span> Aspirado interior de butacas y baúl
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-cyan-400 font-bold">✓</span> Acondicionador de plásticos y neumáticos
+            </div>
+          </div>
         </div>
       )}
 
       {/* Panel Suscripción Mensual */}
       {mode === 'SUBSCRIPTION' && (
-        <div className="space-y-2.5">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-start gap-2">
-            <span className="text-base">💡</span>
-            <span>
-              <strong>Cobro recurrente mensual:</strong> Tu cuenta se acredita automáticamente con el cupo de lavados cada mes y se descuenta al reservar.
+        <div className="space-y-3.5">
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200 flex items-start gap-2.5 backdrop-blur-md">
+            <span className="text-lg leading-none">💡</span>
+            <span className="leading-relaxed">
+              <strong>Ahorro recurrente garantizado:</strong> Recibí un cupo de lavados cada 30 días para tu {currentVeh.label} con prioridad de box en San Rafael.
             </span>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {PLANS_CATALOG.map((plan) => {
               const isSelected = selectedPlan === plan.code;
               const pricing = plan.prices[vehicleType];
@@ -152,49 +174,50 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
               return (
                 <label
                   key={plan.code}
-                  className={`block p-3 rounded-xl border cursor-pointer transition-all ${
+                  className={`block p-4 sm:p-4.5 rounded-2xl border cursor-pointer transition-all duration-200 relative ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-500/15 ring-2 ring-blue-500/30'
-                      : 'border-slate-800 bg-slate-950/70 hover:border-slate-700'
+                      ? 'border-cyan-400 bg-gradient-to-r from-blue-600/20 via-cyan-600/10 to-slate-900/60 ring-2 ring-cyan-400/40 shadow-xl shadow-cyan-500/10'
+                      : 'border-slate-800/80 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <input
                         type="radio"
                         name="subscriptionPlan"
                         checked={isSelected}
                         onChange={() => onPlanChange(plan.code)}
-                        className="text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700"
                       />
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-white">
                             {plan.name}
                           </span>
                           {plan.badge && (
-                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
                               {plan.badge}
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-xs text-cyan-400 font-semibold">
                           {plan.washes} lavados completos al mes
                         </span>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="font-black text-sm text-blue-400">
+                      <div className="font-black text-base sm:text-lg text-white">
                         ${pricing.price.toLocaleString('es-AR')}
+                        <span className="text-[10px] text-slate-400 font-normal">/mes</span>
                       </div>
-                      <div className="text-[10px] line-through text-slate-500">
+                      <div className="text-xs line-through text-slate-500">
                         ${pricing.orig.toLocaleString('es-AR')}
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 mt-2 pl-6 leading-relaxed">
+                  <p className="text-xs text-slate-300 mt-2.5 pl-7 leading-relaxed">
                     {plan.benefits}
                   </p>
                 </label>
@@ -204,15 +227,15 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
 
           {/* Opción de Retiro y Entrega a Domicilio para Oro y Platino */}
           {(selectedPlan === 'ORO' || selectedPlan === 'PLATINO') && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 mt-2">
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-200 cursor-pointer">
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 backdrop-blur-md">
+              <label className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-slate-200 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={homeDelivery}
                   onChange={(e) => onHomeDeliveryChange(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700"
                 />
-                <span>🚚 Solicitar Retiro y Entrega a Domicilio en San Rafael (Incluido)</span>
+                <span>🚚 Retiro y Entrega a Domicilio en San Rafael (Bonificado)</span>
               </label>
 
               {homeDelivery && (
@@ -221,7 +244,7 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
                   value={deliveryAddress}
                   onChange={(e) => onDeliveryAddressChange(e.target.value)}
                   placeholder="Dirección exacta de retiro (Ej: Av. Hipólito Yrigoyen 1420)"
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-800 text-slate-100 focus:outline-none focus:border-blue-500"
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                 />
               )}
             </div>

@@ -162,33 +162,33 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const isOtherModel = selectedModel === 'Otro Modelo';
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-sm space-y-4">
+    <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 p-5 md:p-6 rounded-3xl shadow-xl shadow-black/20 space-y-5 transition-all">
       {/* Encabezado */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
+      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <h2 className="text-xs md:text-sm font-extrabold uppercase tracking-wider text-slate-100 flex items-center gap-2.5">
+          <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-xs font-black shadow-md shadow-blue-500/30">
             1
           </span>
           Carga de Vehículo (Sin Patente)
         </h2>
-        <span className="text-[10px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-          Flujo en 3 Pasos
+        <span className="text-[11px] text-cyan-400 font-bold bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+          Paso 1 de 4
         </span>
       </div>
 
       {/* PASO 1 (Categoría): 3 Grandes Tarjetas / Botones */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-[11px] text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-slate-800 text-blue-400 font-extrabold flex items-center justify-center text-[10px]">
+          <label className="text-xs text-slate-200 font-bold uppercase tracking-wider flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-slate-800 text-cyan-400 font-extrabold flex items-center justify-center text-[10px]">
               1
             </span>
-            Paso 1: Seleccioná la Categoría
+            Seleccioná la Categoría
           </label>
-          <span className="text-[10px] text-slate-400">Tarifa fija</span>
+          <span className="text-[11px] text-slate-400 font-medium">Tarifa base fija</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 pt-0.5">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3 pt-1">
           {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
             const cfg = VEHICLE_CONFIG[type];
             const isSelected = selectedType === type;
@@ -198,22 +198,27 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 key={type}
                 type="button"
                 onClick={() => handleCategoryClick(type)}
-                className={`p-3 rounded-2xl border text-center transition-all relative flex flex-col items-center justify-between min-h-[95px] ${
+                className={`p-3.5 sm:p-4 rounded-2xl border text-center transition-all duration-200 relative flex flex-col items-center justify-between min-h-[105px] group ${
                   isSelected
-                    ? 'border-blue-500 bg-blue-500/15 text-white ring-2 ring-blue-500/40 shadow-lg shadow-blue-500/10'
-                    : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:bg-slate-950'
+                    ? 'border-cyan-400 bg-gradient-to-b from-blue-600/20 to-cyan-600/10 text-white ring-2 ring-cyan-400/40 shadow-xl shadow-cyan-500/15 scale-[1.02]'
+                    : 'border-slate-800/90 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/60 hover:text-white'
                 }`}
               >
-                <div className="text-2xl mb-1">{cfg.icon}</div>
+                <div className="text-3xl mb-1 filter drop-shadow transition-transform group-hover:scale-110">
+                  {cfg.icon}
+                </div>
                 <div>
-                  <div className="text-xs font-bold leading-tight">{cfg.label}</div>
-                  <div className="text-[11px] text-blue-400 font-black mt-1">
+                  <div className="text-xs sm:text-sm font-extrabold leading-tight">{cfg.label}</div>
+                  <div className="text-xs sm:text-sm text-cyan-400 font-black mt-1">
                     ${cfg.price.toLocaleString('es-AR')}
                   </div>
                 </div>
 
                 {isSelected && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                  <span className="absolute top-2 right-2 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                  </span>
                 )}
               </button>
             );
@@ -222,15 +227,15 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       </div>
 
       {/* PASO 2 (Marca): Menú desplegable dependiente de la categoría */}
-      <div className="space-y-2 pt-2 border-t border-slate-800">
+      <div className="space-y-2 pt-3 border-t border-slate-800/80">
         <label
           htmlFor="vehicle-brand-select"
-          className="text-[11px] text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5"
+          className="text-xs text-slate-200 font-bold uppercase tracking-wider flex items-center gap-2"
         >
-          <span className="w-4 h-4 rounded-full bg-slate-800 text-blue-400 font-extrabold flex items-center justify-center text-[10px]">
+          <span className="w-4 h-4 rounded-full bg-slate-800 text-cyan-400 font-extrabold flex items-center justify-center text-[10px]">
             2
           </span>
-          Paso 2: Seleccioná la Marca ({VEHICLE_CONFIG[selectedType].label})
+          Seleccioná la Marca ({VEHICLE_CONFIG[selectedType].label})
         </label>
 
         <div className="relative">
@@ -238,7 +243,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             id="vehicle-brand-select"
             value={selectedBrand}
             onChange={(e) => handleBrandSelect(e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-medium focus:outline-none focus:border-blue-500 appearance-none cursor-pointer pr-10"
+            className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-slate-950/80 border border-slate-800 text-slate-100 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 appearance-none cursor-pointer pr-10 transition-all shadow-inner"
           >
             <option value="" disabled>
               -- Seleccioná la marca de tu vehículo --
@@ -253,7 +258,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               </option>
             ))}
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -262,14 +267,14 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
         {/* Si elige 'Otra Marca' en Paso 2: Aparecen 2 inputs para Marca y Modelo manualmente */}
         {isOtherBrand && (
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/40 space-y-2.5 animate-in fade-in slide-in-from-top-2">
-            <p className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3 backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+            <p className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
               <span>✏️</span> Ingresá los datos de tu vehículo ({VEHICLE_CONFIG[selectedType].label}):
             </p>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="text-[10px] text-slate-400 uppercase font-semibold block mb-1">
+                <label className="text-[10px] text-amber-200/80 uppercase font-bold block mb-1">
                   Marca
                 </label>
                 <input
@@ -278,12 +283,12 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                   value={customBrandText}
                   onChange={(e) => onCustomBrandTextChange(e.target.value)}
                   placeholder="Ej: Citroën, Audi, BMW"
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-900/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-slate-400 uppercase font-semibold block mb-1">
+                <label className="text-[10px] text-amber-200/80 uppercase font-bold block mb-1">
                   Modelo
                 </label>
                 <input
@@ -292,12 +297,12 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                   value={customModelText}
                   onChange={(e) => onCustomModelTextChange(e.target.value)}
                   placeholder="Ej: C3, A3, Serie 1"
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-900/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
                 />
               </div>
             </div>
-            <p className="text-[10px] text-slate-400">
-              Se tarifará como categoría <strong>{VEHICLE_CONFIG[selectedType].label}</strong> (${VEHICLE_CONFIG[selectedType].price.toLocaleString('es-AR')}).
+            <p className="text-[11px] text-slate-300">
+              Se tarifará según categoría <strong>{VEHICLE_CONFIG[selectedType].label}</strong> (${VEHICLE_CONFIG[selectedType].price.toLocaleString('es-AR')}).
             </p>
           </div>
         )}
@@ -305,15 +310,15 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
       {/* PASO 3 (Modelo): Menú desplegable dependiente de la Marca (solo si eligió una marca conocida) */}
       {!isOtherBrand && selectedBrand && (
-        <div className="space-y-2 pt-2 border-t border-slate-800 animate-in fade-in">
+        <div className="space-y-2 pt-3 border-t border-slate-800/80 animate-in fade-in">
           <label
             htmlFor="vehicle-model-select"
-            className="text-[11px] text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5"
+            className="text-xs text-slate-200 font-bold uppercase tracking-wider flex items-center gap-2"
           >
-            <span className="w-4 h-4 rounded-full bg-slate-800 text-blue-400 font-extrabold flex items-center justify-center text-[10px]">
+            <span className="w-4 h-4 rounded-full bg-slate-800 text-cyan-400 font-extrabold flex items-center justify-center text-[10px]">
               3
             </span>
-            Paso 3: Seleccioná el Modelo de {selectedBrand}
+            Seleccioná el Modelo ({selectedBrand})
           </label>
 
           <div className="relative">
@@ -321,7 +326,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               id="vehicle-model-select"
               value={selectedModel}
               onChange={(e) => onModelChange(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-medium focus:outline-none focus:border-blue-500 appearance-none cursor-pointer pr-10"
+              className="w-full px-4 py-3 text-xs sm:text-sm rounded-2xl bg-slate-950/80 border border-slate-800 text-slate-100 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 appearance-none cursor-pointer pr-10 transition-all shadow-inner"
             >
               <option value="" disabled>
                 -- Seleccioná el modelo --
@@ -336,7 +341,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
@@ -345,8 +350,8 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
           {/* Si elige 'Otro Modelo' en Paso 3: Aparece 1 input para escribir el modelo */}
           {isOtherModel && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-amber-500/40 space-y-1.5 animate-in fade-in slide-in-from-top-2">
-              <label className="text-[10px] text-amber-400 font-bold uppercase flex items-center gap-1">
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2 animate-in fade-in slide-in-from-top-2">
+              <label className="text-xs text-amber-300 font-bold uppercase flex items-center gap-1.5">
                 <span>✏️</span> Escribí el modelo de tu {selectedBrand}:
               </label>
               <input
@@ -356,7 +361,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 value={customModelText}
                 onChange={(e) => onCustomModelTextChange(e.target.value)}
                 placeholder={`Ej: Modelo específico de ${selectedBrand}`}
-                className="w-full px-3 py-2 text-xs rounded-lg bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-900/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
               />
             </div>
           )}

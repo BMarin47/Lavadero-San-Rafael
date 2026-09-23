@@ -26,24 +26,24 @@ export const AppDownloadBadges: React.FC<AppDownloadBadgesProps> = ({
     <div
       className={`w-full ${
         isHero
-          ? 'bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl shadow-lg'
+          ? 'bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 p-4 rounded-3xl shadow-xl shadow-black/10'
           : 'pt-2'
       }`}
     >
       {isHero && (
-        <div className="text-center mb-2.5">
-          <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+        <div className="text-center mb-3">
+          <span className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
             Próximamente en tiendas oficiales
           </span>
-          <p className="text-xs text-slate-400 mt-1">
-            Optimizá tu experiencia descargando nuestra app nativa:
+          <p className="text-xs text-slate-300 mt-1.5 font-medium">
+            Gestioná y reprogramá tus turnos desde nuestra app nativa:
           </p>
         </div>
       )}
 
       <div
         className={`grid ${
-          isHero ? 'grid-cols-2 gap-2.5' : 'flex flex-wrap items-center justify-center gap-2.5'
+          isHero ? 'grid-cols-2 gap-3' : 'flex flex-wrap items-center justify-center gap-3'
         }`}
       >
         {/* Insignia Apple App Store */}
