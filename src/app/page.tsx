@@ -568,8 +568,8 @@ export default function Home() {
             <span>San Rafael, Mendoza • Turnos Online Habilitados</span>
           </div>
 
-          {/* Título Principal Grueso con Resplandor / Glow */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white uppercase hero-title-glow leading-[1.05]">
+          {/* Título Principal Hero */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400 drop-shadow-md tracking-tight">
             AquaShine San Rafael
           </h1>
 
