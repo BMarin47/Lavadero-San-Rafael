@@ -370,14 +370,14 @@ export default function Home() {
             </div>
 
             <a
-              href="https://wa.me/5492604123456"
+              href="https://wa.me/5492604654255"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-semibold text-slate-200 transition-all cursor-pointer"
             >
               <Phone className="w-3.5 h-3.5 text-cyan-400" />
               <span className="hidden md:inline">Consultas:</span>
-              <span className="text-white">+54 9 260 412-3456</span>
+              <span className="text-white">+54 9 260 465-4255</span>
             </a>
           </div>
         </div>
@@ -830,7 +830,7 @@ export default function Home() {
               AquaShine Lavadero & Detailing
             </h4>
             <p className="text-xs text-slate-400">
-              San Rafael, Mendoza, Argentina • Contacto: +54 9 260 412-3456
+              San Rafael, Mendoza, Argentina • Contacto: +54 9 260 465-4255
             </p>
             <p className="text-[11px] text-slate-500">
               Horarios: Lunes a Viernes de 09:00 a 13:00 y 16:00 a 21:00 hs • Sábados de 09:00 a 13:00 hs • Domingos cerrado

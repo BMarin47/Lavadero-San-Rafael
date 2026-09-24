@@ -16,7 +16,7 @@ export const VEHICLE_TYPE_LABELS: Record<string, string> = {
 
 // Número de atención del lavadero (Configurable por variable de entorno o fallback)
 export const DEFAULT_LAVADERO_PHONE =
-  process.env.NEXT_PUBLIC_LAVADERO_WHATSAPP || '+54 9 2604 12-3456';
+  process.env.NEXT_PUBLIC_LAVADERO_WHATSAPP || '+54 9 260 465-4255';
 
 /**
  * Sanitiza cualquier formato de número telefónico (ej: '+54 9 2604 61-4537', '2604 61-4537', '0260-4614537')

@@ -103,7 +103,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
                   onPhoneChange(val);
                 }}
-                placeholder="260 412-3456"
+                placeholder="260 465-4255"
                 className="w-full min-w-0 px-3.5 py-3 text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
               />
             </div>
