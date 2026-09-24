@@ -352,10 +352,10 @@ export default function Home() {
             </div>
             <div>
               <span className="font-extrabold text-base tracking-tight text-white block leading-none">
-                AquaShine
+                AquaShine San Rafael
               </span>
               <span className="text-[10px] font-semibold text-cyan-400 tracking-wider uppercase">
-                San Rafael • Detailing
+                Detailing & Lavadero
               </span>
             </div>
           </div>
@@ -566,7 +566,7 @@ export default function Home() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white">
-            AquaShine <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500">San Rafael</span>
+            AquaShine San Rafael
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
@@ -582,10 +582,6 @@ export default function Home() {
             <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/60 border border-[#009EE3]/30 text-xs font-medium text-[#00c8ff] backdrop-blur-sm">
               <CreditCard className="w-3.5 h-3.5" />
               <span>Mercado Pago Oficial</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/60 border border-white/[0.08] text-xs font-medium text-slate-200 backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Productos Importados pH Neutro</span>
             </div>
           </div>
         </header>
