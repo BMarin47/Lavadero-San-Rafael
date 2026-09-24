@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as CreateBookingDTO;
 
-    // Validaciones requeridas (sin patente)
+    // Validaciones requeridas de reserva
     if (!body.userEmail || !body.vehicleModel || !body.appointmentDate || !body.startTime || !body.endTime) {
       return NextResponse.json(
         { error: 'Datos incompletos para realizar la reserva. Por favor completá el modelo de vehículo y horario.' },

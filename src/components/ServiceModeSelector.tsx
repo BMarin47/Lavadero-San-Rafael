@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { VehicleType, VEHICLE_CONFIG } from './VehicleSelector';
+import { Sparkles, Check, Truck, Zap, ShieldCheck } from 'lucide-react';
 
 export type ServiceMode = 'INDIVIDUAL' | 'SUBSCRIPTION';
 export type PlanCode = 'PLATA' | 'ORO' | 'PLATINO';
@@ -11,8 +12,9 @@ interface PlanDetail {
   name: string;
   washes: number;
   prices: Record<VehicleType, { price: number; orig: number }>;
-  benefits: string;
+  features: string[];
   badge?: string;
+  isPopular?: boolean;
 }
 
 export const PLANS_CATALOG: PlanDetail[] = [
@@ -25,7 +27,11 @@ export const PLANS_CATALOG: PlanDetail[] = [
       SUV: { price: 45500, orig: 53000 },
       PICKUP: { price: 55000, orig: 64000 },
     },
-    benefits: '2 lavados completos al mes. Incluye cera rápida protectora.',
+    features: [
+      '2 lavados completos al mes',
+      'Cera rápida protectora hidrofóbica',
+      'Aspirado completo y desinfección',
+    ],
   },
   {
     code: 'ORO',
@@ -36,8 +42,14 @@ export const PLANS_CATALOG: PlanDetail[] = [
       SUV: { price: 67500, orig: 79500 },
       PICKUP: { price: 81500, orig: 96000 },
     },
-    benefits: '3 lavados al mes. Cera + hidratación plásticos int/ext + retiro y entrega a domicilio.',
-    badge: 'Más Popular',
+    features: [
+      '3 lavados completos al mes',
+      'Cera de alta durabilidad + sellado',
+      'Hidratación de plásticos int/ext',
+      'Retiro y entrega a domicilio bonificado',
+    ],
+    badge: 'Más Elegido',
+    isPopular: true,
   },
   {
     code: 'PLATINO',
@@ -48,7 +60,12 @@ export const PLANS_CATALOG: PlanDetail[] = [
       SUV: { price: 90000, orig: 106000 },
       PICKUP: { price: 109000, orig: 128000 },
     },
-    benefits: '4 lavados al mes. Beneficios Oro + 1 limpieza profunda de tapizados + retiro y entrega a domicilio.',
+    features: [
+      '4 lavados completos al mes',
+      'Todos los beneficios del Plan Oro',
+      '1 limpieza profunda de tapizados por ciclo',
+      'Atención prioritaria y delivery incluido',
+    ],
     badge: 'Detallado VIP',
   },
 ];
@@ -79,27 +96,35 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
   const currentVeh = VEHICLE_CONFIG[vehicleType];
 
   return (
-    <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 p-5 md:p-6 rounded-3xl shadow-xl shadow-black/20 space-y-5 transition-all">
-      <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-        <h2 className="text-xs md:text-sm font-extrabold uppercase tracking-wider text-slate-100 flex items-center gap-2.5">
-          <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-xs font-black shadow-md shadow-blue-500/30">
-            2
+    <div className="rounded-3xl bg-slate-900/50 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-7 shadow-xl shadow-black/20 space-y-6 transition-all">
+      {/* Header del Paso */}
+      <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+        <div className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center text-xs font-black shadow-lg shadow-cyan-500/25">
+            02
           </span>
-          Modalidad del Servicio
-        </h2>
-        <span className="text-[11px] text-cyan-400 font-bold bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              Modalidad de Servicio
+            </h2>
+            <p className="text-xs text-slate-400">
+              Elegí entre un lavado puntual o abono mensual
+            </p>
+          </div>
+        </div>
+        <span className="text-[11px] font-semibold text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
           Paso 2 de 4
         </span>
       </div>
 
-      {/* Switch Individual vs Suscripción */}
-      <div className="flex rounded-2xl bg-slate-950/90 p-1.5 border border-slate-800/90 shadow-inner">
+      {/* Switch Segmentado */}
+      <div className="flex rounded-2xl bg-slate-950/70 p-1.5 border border-white/[0.08] shadow-inner">
         <button
           type="button"
           onClick={() => onModeChange('INDIVIDUAL')}
-          className={`flex-1 py-3 text-xs md:text-sm font-extrabold rounded-xl transition-all duration-200 ${
+          className={`flex-1 py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer ${
             mode === 'INDIVIDUAL'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-600/30'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
               : 'text-slate-400 hover:text-white'
           }`}
         >
@@ -109,63 +134,85 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
         <button
           type="button"
           onClick={() => onModeChange('SUBSCRIPTION')}
-          className={`flex-1 py-3 text-xs md:text-sm font-extrabold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+          className={`flex-1 py-3 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
             mode === 'SUBSCRIPTION'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-600/30'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <span>Suscripción Mensual</span>
-          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full text-[10px] font-black border border-emerald-500/30">
+          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full text-[10px] font-extrabold border border-emerald-500/30">
             -15% OFF
           </span>
         </button>
       </div>
 
-      {/* Panel Individual */}
+      {/* Contenido: Lavado Individual */}
       {mode === 'INDIVIDUAL' && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/70 border border-slate-800/80 backdrop-blur-md space-y-3">
-          <div className="flex justify-between items-center border-b border-slate-800/80 pb-3">
+        <div className="p-5 rounded-2xl bg-slate-950/50 border border-white/[0.08] space-y-4 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
             <div>
-              <span className="font-extrabold text-sm md:text-base text-white">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider mb-1">
+                Servicio Premium
+              </span>
+              <h3 className="font-extrabold text-base sm:text-lg text-white">
                 Lavado Completo ({currentVeh.label})
-              </span>
-              <p className="text-xs text-slate-400 mt-0.5">Turno individual presencial o con entrega</p>
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Tratamiento artesanal interior y exterior detallado
+              </p>
             </div>
-            <div className="text-right">
-              <span className="text-cyan-400 font-black text-xl md:text-2xl">
+            <div className="sm:text-right">
+              <div className="text-2xl sm:text-3xl font-black text-cyan-400 tracking-tight">
                 ${currentVeh.price.toLocaleString('es-AR')}
+              </div>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                Precio Final • Pago Único
               </span>
-              <span className="block text-[10px] text-slate-400 uppercase font-semibold">Precio Final</span>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs text-slate-300">
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400 font-bold">✓</span> Champú pH neutro y espuma activa
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-300">
+            <div className="flex items-center gap-2.5">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 stroke-[2.5]" />
+              </span>
+              <span>Champú pH neutro y espuma activa de alta densidad</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400 font-bold">✓</span> Cera líquida con repelencia de agua
+            <div className="flex items-center gap-2.5">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 stroke-[2.5]" />
+              </span>
+              <span>Cera líquida con repelencia de agua y brillo profundo</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400 font-bold">✓</span> Aspirado interior de butacas y baúl
+            <div className="flex items-center gap-2.5">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 stroke-[2.5]" />
+              </span>
+              <span>Aspirado interior minucioso de butacas, alfombras y baúl</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400 font-bold">✓</span> Acondicionador de plásticos y neumáticos
+            <div className="flex items-center gap-2.5">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 stroke-[2.5]" />
+              </span>
+              <span>Acondicionador UV de plásticos y neumáticos</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Panel Suscripción Mensual */}
+      {/* Contenido: Suscripciones Mensuales */}
       {mode === 'SUBSCRIPTION' && (
-        <div className="space-y-3.5">
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200 flex items-start gap-2.5 backdrop-blur-md">
-            <span className="text-lg leading-none">💡</span>
-            <span className="leading-relaxed">
-              <strong>Ahorro recurrente garantizado:</strong> Recibí un cupo de lavados cada 30 días para tu {currentVeh.label} con prioridad de box en San Rafael.
-            </span>
+        <div className="space-y-4 animate-in fade-in">
+          {/* Banner de beneficios */}
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-200 flex items-start gap-3 backdrop-blur-md">
+            <Sparkles className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <strong className="text-white">Ahorro y prioridad garantizada:</strong> Tu vehículo siempre impecable con cupos de lavado cada 30 días, prioridad de atención asegurada en San Rafael y tarifas congeladas.
+            </div>
           </div>
 
+          {/* Tarjetas de Planes */}
           <div className="space-y-3">
             {PLANS_CATALOG.map((plan) => {
               const isSelected = selectedPlan === plan.code;
@@ -174,24 +221,26 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
               return (
                 <label
                   key={plan.code}
-                  className={`block p-4 sm:p-4.5 rounded-2xl border cursor-pointer transition-all duration-200 relative ${
+                  className={`block p-5 rounded-2xl border cursor-pointer transition-all duration-200 relative ${
                     isSelected
-                      ? 'border-cyan-400 bg-gradient-to-r from-blue-600/20 via-cyan-600/10 to-slate-900/60 ring-2 ring-cyan-400/40 shadow-xl shadow-cyan-500/10'
-                      : 'border-slate-800/80 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
+                      ? 'border-cyan-500/60 bg-gradient-to-r from-cyan-500/15 via-blue-600/10 to-slate-900/70 ring-1 ring-cyan-500/40 shadow-xl shadow-cyan-500/10'
+                      : 'border-white/[0.08] bg-slate-950/50 hover:border-white/[0.14] hover:bg-slate-900/40'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="subscriptionPlan"
-                        checked={isSelected}
-                        onChange={() => onPlanChange(plan.code)}
-                        className="w-4 h-4 text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700"
-                      />
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="pt-0.5">
+                        <input
+                          type="radio"
+                          name="subscriptionPlan"
+                          checked={isSelected}
+                          onChange={() => onPlanChange(plan.code)}
+                          className="w-4 h-4 text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700 cursor-pointer"
+                        />
+                      </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-sm text-white">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-extrabold text-sm sm:text-base text-white">
                             {plan.name}
                           </span>
                           {plan.badge && (
@@ -200,16 +249,16 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-cyan-400 font-semibold">
-                          {plan.washes} lavados completos al mes
+                        <span className="text-xs text-cyan-400 font-semibold block mt-0.5">
+                          {plan.washes} lavados completos por mes
                         </span>
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <div className="font-black text-base sm:text-lg text-white">
+                    <div className="text-right shrink-0">
+                      <div className="font-black text-lg sm:text-xl text-white">
                         ${pricing.price.toLocaleString('es-AR')}
-                        <span className="text-[10px] text-slate-400 font-normal">/mes</span>
+                        <span className="text-[11px] text-slate-400 font-normal">/mes</span>
                       </div>
                       <div className="text-xs line-through text-slate-500">
                         ${pricing.orig.toLocaleString('es-AR')}
@@ -217,9 +266,17 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-300 mt-2.5 pl-7 leading-relaxed">
-                    {plan.benefits}
-                  </p>
+                  {/* Lista de características del plan */}
+                  <div className="mt-3.5 pt-3 border-t border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+                    {plan.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5 stroke-[2.5]" />
+                        </span>
+                        <span>{feature}</span>
+                      </div>
+                    ))}
+                  </div>
                 </label>
               );
             })}
@@ -227,15 +284,18 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
 
           {/* Opción de Retiro y Entrega a Domicilio para Oro y Platino */}
           {(selectedPlan === 'ORO' || selectedPlan === 'PLATINO') && (
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 backdrop-blur-md">
-              <label className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-slate-200 cursor-pointer">
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.08] space-y-3 backdrop-blur-md animate-in fade-in">
+              <label className="flex items-center gap-3 text-xs sm:text-sm font-semibold text-slate-200 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={homeDelivery}
                   onChange={(e) => onHomeDeliveryChange(e.target.checked)}
-                  className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700"
+                  className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-slate-900 border-slate-700 cursor-pointer"
                 />
-                <span>🚚 Retiro y Entrega a Domicilio en San Rafael (Bonificado)</span>
+                <span className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-cyan-400" />
+                  <span>Retiro y Entrega a Domicilio en San Rafael (Bonificado)</span>
+                </span>
               </label>
 
               {homeDelivery && (
@@ -244,7 +304,7 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
                   value={deliveryAddress}
                   onChange={(e) => onDeliveryAddressChange(e.target.value)}
                   placeholder="Dirección exacta de retiro (Ej: Av. Hipólito Yrigoyen 1420)"
-                  className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+                  className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-900/90 border border-white/[0.1] text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-inner"
                 />
               )}
             </div>

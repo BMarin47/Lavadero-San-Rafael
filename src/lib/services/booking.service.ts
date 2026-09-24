@@ -134,7 +134,7 @@ export class BookingService {
     }
 
     if (!slotMatch.isAvailable) {
-      throw new Error('Lo sentimos, este bloque horario ya completó su cupo máximo de 3 boxes.');
+      throw new Error('Lo sentimos, este bloque horario ya completó su capacidad máxima de atención.');
     }
 
     // 2. Transacción en base de datos
@@ -154,7 +154,7 @@ export class BookingService {
         },
       });
 
-      // b. Crear vehículo (sin patente)
+      // b. Crear vehículo registrado
       const vehicle = await tx.vehicle.create({
         data: {
           userId: user.id,
