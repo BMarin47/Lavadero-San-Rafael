@@ -101,37 +101,38 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   }, [fetchAvailability]);
 
   return (
-    <div className="rounded-3xl bg-slate-900/50 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-7 shadow-xl shadow-black/20 space-y-6 transition-all">
+    <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">
       {/* Header del Paso */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
-        <div className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center text-xs font-black shadow-lg shadow-cyan-500/25">
+      <div className="flex items-center justify-between border-b border-white/[0.08] pb-5">
+        <div className="flex items-center gap-3.5">
+          <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-sky-500 to-blue-600 text-slate-950 flex items-center justify-center text-sm font-black shadow-lg shadow-cyan-500/25">
             03
           </span>
           <div>
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
+            <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
               Fecha y Horario de Atención
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-0.5">
               Seleccioná el día y bloque horario para tu reserva
             </p>
           </div>
         </div>
-        <span className="text-[11px] font-semibold text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-3.5 py-1.5 rounded-full border border-cyan-500/25 shadow-sm">
           Paso 3 de 4
         </span>
       </div>
 
       {/* Selector de Fecha */}
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
             Días Disponibles
           </label>
-          <span className="text-[11px] text-slate-400">San Rafael (Mendoza)</span>
+          <span className="text-[11px] text-slate-400 font-medium">San Rafael, Mendoza</span>
         </div>
 
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
           {nextDays.map((d) => {
             const isSelected = selectedDate === d.dateString;
 
@@ -141,26 +142,26 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 type="button"
                 disabled={d.isSunday}
                 onClick={() => onDateChange(d.dateString)}
-                className={`p-3 rounded-2xl border text-center transition-all duration-200 relative cursor-pointer ${
+                className={`p-3.5 rounded-2xl border text-center transition-all duration-300 relative cursor-pointer ${
                   isSelected
-                    ? 'border-cyan-500/60 bg-gradient-to-b from-cyan-500/20 via-blue-600/15 to-slate-900/70 text-white ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-500/10 scale-[1.03]'
+                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20 scale-[1.04]'
                     : d.isSunday
-                    ? 'border-white/[0.03] bg-slate-950/20 text-slate-600 cursor-not-allowed opacity-40'
-                    : 'border-white/[0.06] bg-slate-950/50 text-slate-300 hover:border-white/[0.14] hover:bg-slate-900/40 hover:text-white'
+                    ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-40'
+                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white hover:scale-[1.02]'
                 }`}
               >
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                   {d.dayName}
                 </div>
-                <div className="text-lg font-black my-0.5 text-white">
+                <div className="text-xl font-black my-1 text-white">
                   {d.dayNumber}
                 </div>
                 <div
-                  className={`text-[9px] font-bold uppercase tracking-wider ${
+                  className={`text-[9px] font-bold uppercase tracking-wider py-0.5 rounded-md ${
                     d.isSunday
                       ? 'text-rose-400/70'
                       : isSelected
-                      ? 'text-cyan-300 font-extrabold'
+                      ? 'text-cyan-300 font-black'
                       : 'text-slate-500'
                   }`}
                 >
@@ -174,26 +175,26 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
       {/* Estado de carga */}
       {loading && (
-        <div className="py-8 flex flex-col items-center justify-center text-xs text-slate-300 space-y-2.5 bg-slate-950/40 rounded-2xl border border-white/[0.06]">
-          <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
-          <span className="font-medium text-slate-300">Consultando disponibilidad en tiempo real...</span>
+        <div className="py-9 flex flex-col items-center justify-center text-xs text-slate-300 space-y-3 bg-slate-950/50 rounded-2xl border border-white/[0.07]">
+          <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
+          <span className="font-semibold text-slate-300">Consultando disponibilidad en tiempo real...</span>
         </div>
       )}
 
       {/* Error de Conexión */}
       {!loading && fetchError && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-200 text-xs flex items-start justify-between gap-3 backdrop-blur-md">
-          <div className="flex items-start gap-2.5">
+        <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex items-start justify-between gap-3.5 backdrop-blur-md">
+          <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-rose-100">Disponibilidad temporalmente no accesible</p>
-              <p className="text-[11px] text-rose-300/80 mt-0.5">{fetchError}</p>
+              <p className="font-bold text-rose-100">Disponibilidad no accesible</p>
+              <p className="text-[11px] text-rose-300/90 mt-0.5">{fetchError}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => fetchAvailability()}
-            className="px-3 py-1.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-100 rounded-xl text-xs font-semibold tracking-wide border border-rose-500/40 transition-all shrink-0 cursor-pointer active:scale-95"
+            className="px-3.5 py-1.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-100 rounded-xl text-xs font-bold tracking-wide border border-rose-500/40 transition-all shrink-0 cursor-pointer active:scale-95"
           >
             Reintentar
           </button>
@@ -202,26 +203,27 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
       {/* Alerta de Cierre */}
       {!loading && !fetchError && !isOpen && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-start gap-3 backdrop-blur-md">
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3.5 backdrop-blur-md">
           <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold text-amber-100">Día no disponible para atención</p>
-            <p className="text-xs text-amber-300/80 mt-0.5">{reasonClosed}</p>
+            <p className="text-xs text-amber-300/90 mt-0.5">{reasonClosed}</p>
           </div>
         </div>
       )}
 
       {/* Grilla de Bloques Horarios */}
       {!loading && !fetchError && isOpen && (
-        <div className="space-y-3 pt-1">
+        <div className="space-y-3.5 pt-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
               Turnos Disponibles
             </label>
             <span className="text-[11px] text-slate-400 font-medium">Actualización automática</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {slots.map((slot) => {
               const isSelected =
                 selectedSlot?.startTime === slot.startTime &&
@@ -238,20 +240,20 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                       endTime: slot.endTime,
                     })
                   }
-                  className={`p-4 rounded-2xl border text-left flex items-center justify-between transition-all duration-200 cursor-pointer ${
+                  className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between transition-all duration-300 cursor-pointer ${
                     !slot.isAvailable
-                      ? 'opacity-40 bg-slate-950/30 border-white/[0.04] cursor-not-allowed text-slate-500'
+                      ? 'opacity-40 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500'
                       : isSelected
-                      ? 'border-cyan-500/60 bg-gradient-to-r from-cyan-500/15 via-blue-600/10 to-slate-900/70 text-white ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-500/10'
-                      : 'border-white/[0.08] bg-slate-950/50 text-slate-200 hover:border-white/[0.14] hover:bg-slate-900/40'
+                      ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/20 via-blue-600/10 to-slate-900/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/15 scale-[1.01]'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/50 hover:scale-[1.005]'
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="text-sm font-bold flex items-center gap-2 text-white">
+                  <div className="space-y-1.5">
+                    <div className="text-sm sm:text-base font-extrabold flex items-center gap-2 text-white">
                       <Clock className="w-4 h-4 text-cyan-400" />
                       <span>{slot.startTime} a {slot.endTime} hs</span>
                     </div>
-                    <div className="text-[11px] text-slate-400 pl-6">
+                    <div className="text-xs text-slate-400 pl-6">
                       {slot.isAvailable
                         ? `${slot.remainingCapacity} ${
                             slot.remainingCapacity === 1 ? 'cupo disponible' : 'cupos disponibles'
@@ -261,12 +263,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                   </div>
 
                   <span
-                    className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                    className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-wider shrink-0 shadow-sm ${
                       !slot.isAvailable
-                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
                         : isSelected
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
-                        : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                        ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black'
+                        : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
                     }`}
                   >
                     {isSelected ? '✓ Seleccionado' : slot.isAvailable ? 'Disponible' : 'Lleno'}
