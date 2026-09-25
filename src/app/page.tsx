@@ -569,7 +569,7 @@ export default function Home() {
           </div>
 
           {/* Título Principal Hero */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400 drop-shadow-md tracking-tight">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400">
             AquaShine San Rafael
           </h1>
 
