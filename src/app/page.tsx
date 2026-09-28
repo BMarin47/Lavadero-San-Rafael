@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
 import {
@@ -39,6 +40,7 @@ import {
   ChevronRight,
   Award,
   Zap,
+  LogIn,
 } from 'lucide-react';
 
 // Componente para escuchar el retorno de Mercado Pago (?status=approved&id=...)
@@ -553,8 +555,25 @@ export default function Home() {
         </div>
       )}
 
+      {/* BARRA SUPERIOR CON BOTÓN INICIAR SESIÓN */}
+      <nav className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
+          <span className="text-xs sm:text-sm font-black tracking-tight text-white">
+            AquaShine <span className="text-cyan-400">San Rafael</span>
+          </span>
+        </div>
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 cursor-pointer"
+        >
+          <LogIn className="w-4 h-4 text-slate-950" />
+          <span>Iniciar Sesión</span>
+        </Link>
+      </nav>
+
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 space-y-12">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-12">
         
         {/* HERO SECTION IMPACTANTE */}
         <header className="text-center space-y-6 max-w-4xl mx-auto">
