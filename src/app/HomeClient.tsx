@@ -291,12 +291,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         : `Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`;
 
       // =========================================================================
-      // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS VINCULADO AL USUARIO)
+      // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS / POSTGRESQL)
       // =========================================================================
       let dbError: string | null = null;
 
       try {
-        // Intentamos guardar mediante el endpoint de servidor /api/turnos
         const turnoRes = await fetch('/api/turnos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -312,36 +311,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         const turnoResult = await turnoRes.json().catch(() => ({}));
 
         if (!turnoRes.ok) {
-          // Si el endpoint del servidor da error, probamos inserción directa con el cliente de Supabase
-          const { error: directErr } = await supabase.from('turnos').insert({
-            user_id: activeUser.id,
-            nombre_cliente: fullName.trim(),
-            vehiculo: vehicleSummaryDisplay,
-            categoria: vehicleType,
-            precio: currentTotal,
-            indicaciones: indicacionesTexto,
-            estado: 'pendiente',
-          });
-
-          if (directErr) {
-            dbError = directErr.message || turnoResult.error || 'Error al guardar el turno en la base de datos.';
-          }
+          dbError = turnoResult.error || 'Error al registrar el turno en la base de datos.';
         }
       } catch (err: any) {
-        // Fallback a inserción directa con el cliente de Supabase
-        const { error: directErr } = await supabase.from('turnos').insert({
-          user_id: activeUser.id,
-          nombre_cliente: fullName.trim(),
-          vehiculo: vehicleSummaryDisplay,
-          categoria: vehicleType,
-          precio: currentTotal,
-          indicaciones: indicacionesTexto,
-          estado: 'pendiente',
-        });
-
-        if (directErr) {
-          dbError = directErr.message || err.message;
-        }
+        dbError = err.message || 'Error de conexión con el servidor.';
       }
 
       // FRENO DE SEGURIDAD ESTRICTO: Si la base de datos falla, se detiene el proceso y se avisa al usuario

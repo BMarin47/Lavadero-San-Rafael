@@ -43,14 +43,22 @@ export default function DashboardClient({ user }: { user: User }) {
     async function loadTurnos() {
       try {
         setLoadingTurnos(true);
-        // Consulta protegida por RLS en Supabase (solo recupera turnos propios)
+        // 1. Consulta en Supabase
         const { data, error } = await supabase
           .from('turnos')
           .select('*')
           .order('fecha_creacion', { ascending: false });
 
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           setTurnos(data as TurnoItem[]);
+          return;
+        }
+
+        // 2. Fallback a /api/turnos (que consulta PostgreSQL de DATABASE_URL)
+        const res = await fetch('/api/turnos');
+        const json = await res.json().catch(() => ({}));
+        if (json.success && Array.isArray(json.turnos)) {
+          setTurnos(json.turnos as TurnoItem[]);
         }
       } catch (err) {
         console.warn('Error al cargar turnos del usuario:', err);
