@@ -41,6 +41,7 @@ import {
   Award,
   Zap,
   LogIn,
+  UserPlus,
 } from 'lucide-react';
 
 // Componente para escuchar el retorno de Mercado Pago (?status=approved&id=...)
@@ -555,7 +556,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* BARRA SUPERIOR CON BOTÓN INICIAR SESIÓN */}
+      {/* BARRA SUPERIOR CON BOTONES DE ACCESO */}
       <nav className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
@@ -563,13 +564,22 @@ export default function Home() {
             AquaShine <span className="text-cyan-400">San Rafael</span>
           </span>
         </div>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 cursor-pointer"
-        >
-          <LogIn className="w-4 h-4 text-slate-950" />
-          <span>Iniciar Sesión</span>
-        </Link>
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.15] text-slate-200 hover:text-white font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-md"
+          >
+            <LogIn className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Iniciar Sesión</span>
+          </Link>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-slate-950" />
+            <span>Registrarse</span>
+          </Link>
+        </div>
       </nav>
 
       {/* CONTENEDOR PRINCIPAL */}
