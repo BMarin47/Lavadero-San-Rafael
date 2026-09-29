@@ -298,7 +298,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       // =========================================================================
       // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS / POSTGRESQL)
       // =========================================================================
+      // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS / SUPABASE / POSTGRESQL)
+      // =========================================================================
       let dbError: string | null = null;
+      let turnoCreado: any = null;
 
       try {
         const turnoRes = await fetch('/api/turnos', {
@@ -317,6 +320,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
         if (!turnoRes.ok) {
           dbError = turnoResult.error || 'Error al registrar el turno en la base de datos.';
+        } else {
+          turnoCreado = turnoResult.turno;
         }
       } catch (err: any) {
         dbError = err.message || 'Error de conexión con el servidor.';
@@ -334,13 +339,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         return;
       }
 
-      // =========================================================================
-      // PASO 2: ENVÍO DE CORREO DE CONFIRMACIÓN MEDIANTE RESEND API
-      // =========================================================================
-      const emailPayload = {
-        userEmail: userEmail.trim(),
-        userFullName: fullName.trim(),
-        userPhone: fullUserPhone,
+      // Guardar información del turno en localStorage para que /reserva-exitosa dispare el email y WhatsApp
+      const pendingBookingData = {
+        clientName: fullName.trim(),
+        clientEmail: userEmail.trim(),
+        clientPhone: fullUserPhone,
+        vehicleSummary: vehicleSummaryDisplay,
         vehicleType,
         vehicleBrand: effectiveBrand,
         vehicleModel: effectiveModel,
@@ -352,17 +356,14 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         homeDelivery,
         deliveryAddress: homeDelivery ? deliveryAddress.trim() : undefined,
         notes: notes.trim(),
+        turnoId: turnoCreado?.id,
       };
 
-      const emailRes = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailPayload),
-      });
-
-      const emailData = await emailRes.json().catch(() => ({}));
-      if (!emailRes.ok) {
-        throw new Error(emailData.error || 'Error al enviar el correo de confirmación.');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          'lavadero_pending_booking',
+          JSON.stringify(pendingBookingData)
+        );
       }
 
       // Registro complementario no bloqueante en /api/bookings si corresponde
@@ -393,51 +394,41 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       }
 
       // =========================================================================
-      // PASO 3: APERTURA DE WHATSAPP CON MENSAJE PRE-CARGADO
+      // PASO 2: LLAMAR A LA API DE CHECKOUT PARA OBTENER EL INIT_POINT (URL DE PAGO)
       // =========================================================================
-      const lines = [
-        '¡Hola AquaShine San Rafael! 👋',
-        'Acabo de solicitar un turno a través de la Web App:',
-        '',
-        `📅 *Fecha:* ${selectedDate}`,
-        `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-        `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
-        `🧼 *Servicio:* ${serviceDescription}`,
-        `💰 *Total:* $${currentTotal.toLocaleString('es-AR')} ARS (${paymentLabel})`,
-        `👤 *Cliente:* ${fullName.trim()}`,
-        `📱 *Teléfono:* ${fullUserPhone}`,
-        `📧 *Email:* ${userEmail.trim()}`,
-      ];
-
-      if (homeDelivery && deliveryAddress) {
-        lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${deliveryAddress.trim()}`);
-      }
-
-      if (notes && notes.trim()) {
-        lines.push(`📝 *Notas:* ${notes.trim()}`);
-      }
-
-      lines.push('', '¡Muchas gracias! Aguardo su confirmación.');
-
-      const encodedText = encodeURIComponent(lines.join('\n'));
-      const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodedText}`;
-
-      // Abrir WhatsApp en una nueva pestaña con el mensaje pre-cargado
-      if (typeof window !== 'undefined') {
-        window.open(whatsAppUrl, '_blank');
-      }
-
-      // Modal de confirmación y toast de éxito
-      setConfirmedBookingData({
-        whatsAppUrl,
-        summaryText: `${selectedDate} de ${selectedSlot.startTime} a ${selectedSlot.endTime} hs • ${vehicleSummaryDisplay}`,
+      const checkoutRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoria: vehicleType,
+          precio: currentTotal,
+          turnoId: turnoCreado?.id,
+          vehiculo: vehicleSummaryDisplay,
+          nombre_cliente: fullName.trim(),
+          userEmail: userEmail.trim(),
+        }),
       });
 
+      const checkoutData = await checkoutRes.json().catch(() => ({}));
+
+      if (!checkoutRes.ok || !checkoutData?.init_point) {
+        throw new Error(
+          checkoutData.error || 'No se pudo generar el enlace de pago con Mercado Pago.'
+        );
+      }
+
+      // =========================================================================
+      // PASO 3: REDIRIGIR AL USUARIO A LA URL DE PAGO (CHECKOUT PRO)
+      // =========================================================================
       showToast(
-        '¡Turno Guardado y Confirmado!',
-        'Guardamos tu turno en la base de datos, enviamos el correo y abrimos WhatsApp con el lavadero.',
-        'success'
+        'Redirigiendo a Mercado Pago',
+        'Turno registrado. Te estamos redirigiendo para completar el pago de forma segura...',
+        'info'
       );
+
+      if (typeof window !== 'undefined') {
+        window.location.href = checkoutData.init_point;
+      }
     } catch (err: any) {
       showToast('No se pudo procesar la reserva', err.message || 'Error de conexión', 'error');
     } finally {
@@ -1040,23 +1031,23 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   type="button"
                   disabled={submitting}
                   onClick={handleSubmitBooking}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-emerald-600/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-[#009EE3]/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
                 >
                   {submitting ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Enviando email y preparando WhatsApp...</span>
+                      <span>Registrando turno y redirigiendo a Mercado Pago...</span>
                     </>
                   ) : (
                     <>
-                      <span>Confirmar Turno y Abrir WhatsApp</span>
-                      <MessageCircle className="w-5 h-5" />
+                      <span>Pagar Reserva con Mercado Pago</span>
+                      <CreditCard className="w-5 h-5" />
                     </>
                   )}
                 </button>
 
                 <p className="text-[11px] text-center text-slate-400 leading-tight">
-                  📩 Se enviará una copia a <strong>{userEmail || 'tu email'}</strong> y se abrirá WhatsApp directamente con nuestro número (+54 9 260 465-4255) para coordinar los detalles.
+                  🔒 Pago protegido mediante <strong>Mercado Pago Checkout Pro</strong>. Al confirmar, tu turno se guarda y serás redirigido para completar el pago de forma segura.
                 </p>
               </div>
 
