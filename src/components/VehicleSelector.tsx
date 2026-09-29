@@ -158,12 +158,12 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
   return (
     <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">
-      {/* Header del Paso */}
+      {/* Header de Sección */}
       <div className="flex items-center justify-between border-b border-white/[0.08] pb-5">
         <div className="flex items-center gap-3.5">
-          <span className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-sky-500 to-blue-600 text-slate-950 flex items-center justify-center text-sm font-black shadow-lg shadow-cyan-500/25">
-            01
-          </span>
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/10">
+            <Car className="w-5 h-5" />
+          </div>
           <div>
             <h2 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
               <span>Selección de Vehículo</span>
@@ -174,7 +174,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-3.5 py-1.5 rounded-full border border-cyan-500/25 shadow-sm">
-          Paso 1 de 4
+          Lavado Completo
         </span>
       </div>
 

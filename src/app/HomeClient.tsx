@@ -42,6 +42,8 @@ import {
   ChevronRight,
   Award,
   Zap,
+  User as UserIcon,
+  MessageSquare,
   LogIn,
   UserPlus,
   LogOut,
@@ -209,12 +211,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
   // Cálculo de Precio
   const currentTotal = useMemo(() => {
-    if (serviceMode === 'INDIVIDUAL') {
-      return VEHICLE_CONFIG[vehicleType].price;
-    }
-    const plan = PLANS_CATALOG.find((p) => p.code === selectedPlan);
-    return plan ? plan.prices[vehicleType].price : 38000;
-  }, [serviceMode, vehicleType, selectedPlan]);
+    return VEHICLE_CONFIG[vehicleType]?.price || 22000;
+  }, [vehicleType]);
 
   // Manejador de Reserva y Redirección
   const handleSubmitBooking = async () => {
@@ -243,16 +241,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       return;
     }
 
-    if (!userEmail.trim()) {
-      showToast('Correo requerido', 'Por favor ingresá tu correo electrónico para el comprobante.', 'warning');
+    const rawPhoneDigits = phone.replace(/\D/g, '');
+    if (!phone.trim() || rawPhoneDigits.length < 6) {
+      showToast('WhatsApp requerido', 'Por favor ingresá un número de WhatsApp celular válido.', 'warning');
       return;
     }
 
-    const rawPhoneDigits = phone.replace(/\D/g, '');
-    if (!phone.trim() || rawPhoneDigits.length < 6) {
-      showToast('Teléfono requerido', 'Por favor ingresá un número de WhatsApp celular válido.', 'warning');
-      return;
-    }
+    const effectiveEmail = (user?.email || userEmail || 'cliente@lavadero.com').trim();
 
     // Aseguramos la combinación del prefijo +54 9 con el número ingresado
     let cleanPhoneDigits = phone.trim().replace(/^(\+?54\s*9?|\+?54)\s*/, '');
@@ -342,7 +337,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       // Guardar información del turno en localStorage para que /reserva-exitosa dispare el email y WhatsApp
       const pendingBookingData = {
         clientName: fullName.trim(),
-        clientEmail: userEmail.trim(),
+        clientEmail: effectiveEmail,
         clientPhone: fullUserPhone,
         vehicleSummary: vehicleSummaryDisplay,
         vehicleType,
@@ -353,8 +348,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         endTime: selectedSlot.endTime,
         serviceDescription,
         amount: currentTotal,
-        homeDelivery,
-        deliveryAddress: homeDelivery ? deliveryAddress.trim() : undefined,
         notes: notes.trim(),
         turnoId: turnoCreado?.id,
       };
@@ -372,7 +365,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userEmail: userEmail.trim(),
+            userEmail: effectiveEmail,
             userFullName: fullName.trim(),
             userPhone: fullUserPhone,
             vehicleType,
@@ -382,10 +375,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             startTime: selectedSlot.startTime,
             endTime: selectedSlot.endTime,
             serviceMode,
-            subscriptionPlanCode: serviceMode === 'SUBSCRIPTION' ? selectedPlan : undefined,
+            subscriptionPlanCode: undefined,
             paymentMethod,
-            homeDeliveryRequested: homeDelivery,
-            deliveryAddress: homeDelivery ? deliveryAddress.trim() : undefined,
             notes: notes.trim(),
           }),
         });
@@ -405,7 +396,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           turnoId: turnoCreado?.id,
           vehiculo: vehicleSummaryDisplay,
           nombre_cliente: fullName.trim(),
-          userEmail: userEmail.trim(),
+          userEmail: effectiveEmail,
         }),
       });
 
@@ -869,11 +860,9 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             </div>
           </div>
         ) : (
-          /* ESTRUCTURA PRINCIPAL RESPONSIVE (CUANDO SÍ HAY SESIÓN ACTIVA) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start animate-in fade-in duration-500">
-            {/* COLUMNA IZQUIERDA (PASOS 1, 2 Y 3) */}
-            <div className="lg:col-span-7 xl:col-span-7 space-y-8">
-            {/* PASO 1: SELECCIÓN DE VEHÍCULO */}
+          /* FORMULARIO CONTINUO EN UNA SOLA PANTALLA (SINGLE-SCREEN FLOW) */
+          <div className="max-w-2xl w-full mx-auto space-y-7 animate-in fade-in duration-500">
+            {/* 1. SELECCIÓN DE CATEGORÍA Y VEHÍCULO */}
             <VehicleSelector
               selectedType={vehicleType}
               onTypeChange={setVehicleType}
@@ -887,20 +876,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               onCustomModelTextChange={setCustomModelText}
             />
 
-            {/* PASO 2: MODALIDAD DE SERVICIO Y PLANES */}
-            <ServiceModeSelector
-              vehicleType={vehicleType}
-              mode={serviceMode}
-              onModeChange={setServiceMode}
-              selectedPlan={selectedPlan}
-              onPlanChange={setSelectedPlan}
-              homeDelivery={homeDelivery}
-              onHomeDeliveryChange={setHomeDelivery}
-              deliveryAddress={deliveryAddress}
-              onDeliveryAddressChange={setDeliveryAddress}
-            />
-
-            {/* PASO 3: FECHA Y TURNO HORARIO */}
+            {/* 2. FECHA Y HORARIO DE ATENCIÓN */}
             <CalendarSlotPicker
               selectedDate={selectedDate}
               onDateChange={setSelectedDate}
@@ -908,38 +884,90 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               onSlotChange={setSelectedSlot}
             />
 
-            {/* Badges de descarga en Desktop */}
-            <div className="hidden lg:block pt-3">
-              <AppDownloadBadges
-                placement="hero"
-                onSimulateClick={(store) =>
-                  showToast(
-                    'App Oficial',
-                    `Próximamente disponible para descargar en ${store}.`,
-                    'info'
-                  )
-                }
-              />
+            {/* 3. TUS DATOS DE CONTACTO (ULTRA RÁPIDO) */}
+            <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-5 transition-all duration-300">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/10">
+                    <UserIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                      Tus Datos de Contacto
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Completá solo lo indispensable para coordinar tu recepción
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                  ⚡ Ultra Rápido
+                </span>
+              </div>
+
+              <div className="space-y-4 pt-1">
+                {/* Nombre y Apellido */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2 flex items-center gap-2">
+                    <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Nombre y Apellido *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Ej: Juan Pérez"
+                    className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all shadow-inner hover:border-white/[0.18]"
+                  />
+                </div>
+
+                {/* WhatsApp / Celular */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2 flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>WhatsApp / Celular *</span>
+                  </label>
+                  <div className="flex rounded-2xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/25 transition-all overflow-hidden shadow-inner hover:border-white/[0.18]">
+                    <span className="inline-flex items-center px-4 bg-white/[0.04] border-r border-white/[0.08] text-xs font-extrabold text-cyan-400 select-none whitespace-nowrap">
+                      +54 9
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
+                        setPhone(val);
+                      }}
+                      placeholder="260 465-4255"
+                      className="w-full min-w-0 px-4 py-3.5 text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1 pl-1">
+                    Ingresá tu característica y número móvil (sin 0 y sin 15).
+                  </p>
+                </div>
+
+                {/* Indicaciones Opcionales */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1.5 flex items-center gap-2">
+                    <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Indicaciones especiales o preferencia (Opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ej: Retirar por la tarde, cuidado con llantas"
+                    className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* COLUMNA DERECHA (PASO 4: DATOS, MÉTODO DE PAGO Y RESUMEN FINAL) */}
-          <div className="lg:col-span-5 xl:col-span-5 space-y-8 lg:sticky lg:top-24">
-            {/* PASO 4: DATOS DE CONTACTO Y SELECTOR DE PAGO */}
-            <PaymentMethodSelector
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={setPaymentMethod}
-              userEmail={userEmail}
-              onEmailChange={setUserEmail}
-              fullName={fullName}
-              onFullNameChange={setFullName}
-              phone={phone}
-              onPhoneChange={setPhone}
-              notes={notes}
-              onNotesChange={setNotes}
-            />
-
-            {/* TARJETA RESUMEN DE RESERVA EN VIVO */}
+            {/* 4. RESUMEN Y BOTÓN DE PAGO CON MERCADO PAGO */}
             <section className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-6 border border-cyan-500/35 shadow-2xl shadow-cyan-950/30 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
                 <div>
@@ -951,12 +979,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   </h3>
                 </div>
                 <span className="text-[11px] px-3.5 py-1.5 rounded-full bg-cyan-500/10 text-cyan-300 font-extrabold border border-cyan-500/25 shadow-sm">
-                  En Tiempo Real
+                  Lavado Completo
                 </span>
               </div>
 
               {/* Detalle itemizado */}
-              <div className="space-y-4 text-xs">
+              <div className="space-y-3.5 text-xs sm:text-sm">
                 <div className="flex justify-between items-center text-slate-300">
                   <span className="text-slate-400">Vehículo:</span>
                   <span className="font-extrabold text-white text-right">
@@ -965,44 +993,26 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
 
                 <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Modalidad:</span>
-                  <span className="font-extrabold text-cyan-400 text-right">
-                    {serviceMode === 'INDIVIDUAL'
-                      ? 'Lavado Completo Individual'
-                      : `Suscripción Mensual ${selectedPlan}`}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-slate-300">
                   <span className="text-slate-400">Fecha y Horario:</span>
                   <span className="font-extrabold text-white text-right">
                     {selectedSlot
                       ? `${selectedDate} (${selectedSlot.startTime} a ${selectedSlot.endTime} hs)`
-                      : '⚠️ Seleccioná un horario'}
+                      : '⚠️ Seleccioná un horario arriba'}
                   </span>
                 </div>
 
-                {homeDelivery && deliveryAddress && (
-                  <div className="flex justify-between items-start text-slate-300 pt-1">
-                    <span className="text-slate-400">Retiro / Entrega:</span>
-                    <span className="font-semibold text-slate-200 text-right max-w-[200px] truncate">
-                      {deliveryAddress}
-                    </span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="text-slate-400">Contacto:</span>
+                  <span className="font-bold text-slate-200 text-right">
+                    {fullName.trim() ? fullName.trim() : 'Pendiente'}{' '}
+                    {phone.trim() ? `(+54 9 ${phone.replace(/\D/g, '')})` : ''}
+                  </span>
+                </div>
 
                 <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Forma de Pago:</span>
-                  <span
-                    className={`font-black text-right ${
-                      paymentMethod === 'MERCADO_PAGO'
-                        ? 'text-[#00c8ff]'
-                        : 'text-emerald-400'
-                    }`}
-                  >
-                    {paymentMethod === 'MERCADO_PAGO'
-                      ? 'Mercado Pago (Online)'
-                      : 'Efectivo en Recepción'}
+                  <span className="text-slate-400">Pasarela:</span>
+                  <span className="font-black text-[#00c8ff] text-right">
+                    Mercado Pago Checkout Pro
                   </span>
                 </div>
               </div>
@@ -1063,22 +1073,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </div>
             </section>
-
-            {/* Badges de descarga en móvil */}
-            <div className="block lg:hidden">
-              <AppDownloadBadges
-                placement="hero"
-                onSimulateClick={(store) =>
-                  showToast(
-                    'App Oficial',
-                    `Próximamente disponible para descargar en ${store}.`,
-                    'info'
-                  )
-                }
-              />
-            </div>
           </div>
-        </div>
         )}
 
         {/* PIE DE PÁGINA CONTEMPORÁNEO */}
