@@ -257,7 +257,46 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     setSubmitting(true);
 
     try {
-      const payload = {
+      const staticLavaderoPhone = '5492604654255';
+      const paymentLabel =
+        paymentMethod === 'MERCADO_PAGO'
+          ? 'Mercado Pago (A coordinar)'
+          : 'Efectivo en recepción';
+      const serviceDescription =
+        serviceMode === 'INDIVIDUAL'
+          ? 'Lavado Completo Individual'
+          : `Suscripción Mensual ${selectedPlan}`;
+
+      // Armado de mensaje para WhatsApp codificado en el parámetro text
+      const lines = [
+        '¡Hola AquaShine San Rafael! 👋',
+        'Acabo de solicitar un turno a través de la Web App:',
+        '',
+        `📅 *Fecha:* ${selectedDate}`,
+        `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+        `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
+        `🧼 *Servicio:* ${serviceDescription}`,
+        `💰 *Total:* $${currentTotal.toLocaleString('es-AR')} ARS (${paymentLabel})`,
+        `👤 *Cliente:* ${fullName.trim()}`,
+        `📱 *Teléfono:* ${fullUserPhone}`,
+        `📧 *Email:* ${userEmail.trim()}`,
+      ];
+
+      if (homeDelivery && deliveryAddress) {
+        lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${deliveryAddress.trim()}`);
+      }
+
+      if (notes && notes.trim()) {
+        lines.push(`📝 *Notas:* ${notes.trim()}`);
+      }
+
+      lines.push('', '¡Muchas gracias! Aguardo su confirmación.');
+
+      const encodedText = encodeURIComponent(lines.join('\n'));
+      const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodedText}`;
+
+      // 1. Envío de correo de confirmación mediante Resend API
+      const emailPayload = {
         userEmail: userEmail.trim(),
         userFullName: fullName.trim(),
         userPhone: fullUserPhone,
@@ -267,73 +306,69 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         appointmentDate: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
-        serviceMode,
-        subscriptionPlanCode: serviceMode === 'SUBSCRIPTION' ? selectedPlan : undefined,
-        paymentMethod,
-        homeDeliveryRequested: homeDelivery,
+        serviceDescription,
+        amount: currentTotal,
+        homeDelivery,
         deliveryAddress: homeDelivery ? deliveryAddress.trim() : undefined,
         notes: notes.trim(),
       };
 
-      const res = await fetch('/api/bookings', {
+      const emailRes = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(emailPayload),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Error procesando tu turno.');
+      const emailData = await emailRes.json().catch(() => ({}));
+      if (!emailRes.ok) {
+        throw new Error(emailData.error || 'Error al enviar el correo de confirmación.');
       }
 
-      let whatsAppUrl = data.data?.whatsAppUrl;
-      if (whatsAppUrl) {
-        whatsAppUrl = whatsAppUrl.replace(/wa\.me\/([^?]+)/, (_: string, targetPhone: string) => {
-          let digits = targetPhone.replace(/\D/g, '');
-          if (!digits.startsWith('549')) {
-            if (digits.startsWith('54')) digits = digits.slice(2);
-            digits = digits.replace(/^0+/, '');
-            digits = `549${digits}`;
-          }
-          return `wa.me/${digits.replace(/\D/g, '')}`;
+      // 2. Registro no bloqueante de la reserva en base de datos
+      try {
+        await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: userEmail.trim(),
+            userFullName: fullName.trim(),
+            userPhone: fullUserPhone,
+            vehicleType,
+            vehicleBrand: effectiveBrand,
+            vehicleModel: effectiveModel,
+            appointmentDate: selectedDate,
+            startTime: selectedSlot.startTime,
+            endTime: selectedSlot.endTime,
+            serviceMode,
+            subscriptionPlanCode: serviceMode === 'SUBSCRIPTION' ? selectedPlan : undefined,
+            paymentMethod,
+            homeDeliveryRequested: homeDelivery,
+            deliveryAddress: homeDelivery ? deliveryAddress.trim() : undefined,
+            notes: notes.trim(),
+          }),
         });
-      }
-      const mpCheckoutUrl = data.data?.mpCheckoutUrl;
-
-      // REDIRECCIÓN A MERCADO PAGO
-      if (paymentMethod === 'MERCADO_PAGO' && mpCheckoutUrl) {
-        showToast(
-          'Pre-reserva Lista',
-          'Conectando de forma segura con Mercado Pago...',
-          'success'
-        );
-
-        setRedirectingToMP({
-          url: mpCheckoutUrl,
-          title: `${vehicleSummaryDisplay} - ${serviceMode === 'INDIVIDUAL' ? 'Lavado Individual' : `Suscripción ${selectedPlan}`}`,
-          amount: currentTotal,
-        });
-
-        setTimeout(() => {
-          window.location.href = mpCheckoutUrl;
-        }, 700);
-        return;
+      } catch (dbErr) {
+        console.warn('[DB Booking Error non-blocking]:', dbErr);
       }
 
-      // PAGO EN EFECTIVO
+      // 3. Abrir WhatsApp en una nueva pestaña con el mensaje pre-cargado
+      if (typeof window !== 'undefined') {
+        window.open(whatsAppUrl, '_blank');
+      }
+
+      // 4. Modal de confirmación y toast de éxito
       setConfirmedBookingData({
         whatsAppUrl,
         summaryText: `${selectedDate} de ${selectedSlot.startTime} a ${selectedSlot.endTime} hs • ${vehicleSummaryDisplay}`,
       });
 
       showToast(
-        '¡Turno Reservado con Éxito!',
-        'Abrí WhatsApp con el resumen de tu turno para notificar al lavadero.',
+        '¡Turno Registrado con Éxito!',
+        'Enviamos la confirmación a tu correo y abrimos WhatsApp con el lavadero.',
         'success'
       );
     } catch (err: any) {
-      showToast('No se pudo reservar', err.message || 'Error de conexión', 'error');
+      showToast('No se pudo procesar la reserva', err.message || 'Error de conexión', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -508,7 +543,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Abonarás en efectivo en el lavadero al entregar tu vehículo. Hacé clic abajo para abrir WhatsApp con el resumen de tu turno y notificar al equipo:
+              Enviamos el comprobante a tu correo electrónico. Si WhatsApp no se abrió de forma automática, hacé clic en el botón de abajo para enviar el mensaje con los detalles a nuestro número oficial (+54 9 260 465-4255):
             </p>
 
             <div className="space-y-2.5 pt-2">
@@ -929,55 +964,30 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </div>
 
               {/* BOTÓN DE ACCIÓN DINÁMICO */}
-              {paymentMethod === 'MERCADO_PAGO' ? (
-                <div className="space-y-3 pt-2">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleSubmitBooking}
-                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#009EE3] via-[#00a8f3] to-[#007ebb] hover:from-[#00a8f3] hover:to-[#008ecb] text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-[#009EE3]/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 group cursor-pointer"
-                  >
-                    {submitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Conectando con Mercado Pago...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-5 h-5" />
-                        <span>Pagar con Mercado Pago • ${currentTotal.toLocaleString('es-AR')}</span>
-                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-[11px] text-center text-slate-400 leading-tight">
-                    🔒 Serás redirigido al checkout oficial de <strong>Mercado Pago</strong> para completar tu pago de forma segura.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleSubmitBooking}
-                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-emerald-600/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
-                  >
-                    {submitting ? (
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleSubmitBooking}
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-emerald-600/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <span>Confirmar Turno y Notificar por WhatsApp</span>
-                        <MessageCircle className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
+                      <span>Enviando email y preparando WhatsApp...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Confirmar Turno y Abrir WhatsApp</span>
+                      <MessageCircle className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
 
-                  <p className="text-[11px] text-center text-slate-400 leading-tight">
-                    💵 Abonás presencialmente en recepción al entregar tu vehículo. Se abrirá WhatsApp con el detalle de la reserva.
-                  </p>
-                </div>
-              )}
+                <p className="text-[11px] text-center text-slate-400 leading-tight">
+                  📩 Se enviará una copia a <strong>{userEmail || 'tu email'}</strong> y se abrirá WhatsApp directamente con nuestro número (+54 9 260 465-4255) para coordinar los detalles.
+                </p>
+              </div>
 
               {/* Sellos de Seguridad Contemporáneos */}
               <div className="pt-3 border-t border-white/[0.08] grid grid-cols-2 gap-2.5 text-[10px] text-slate-400 text-center">

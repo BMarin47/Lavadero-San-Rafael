@@ -85,10 +85,8 @@ export function generateWhatsAppBookingUrl(params: {
   homeDelivery?: boolean;
   deliveryAddress?: string;
 }): string {
-  // 1. Toma dinámicamente el número real ingresado por el usuario en el formulario
-  const rawPhone = params.userPhone || params.lavaderoPhone || DEFAULT_LAVADERO_PHONE;
-  // 2. Limpieza estricta con regex (.replace(/\D/g, '')) antes de inyectarla en la URL de wa.me
-  const cleanPhone = sanitizeWhatsAppPhone(rawPhone).replace(/\D/g, '');
+  // Destino estático al número oficial del lavadero
+  const cleanPhone = '5492604654255';
 
   const paymentText =
     params.paymentMethod === 'MERCADO_PAGO'
