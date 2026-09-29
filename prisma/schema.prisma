@@ -130,3 +130,18 @@ model HolidayCache {
   year        Int
   createdAt   DateTime @default(now())
 }
+
+model Turno {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  nombreCliente String   @map("nombre_cliente")
+  vehiculo      String
+  categoria     String
+  precio        Float
+  indicaciones  String?
+  estado        String   @default("pendiente")
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
+
+  @@map("turnos")
+}
+

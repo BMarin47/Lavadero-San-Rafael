@@ -19,11 +19,48 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
+interface TurnoItem {
+  id: string;
+  user_id: string;
+  nombre_cliente: string;
+  vehiculo: string;
+  categoria: string;
+  precio: number;
+  indicaciones?: string | null;
+  estado: string;
+  fecha_creacion: string;
+}
+
 export default function DashboardClient({ user }: { user: User }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [turnos, setTurnos] = useState<TurnoItem[]>([]);
+  const [loadingTurnos, setLoadingTurnos] = useState(true);
 
   const supabase = createClient();
+
+  React.useEffect(() => {
+    async function loadTurnos() {
+      try {
+        setLoadingTurnos(true);
+        // Consulta protegida por RLS en Supabase (solo recupera turnos propios)
+        const { data, error } = await supabase
+          .from('turnos')
+          .select('*')
+          .order('fecha_creacion', { ascending: false });
+
+        if (!error && data) {
+          setTurnos(data as TurnoItem[]);
+        }
+      } catch (err) {
+        console.warn('Error al cargar turnos del usuario:', err);
+      } finally {
+        setLoadingTurnos(false);
+      }
+    }
+
+    loadTurnos();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -125,7 +162,9 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
             <div>
               <p className="text-xs font-medium text-slate-400">Turnos Pendientes</p>
-              <p className="text-xl font-black text-white">0</p>
+              <p className="text-xl font-black text-white">
+                {loadingTurnos ? '...' : turnos.filter((t) => t.estado === 'pendiente').length}
+              </p>
             </div>
           </div>
 
@@ -135,7 +174,11 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
             <div>
               <p className="text-xs font-medium text-slate-400">Vehículos en Cuenta</p>
-              <p className="text-xl font-black text-white">1 perfil</p>
+              <p className="text-xl font-black text-white">
+                {loadingTurnos
+                  ? '...'
+                  : `${new Set(turnos.map((t) => t.vehiculo)).size || 1} perfil`}
+              </p>
             </div>
           </div>
 
@@ -157,7 +200,7 @@ export default function DashboardClient({ user }: { user: User }) {
               <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
                 <span>Mis Turnos</span>
                 <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-white/[0.08] text-slate-400">
-                  0 programados
+                  {loadingTurnos ? 'Cargando...' : `${turnos.length} programado${turnos.length === 1 ? '' : 's'}`}
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
@@ -166,31 +209,86 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
           </div>
 
-          {/* EMPTY STATE ATRACTIVO */}
-          <div className="rounded-3xl border border-dashed border-white/[0.15] bg-slate-900/30 p-8 sm:p-14 text-center space-y-6">
-            <div className="w-20 h-20 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto shadow-xl shadow-cyan-500/10">
-              <Calendar className="w-10 h-10 text-cyan-400" />
+          {loadingTurnos ? (
+            <div className="rounded-3xl border border-white/[0.08] bg-slate-900/30 p-12 text-center flex items-center justify-center gap-3">
+              <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-slate-400">Consultando tus reservas en la base de datos...</span>
             </div>
+          ) : turnos.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {turnos.map((t) => (
+                <div
+                  key={t.id}
+                  className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-5 space-y-4 hover:border-cyan-500/40 transition-all shadow-lg"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block">
+                        {t.categoria || 'Vehículo'}
+                      </span>
+                      <h4 className="text-base font-black text-white">{t.vehiculo}</h4>
+                    </div>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/25">
+                      {t.estado}
+                    </span>
+                  </div>
 
-            <div className="max-w-md mx-auto space-y-2">
-              <h3 className="text-lg sm:text-xl font-bold text-white">
-                Aún no tienes turnos programados
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Cuando reserves tu turno de lavado artesanal o te unas a un plan mensual, podrás visualizar aquí el estado en vivo, la fecha asignada y el box de atención.
-              </p>
-            </div>
+                  {t.indicaciones && (
+                    <p className="text-xs text-slate-300 bg-white/[0.03] p-3 rounded-xl border border-white/[0.05] leading-relaxed">
+                      {t.indicaciones}
+                    </p>
+                  )}
 
-            <div className="pt-2">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/25 transition-all cursor-pointer group"
-              >
-                <span>Reservar ahora</span>
-                <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
-              </Link>
+                  <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Total:</span>
+                      <span className="text-white font-extrabold text-sm">
+                        ${Number(t.precio).toLocaleString('es-AR')} ARS
+                      </span>
+                    </div>
+
+                    <a
+                      href={`https://wa.me/5492604654255?text=${encodeURIComponent(
+                        `¡Hola AquaShine San Rafael! Consulto por mi turno de ${t.vehiculo} (ID: ${t.id.slice(0, 8)})`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-[11px] transition-all"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            /* EMPTY STATE ATRACTIVO */
+            <div className="rounded-3xl border border-dashed border-white/[0.15] bg-slate-900/30 p-8 sm:p-14 text-center space-y-6">
+              <div className="w-20 h-20 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto shadow-xl shadow-cyan-500/10">
+                <Calendar className="w-10 h-10 text-cyan-400" />
+              </div>
+
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  Aún no tienes turnos programados
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  Cuando reserves tu turno de lavado artesanal o te unas a un plan mensual, podrás visualizar aquí el estado en vivo, la fecha asignada y el box de atención.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/25 transition-all cursor-pointer group"
+                >
+                  <span>Reservar ahora</span>
+                  <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ATENCIÓN AL CLIENTE / CONTACTO */}

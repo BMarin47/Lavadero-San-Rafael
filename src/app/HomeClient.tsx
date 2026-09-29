@@ -257,6 +257,24 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     setSubmitting(true);
 
     try {
+      // 0. Obtener y verificar el ID de la sesión del usuario (Supabase Auth)
+      const supabase = createClient();
+      const {
+        data: { user: sessionUser },
+      } = await supabase.auth.getUser();
+      const activeUser = sessionUser || user;
+
+      if (!activeUser?.id) {
+        showToast(
+          'Sesión requerida',
+          'Debés iniciar sesión para registrar tu reserva en el sistema.',
+          'warning'
+        );
+        router.push('/login');
+        setSubmitting(false);
+        return;
+      }
+
       const staticLavaderoPhone = '5492604654255';
       const paymentLabel =
         paymentMethod === 'MERCADO_PAGO'
@@ -267,35 +285,80 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           ? 'Lavado Completo Individual'
           : `Suscripción Mensual ${selectedPlan}`;
 
-      // Armado de mensaje para WhatsApp codificado en el parámetro text
-      const lines = [
-        '¡Hola AquaShine San Rafael! 👋',
-        'Acabo de solicitar un turno a través de la Web App:',
-        '',
-        `📅 *Fecha:* ${selectedDate}`,
-        `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-        `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
-        `🧼 *Servicio:* ${serviceDescription}`,
-        `💰 *Total:* $${currentTotal.toLocaleString('es-AR')} ARS (${paymentLabel})`,
-        `👤 *Cliente:* ${fullName.trim()}`,
-        `📱 *Teléfono:* ${fullUserPhone}`,
-        `📧 *Email:* ${userEmail.trim()}`,
-      ];
+      // Formateo de notas e indicaciones con fecha y franja horaria
+      const indicacionesTexto = notes.trim()
+        ? `${notes.trim()} (Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs)`
+        : `Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`;
 
-      if (homeDelivery && deliveryAddress) {
-        lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${deliveryAddress.trim()}`);
+      // =========================================================================
+      // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS VINCULADO AL USUARIO)
+      // =========================================================================
+      let dbError: string | null = null;
+
+      try {
+        // Intentamos guardar mediante el endpoint de servidor /api/turnos
+        const turnoRes = await fetch('/api/turnos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre_cliente: fullName.trim(),
+            vehiculo: vehicleSummaryDisplay,
+            categoria: vehicleType,
+            precio: currentTotal,
+            indicaciones: indicacionesTexto,
+          }),
+        });
+
+        const turnoResult = await turnoRes.json().catch(() => ({}));
+
+        if (!turnoRes.ok) {
+          // Si el endpoint del servidor da error, probamos inserción directa con el cliente de Supabase
+          const { error: directErr } = await supabase.from('turnos').insert({
+            user_id: activeUser.id,
+            nombre_cliente: fullName.trim(),
+            vehiculo: vehicleSummaryDisplay,
+            categoria: vehicleType,
+            precio: currentTotal,
+            indicaciones: indicacionesTexto,
+            estado: 'pendiente',
+          });
+
+          if (directErr) {
+            dbError = directErr.message || turnoResult.error || 'Error al guardar el turno en la base de datos.';
+          }
+        }
+      } catch (err: any) {
+        // Fallback a inserción directa con el cliente de Supabase
+        const { error: directErr } = await supabase.from('turnos').insert({
+          user_id: activeUser.id,
+          nombre_cliente: fullName.trim(),
+          vehiculo: vehicleSummaryDisplay,
+          categoria: vehicleType,
+          precio: currentTotal,
+          indicaciones: indicacionesTexto,
+          estado: 'pendiente',
+        });
+
+        if (directErr) {
+          dbError = directErr.message || err.message;
+        }
       }
 
-      if (notes && notes.trim()) {
-        lines.push(`📝 *Notas:* ${notes.trim()}`);
+      // FRENO DE SEGURIDAD ESTRICTO: Si la base de datos falla, se detiene el proceso y se avisa al usuario
+      if (dbError) {
+        console.error('[Error Base de Datos]:', dbError);
+        showToast(
+          'Error en Base de Datos',
+          `No se pudo registrar la reserva en la base de datos (${dbError}). El proceso fue cancelado.`,
+          'error'
+        );
+        setSubmitting(false);
+        return;
       }
 
-      lines.push('', '¡Muchas gracias! Aguardo su confirmación.');
-
-      const encodedText = encodeURIComponent(lines.join('\n'));
-      const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodedText}`;
-
-      // 1. Envío de correo de confirmación mediante Resend API
+      // =========================================================================
+      // PASO 2: ENVÍO DE CORREO DE CONFIRMACIÓN MEDIANTE RESEND API
+      // =========================================================================
       const emailPayload = {
         userEmail: userEmail.trim(),
         userFullName: fullName.trim(),
@@ -324,7 +387,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         throw new Error(emailData.error || 'Error al enviar el correo de confirmación.');
       }
 
-      // 2. Registro no bloqueante de la reserva en base de datos
+      // Registro complementario no bloqueante en /api/bookings si corresponde
       try {
         await fetch('/api/bookings', {
           method: 'POST',
@@ -351,20 +414,50 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         console.warn('[DB Booking Error non-blocking]:', dbErr);
       }
 
-      // 3. Abrir WhatsApp en una nueva pestaña con el mensaje pre-cargado
+      // =========================================================================
+      // PASO 3: APERTURA DE WHATSAPP CON MENSAJE PRE-CARGADO
+      // =========================================================================
+      const lines = [
+        '¡Hola AquaShine San Rafael! 👋',
+        'Acabo de solicitar un turno a través de la Web App:',
+        '',
+        `📅 *Fecha:* ${selectedDate}`,
+        `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+        `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
+        `🧼 *Servicio:* ${serviceDescription}`,
+        `💰 *Total:* $${currentTotal.toLocaleString('es-AR')} ARS (${paymentLabel})`,
+        `👤 *Cliente:* ${fullName.trim()}`,
+        `📱 *Teléfono:* ${fullUserPhone}`,
+        `📧 *Email:* ${userEmail.trim()}`,
+      ];
+
+      if (homeDelivery && deliveryAddress) {
+        lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${deliveryAddress.trim()}`);
+      }
+
+      if (notes && notes.trim()) {
+        lines.push(`📝 *Notas:* ${notes.trim()}`);
+      }
+
+      lines.push('', '¡Muchas gracias! Aguardo su confirmación.');
+
+      const encodedText = encodeURIComponent(lines.join('\n'));
+      const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodedText}`;
+
+      // Abrir WhatsApp en una nueva pestaña con el mensaje pre-cargado
       if (typeof window !== 'undefined') {
         window.open(whatsAppUrl, '_blank');
       }
 
-      // 4. Modal de confirmación y toast de éxito
+      // Modal de confirmación y toast de éxito
       setConfirmedBookingData({
         whatsAppUrl,
         summaryText: `${selectedDate} de ${selectedSlot.startTime} a ${selectedSlot.endTime} hs • ${vehicleSummaryDisplay}`,
       });
 
       showToast(
-        '¡Turno Registrado con Éxito!',
-        'Enviamos la confirmación a tu correo y abrimos WhatsApp con el lavadero.',
+        '¡Turno Guardado y Confirmado!',
+        'Guardamos tu turno en la base de datos, enviamos el correo y abrimos WhatsApp con el lavadero.',
         'success'
       );
     } catch (err: any) {
