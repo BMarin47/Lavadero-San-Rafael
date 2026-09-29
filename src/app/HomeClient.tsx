@@ -694,11 +694,81 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           </div>
         </header>
 
-        {/* ESTRUCTURA PRINCIPAL RESPONSIVE (7 cols Izquierda / 5 cols Derecha) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-          
-          {/* COLUMNA IZQUIERDA (PASOS 1, 2 Y 3) */}
-          <div className="lg:col-span-7 xl:col-span-7 space-y-8">
+        {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
+        {!user ? (
+          <div className="w-full max-w-2xl mx-auto py-4 sm:py-8 animate-in fade-in zoom-in-95 duration-500">
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900/80 border border-white/[0.1] p-8 sm:p-12 text-center backdrop-blur-2xl shadow-2xl shadow-black/40">
+              {/* Resplandor ambiental decorativo */}
+              <div className="absolute -top-24 -left-24 w-56 h-56 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -right-24 w-56 h-56 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Icono central de reserva */}
+              <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10 mb-6">
+                <Calendar className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-400" />
+              </div>
+
+              {/* Mensaje principal requerido */}
+              <div className="space-y-3 max-w-lg mx-auto">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  ¡Reserva tu turno online!
+                </h2>
+                <p className="text-base sm:text-lg font-semibold text-cyan-300 leading-relaxed">
+                  Para solicitar un turno, por favor inicia sesión o crea una cuenta.
+                </p>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed pt-1">
+                  Accede al sistema de reservas en vivo de San Rafael, consulta disponibilidad de boxes en tiempo real y gestiona el historial de tus lavados.
+                </p>
+              </div>
+
+              {/* Botones grandes y estilizados con Tailwind */}
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-1/2 py-4 px-6 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-[0.98] text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-cyan-500/25 transition-all duration-300 cursor-pointer group"
+                >
+                  <LogIn className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform" />
+                  <span>Iniciar Sesión</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="w-full sm:w-1/2 py-4 px-6 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] hover:border-cyan-400/40 active:scale-[0.98] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg backdrop-blur-xl transition-all duration-300 cursor-pointer group"
+                >
+                  <UserPlus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <span>Registrarse</span>
+                </Link>
+              </div>
+
+              {/* Pilares informativos */}
+              <div className="mt-10 pt-8 border-t border-white/[0.07] grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
+                  <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Turnos en Vivo</p>
+                    <p className="text-[11px] text-slate-400">Cupo máximo de 3 boxes por bloque.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">100% Artesanal</p>
+                    <p className="text-[11px] text-slate-400">Detailing y productos premium.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
+                  <CreditCard className="w-4 h-4 text-[#00c8ff] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Pago Flexible</p>
+                    <p className="text-[11px] text-slate-400">Mercado Pago o efectivo en el local.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ESTRUCTURA PRINCIPAL RESPONSIVE (CUANDO SÍ HAY SESIÓN ACTIVA) */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start animate-in fade-in duration-500">
+            {/* COLUMNA IZQUIERDA (PASOS 1, 2 Y 3) */}
+            <div className="lg:col-span-7 xl:col-span-7 space-y-8">
             {/* PASO 1: SELECCIÓN DE VEHÍCULO */}
             <VehicleSelector
               selectedType={vehicleType}
@@ -930,6 +1000,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             </div>
           </div>
         </div>
+        )}
 
         {/* PIE DE PÁGINA CONTEMPORÁNEO */}
         <footer className="pt-14 mt-14 border-t border-white/[0.08] text-center space-y-4">
