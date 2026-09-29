@@ -11,6 +11,34 @@ interface CalendarSlotPickerProps {
   onSlotChange: (slot: { startTime: string; endTime: string } | null) => void;
 }
 
+/**
+ * Determina si un bloque horario ya transcurrió en comparación con la fecha y hora actuales del navegador.
+ */
+export const isSlotPast = (startTime: string, dateString: string): boolean => {
+  if (!dateString || !startTime) return false;
+
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  // Si la fecha seleccionada es anterior a hoy
+  if (dateString < todayStr) return true;
+  // Si la fecha seleccionada es posterior a hoy
+  if (dateString > todayStr) return false;
+
+  // Si el día seleccionado es igual al día de HOY, comparar el horario de inicio con la hora actual
+  const [slotHStr, slotMStr] = startTime.split(':');
+  const slotH = parseInt(slotHStr, 10);
+  const slotM = parseInt(slotMStr || '0', 10);
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const slotMinutes = slotH * 60 + slotM;
+
+  return slotMinutes <= currentMinutes;
+};
+
 export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   selectedDate,
   onDateChange,
@@ -79,13 +107,17 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       } else {
         setIsOpen(true);
         setSlots(data?.slots || []);
-        // Auto seleccionar el primer slot disponible
-        const firstAvailable = data?.slots?.find((s: SlotAvailability) => s.isAvailable);
+        // Auto seleccionar el primer slot disponible que NO haya transcurrido
+        const firstAvailable = data?.slots?.find(
+          (s: SlotAvailability) => s.isAvailable && !isSlotPast(s.startTime, selectedDate)
+        );
         if (firstAvailable) {
           onSlotChange({
             startTime: firstAvailable.startTime,
             endTime: firstAvailable.endTime,
           });
+        } else {
+          onSlotChange(null);
         }
       }
     } catch (err: any) {
@@ -99,6 +131,22 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   useEffect(() => {
     fetchAvailability();
   }, [fetchAvailability]);
+
+  // Si el turno seleccionado quedó en el pasado, deseleccionarlo
+  useEffect(() => {
+    if (selectedSlot && isSlotPast(selectedSlot.startTime, selectedDate)) {
+      onSlotChange(null);
+    }
+  }, [selectedDate, selectedSlot, onSlotChange]);
+
+  // Forzar actualización periódica cada 30 segundos para reflejar turnos que van pasando
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">
@@ -225,7 +273,10 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {slots.map((slot) => {
+              const isPast = isSlotPast(slot.startTime, selectedDate);
+              const isDisabled = !slot.isAvailable || isPast;
               const isSelected =
+                !isDisabled &&
                 selectedSlot?.startTime === slot.startTime &&
                 selectedSlot?.endTime === slot.endTime;
 
@@ -233,28 +284,33 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 <button
                   key={`${slot.startTime}-${slot.endTime}`}
                   type="button"
-                  disabled={!slot.isAvailable}
-                  onClick={() =>
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (isDisabled) return;
                     onSlotChange({
                       startTime: slot.startTime,
                       endTime: slot.endTime,
-                    })
-                  }
-                  className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between transition-all duration-300 cursor-pointer ${
-                    !slot.isAvailable
-                      ? 'opacity-40 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500'
+                    });
+                  }}
+                  className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between transition-all duration-300 ${
+                    isDisabled
+                      ? 'opacity-40 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500 select-none'
                       : isSelected
-                      ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/20 via-blue-600/10 to-slate-900/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/15 scale-[1.01]'
-                      : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/50 hover:scale-[1.005]'
+                      ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/20 via-blue-600/10 to-slate-900/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/15 scale-[1.01] cursor-pointer'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/50 hover:scale-[1.005] cursor-pointer'
                   }`}
                 >
                   <div className="space-y-1.5">
                     <div className="text-sm sm:text-base font-extrabold flex items-center gap-2 text-white">
-                      <Clock className="w-4 h-4 text-cyan-400" />
-                      <span>{slot.startTime} a {slot.endTime} hs</span>
+                      <Clock className={`w-4 h-4 ${isDisabled ? 'text-slate-500' : 'text-cyan-400'}`} />
+                      <span className={isDisabled ? 'text-slate-400' : 'text-white'}>
+                        {slot.startTime} a {slot.endTime} hs
+                      </span>
                     </div>
                     <div className="text-xs text-slate-400 pl-6">
-                      {slot.isAvailable
+                      {isPast
+                        ? 'No disponible (horario ya transcurrido)'
+                        : slot.isAvailable
                         ? `${slot.remainingCapacity} ${
                             slot.remainingCapacity === 1 ? 'cupo disponible' : 'cupos disponibles'
                           }`
@@ -264,14 +320,22 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
                   <span
                     className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-wider shrink-0 shadow-sm ${
-                      !slot.isAvailable
+                      isPast
+                        ? 'bg-slate-800/70 text-slate-400 border border-slate-700/60'
+                        : !slot.isAvailable
                         ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25'
                         : isSelected
                         ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black'
                         : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
                     }`}
                   >
-                    {isSelected ? '✓ Seleccionado' : slot.isAvailable ? 'Disponible' : 'Lleno'}
+                    {isSelected
+                      ? '✓ Seleccionado'
+                      : isPast
+                      ? 'No disponible'
+                      : slot.isAvailable
+                      ? 'Disponible'
+                      : 'Lleno'}
                   </span>
                 </button>
               );

@@ -17,7 +17,7 @@ import {
   PlanCode,
   PLANS_CATALOG,
 } from '@/components/ServiceModeSelector';
-import { CalendarSlotPicker } from '@/components/CalendarSlotPicker';
+import { CalendarSlotPicker, isSlotPast } from '@/components/CalendarSlotPicker';
 import {
   PaymentMethodSelector,
   PaymentMethod,
@@ -230,6 +230,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
     if (!selectedDate || !selectedSlot) {
       showToast('Horario requerido', 'Por favor seleccioná un horario disponible en el calendario.', 'warning');
+      return;
+    }
+
+    if (isSlotPast(selectedSlot.startTime, selectedDate)) {
+      showToast('Horario no disponible', 'El horario seleccionado ya ha transcurrido. Por favor seleccioná un turno vigente.', 'warning');
       return;
     }
 
