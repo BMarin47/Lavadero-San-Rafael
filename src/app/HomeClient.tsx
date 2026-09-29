@@ -26,6 +26,7 @@ import {
   Sparkles,
   ShieldCheck,
   CreditCard,
+  Banknote,
   Clock,
   MapPin,
   Phone,
@@ -385,7 +386,73 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       }
 
       // =========================================================================
-      // PASO 2: LLAMAR A LA API DE CHECKOUT PARA OBTENER EL INIT_POINT (URL DE PAGO)
+      // FLUJO A: SI ELIGE PAGO EN EFECTIVO EN EL LOCAL
+      // =========================================================================
+      if (paymentMethod === 'CASH') {
+        // 1. Disparar el correo de alerta interna con Resend para el administrador
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userEmail: effectiveEmail,
+              userFullName: fullName.trim(),
+              userPhone: fullUserPhone,
+              vehicleType,
+              vehicleBrand: effectiveBrand,
+              vehicleModel: effectiveModel,
+              appointmentDate: selectedDate,
+              startTime: selectedSlot.startTime,
+              endTime: selectedSlot.endTime,
+              serviceDescription: `${serviceDescription} (Pago: Efectivo en el local)`,
+              amount: currentTotal,
+              notes: notes.trim()
+                ? `${notes.trim()} (Pago en efectivo en el local)`
+                : 'Pago en efectivo en el local',
+            }),
+          });
+        } catch (emailErr) {
+          console.warn('[Resend Email Error - Cash]:', emailErr);
+        }
+
+        // 2. Armar mensaje de WhatsApp y redirigir directamente
+        const lines = [
+          '¡Hola AquaShine San Rafael! 👋',
+          'Quiero confirmar mi reserva de turno con *Pago en Efectivo en el local*:',
+          '',
+          `📅 *Fecha:* ${selectedDate}`,
+          `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+          `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
+          `🧼 *Servicio:* ${serviceDescription}`,
+          `💰 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo en el local)`,
+          `👤 *Cliente:* ${fullName.trim()}`,
+          `📱 *Teléfono:* ${fullUserPhone}`,
+          `📧 *Email:* ${effectiveEmail}`,
+        ];
+
+        if (notes.trim()) {
+          lines.push(`📝 *Indicaciones:* ${notes.trim()}`);
+        }
+
+        lines.push('', '¡Muchas gracias! Aguardo confirmación del turno.');
+        const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(
+          lines.join('\n')
+        )}`;
+
+        showToast(
+          '¡Reserva confirmada!',
+          'Turno registrado con éxito. Redirigiendo a WhatsApp para coordinar tu recepción...',
+          'success'
+        );
+
+        if (typeof window !== 'undefined') {
+          window.location.href = whatsAppUrl;
+        }
+        return;
+      }
+
+      // =========================================================================
+      // FLUJO B: SI ELIGE MERCADO PAGO -> LLAMAR A LA API DE CHECKOUT PRO
       // =========================================================================
       const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
@@ -967,8 +1034,102 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </div>
             </div>
 
-            {/* 4. RESUMEN Y BOTÓN DE PAGO CON MERCADO PAGO */}
-            <section className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-6 border border-cyan-500/35 shadow-2xl shadow-cyan-950/30 transition-all duration-300">
+            {/* 4. MÉTODO DE PAGO */}
+            <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-5 transition-all duration-300">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/10">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                      Método de Pago
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Elegí cómo preferís abonar tu servicio
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+                  Transparente
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Opción 1: Mercado Pago */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('MERCADO_PAGO')}
+                  className={`p-5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
+                    paymentMethod === 'MERCADO_PAGO'
+                      ? 'border-[#009EE3] bg-gradient-to-b from-[#009EE3]/25 via-[#009EE3]/10 to-slate-950/85 ring-1 ring-[#009EE3]/60 shadow-xl shadow-[#009EE3]/20 scale-[1.02]'
+                      : 'border-white/[0.08] bg-slate-950/60 hover:border-[#009EE3]/50 hover:bg-slate-900/50 hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-[#009EE3]/20 border border-[#009EE3]/40 flex items-center justify-center text-[#00c8ff] shadow-md shadow-[#009EE3]/20">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <span
+                      className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm ${
+                        paymentMethod === 'MERCADO_PAGO'
+                          ? 'bg-[#009EE3] text-white'
+                          : 'bg-white/[0.06] text-slate-400'
+                      }`}
+                    >
+                      {paymentMethod === 'MERCADO_PAGO' ? '✓ Seleccionado' : 'Online'}
+                    </span>
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-cyan-300 transition-colors">
+                    Mercado Pago
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                    Aboná ahora con tarjetas, saldo en cuenta o cuotas vía Checkout Pro
+                  </p>
+                </button>
+
+                {/* Opción 2: Efectivo en el local */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('CASH')}
+                  className={`p-5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
+                    paymentMethod === 'CASH'
+                      ? 'border-emerald-500 bg-gradient-to-b from-emerald-600/25 via-emerald-600/10 to-slate-950/85 ring-1 ring-emerald-500/60 shadow-xl shadow-emerald-500/20 scale-[1.02]'
+                      : 'border-white/[0.08] bg-slate-950/60 hover:border-emerald-500/50 hover:bg-slate-900/50 hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md shadow-emerald-500/20">
+                      <Banknote className="w-5 h-5" />
+                    </div>
+                    <span
+                      className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm ${
+                        paymentMethod === 'CASH'
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-white/[0.06] text-slate-400'
+                      }`}
+                    >
+                      {paymentMethod === 'CASH' ? '✓ Seleccionado' : 'En el taller'}
+                    </span>
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-emerald-300 transition-colors">
+                    Efectivo en el local
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                    Abonás directamente en el lavadero de forma presencial al entregar tu vehículo
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* 5. RESUMEN Y BOTÓN DE CONFIRMACIÓN / PAGO */}
+            <section
+              className={`luxury-glass rounded-3xl p-6 sm:p-8 space-y-6 border transition-all duration-300 shadow-2xl ${
+                paymentMethod === 'MERCADO_PAGO'
+                  ? 'border-cyan-500/35 shadow-cyan-950/30'
+                  : 'border-emerald-500/35 shadow-emerald-950/30'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
@@ -1010,9 +1171,17 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
 
                 <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Pasarela:</span>
-                  <span className="font-black text-[#00c8ff] text-right">
-                    Mercado Pago Checkout Pro
+                  <span className="text-slate-400">Método de Pago:</span>
+                  <span
+                    className={`font-black text-right ${
+                      paymentMethod === 'MERCADO_PAGO'
+                        ? 'text-[#00c8ff]'
+                        : 'text-emerald-400'
+                    }`}
+                  >
+                    {paymentMethod === 'MERCADO_PAGO'
+                      ? 'Mercado Pago Checkout Pro'
+                      : 'Efectivo en el local'}
                   </span>
                 </div>
               </div>
@@ -1041,24 +1210,46 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   type="button"
                   disabled={submitting}
                   onClick={handleSubmitBooking}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-wide shadow-xl shadow-[#009EE3]/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer"
+                  className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base tracking-wide transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer ${
+                    paymentMethod === 'MERCADO_PAGO'
+                      ? 'bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white shadow-xl shadow-[#009EE3]/25'
+                      : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-xl shadow-emerald-500/25'
+                  }`}
                 >
                   {submitting ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Registrando turno y redirigiendo a Mercado Pago...</span>
+                      <span>
+                        {paymentMethod === 'MERCADO_PAGO'
+                          ? 'Registrando turno y redirigiendo a Mercado Pago...'
+                          : 'Registrando reserva y abriendo WhatsApp...'}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <span>Pagar Reserva con Mercado Pago</span>
-                      <CreditCard className="w-5 h-5" />
+                      <span>
+                        {paymentMethod === 'MERCADO_PAGO'
+                          ? 'Pagar Reserva con Mercado Pago'
+                          : 'Confirmar Reserva (Pago en local)'}
+                      </span>
+                      {paymentMethod === 'MERCADO_PAGO' ? (
+                        <CreditCard className="w-5 h-5" />
+                      ) : (
+                        <Banknote className="w-5 h-5" />
+                      )}
                     </>
                   )}
                 </button>
 
-                <p className="text-[11px] text-center text-slate-400 leading-tight">
-                  🔒 Pago protegido mediante <strong>Mercado Pago Checkout Pro</strong>. Al confirmar, tu turno se guarda y serás redirigido para completar el pago de forma segura.
-                </p>
+                {paymentMethod === 'MERCADO_PAGO' ? (
+                  <p className="text-[11px] text-center text-slate-400 leading-tight">
+                    🔒 Pago protegido mediante <strong>Mercado Pago Checkout Pro</strong>. Al confirmar, tu turno se guarda y serás redirigido para completar el pago de forma segura.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-center text-slate-400 leading-tight">
+                    💵 Abono presencial al momento del servicio. Al confirmar, tu turno se guarda en el sistema y serás redirigido a <strong>WhatsApp</strong> para coordinar tu recepción.
+                  </p>
+                )}
               </div>
 
               {/* Sellos de Seguridad Contemporáneos */}
