@@ -37,9 +37,13 @@ function LoginForm() {
       });
 
       if (error) {
-        setErrorMessage(error.message === 'Invalid login credentials'
-          ? 'Credenciales inválidas. Por favor verificá tu correo y contraseña.'
-          : error.message);
+        setErrorMessage(
+          error.message === 'Invalid login credentials'
+            ? 'Credenciales inválidas. Por favor verificá tu correo y contraseña.'
+            : error.message === 'Failed to fetch'
+            ? 'No se pudo conectar con Supabase. Asegurate de cargar las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en el panel de Vercel.'
+            : error.message
+        );
         return;
       }
 
@@ -48,7 +52,10 @@ function LoginForm() {
         router.refresh();
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Ocurrió un error inesperado al iniciar sesión.');
+      const msg = err?.message === 'Failed to fetch'
+        ? 'No se pudo conectar con Supabase. Asegurate de cargar las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en el panel de Vercel.'
+        : (err?.message || 'Ocurrió un error inesperado al iniciar sesión.');
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
