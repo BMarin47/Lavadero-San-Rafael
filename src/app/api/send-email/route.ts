@@ -22,29 +22,31 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    if (!userEmail) {
+    // Capturar y sanitizar correctamente el email del cliente
+    const recipientEmail = (userEmail || body.email || body.to || '').trim();
+
+    if (!recipientEmail) {
+      console.log('[Resend Error]: No se proporcionó correo de destinatario en el formulario.');
       return NextResponse.json(
         { error: 'El correo electrónico del cliente es obligatorio.' },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = process.env.RESEND_API_KEY?.trim();
 
     if (!apiKey) {
-      console.warn(
-        '[Resend] RESEND_API_KEY no está configurada en las variables de entorno. Se simula el envío exitoso para no bloquear la reserva.'
+      console.log('[Resend Error]: RESEND_API_KEY no está configurada en las variables de entorno del servidor.');
+      return NextResponse.json(
+        { error: 'RESEND_API_KEY no configurada en las variables de entorno de Vercel.' },
+        { status: 500 }
       );
-      return NextResponse.json({
-        success: true,
-        simulated: true,
-        message: 'RESEND_API_KEY no configurada aún en Vercel/entorno.',
-      });
     }
 
     const resend = new Resend(apiKey);
-    const fromEmail =
-      process.env.RESEND_FROM_EMAIL || 'AquaShine San Rafael <onboarding@resend.dev>';
+
+    // Remitente EXACTO para la capa gratuita de Resend
+    const fromEmail = 'onboarding@resend.dev';
 
     const formattedAmount = typeof amount === 'number'
       ? amount.toLocaleString('es-AR')
@@ -158,48 +160,34 @@ export async function POST(request: Request) {
 </html>
     `;
 
+    console.log(`[Resend]: Iniciando envío de correo hacia "${recipientEmail}" desde remitente forzado "${fromEmail}"...`);
+
     const { data, error } = await resend.emails.send({
       from: fromEmail,
-      to: [userEmail.trim()],
+      to: [recipientEmail],
       subject: `¡Turno Confirmado! - AquaShine San Rafael (${appointmentDate})`,
       html: htmlContent,
     });
 
     if (error) {
-      console.error('[Resend Error]', error);
-      // Si la cuenta de Resend está en modo sandbox (onboarding@resend.dev) y el destinatario no está verificado
-      const errorMsg = error.message || '';
-      if (
-        errorMsg.toLowerCase().includes('testing emails') ||
-        errorMsg.toLowerCase().includes('verify a domain') ||
-        errorMsg.toLowerCase().includes('verify your domain')
-      ) {
-        console.warn(
-          '[Resend Sandbox Warning]: Para enviar a cualquier destinatario debés verificar un dominio propio en resend.com. Retornando éxito simulado para no interrumpir el flujo.'
-        );
-        return NextResponse.json({
-          success: true,
-          sandboxWarning: errorMsg,
-          message:
-            'Aviso de modo de pruebas en Resend: se completó la reserva pero para entregar correos a terceros debés verificar tu dominio en resend.com.',
-        });
-      }
-
+      console.log('[Resend Error Detalle Servidor]:', JSON.stringify(error, null, 2));
       return NextResponse.json(
         {
-          error: error.message || 'Error enviando el correo de confirmación.',
+          error: error.message || 'Error enviando el correo de confirmación con Resend.',
           details: error,
         },
         { status: 500 }
       );
     }
 
+    console.log('[Resend Éxito]: Correo enviado satisfactoriamente a:', recipientEmail, 'ID de entrega:', data?.id);
+
     return NextResponse.json({
       success: true,
       data,
     });
   } catch (err: any) {
-    console.error('[SendEmail API Error]', err);
+    console.log('[SendEmail API Error Servidor]:', err);
     return NextResponse.json(
       { error: err.message || 'Error interno del servidor.' },
       { status: 500 }
