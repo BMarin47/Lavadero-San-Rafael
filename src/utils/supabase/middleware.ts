@@ -49,8 +49,7 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath = pathname.startsWith('/admin') || pathname.startsWith('/dashboard') || pathname.startsWith('/perfil');
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirectTo', pathname);
+    url.pathname = '/';
     return NextResponse.redirect(url);
   }
 

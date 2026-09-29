@@ -614,7 +614,14 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           {user ? (
             <>
               {/* Usuario con sesión activa */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.07] border border-white/[0.12] text-xs text-slate-200 backdrop-blur-md">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Mis Turnos</span>
+              </Link>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.07] border border-white/[0.12] text-xs text-slate-200 backdrop-blur-md">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                 <span className="max-w-[120px] sm:max-w-[200px] truncate font-medium text-slate-300">
                   {user.email}
