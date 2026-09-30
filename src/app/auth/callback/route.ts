@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 const PRODUCTION_SITE_URL = 'https://lavadero-san-rafael.vercel.app';
 
@@ -10,7 +11,14 @@ function getBaseUrl(request: Request): string {
     return origin || 'http://localhost:3000';
   }
 
-  // 2. Variable de entorno explícita configurada en Vercel
+  // 2. Cabeceras del proxy inverso de Vercel (x-forwarded-host y x-forwarded-proto)
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  if (forwardedHost && !forwardedHost.includes('localhost')) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  // 3. Variable de entorno explícita configurada en Vercel
   const envUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
@@ -18,13 +26,6 @@ function getBaseUrl(request: Request): string {
 
   if (envUrl && !envUrl.includes('localhost')) {
     return envUrl.replace(/\/$/, '');
-  }
-
-  // 3. Cabeceras del proxy inverso de Vercel (x-forwarded-host y x-forwarded-proto)
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-  if (forwardedHost && !forwardedHost.includes('localhost')) {
-    return `${forwardedProto}://${forwardedHost}`;
   }
 
   // 4. Variables automáticas provistas por la plataforma de Vercel
@@ -47,27 +48,71 @@ function getBaseUrl(request: Request): string {
     return origin;
   }
 
-  // 7. Fallback forzado de producción (¡nunca devolver localhost en producción!)
+  // 7. Fallback de producción oficial
   return PRODUCTION_SITE_URL;
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
   const next = searchParams.get('next') ?? '/';
   const baseUrl = getBaseUrl(request);
   const redirectTarget = next.startsWith('/') ? next : `/${next}`;
 
+  // 1. Si Google OAuth reportó algún error directo del proveedor
+  if (error) {
+    console.error('[Google OAuth Provider Notice]:', error, errorDescription);
+    const errUrl = new URL(`${baseUrl}/login`);
+    errUrl.searchParams.set('error', error);
+    if (errorDescription) {
+      errUrl.searchParams.set('error_description', errorDescription);
+    }
+    return NextResponse.redirect(errUrl.toString());
+  }
+
+  // 2. Intercambio seguro de código de autorización PKCE por sesión
   if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${baseUrl}${redirectTarget}`);
+    const cookieStore = await cookies();
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+    const supabaseAnonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+
+    const response = NextResponse.redirect(`${baseUrl}${redirectTarget}`);
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            try {
+              cookieStore.set(name, value, options);
+            } catch {
+              // Ignore if called from context where cookies() cannot be directly mutated
+            }
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    });
+
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!exchangeError) {
+      return response;
     } else {
-      console.error('[Supabase Auth Exchange Error]:', error.message);
+      console.error('[Supabase Auth Exchange Error]:', exchangeError.message);
+      const errUrl = new URL(`${baseUrl}/login`);
+      errUrl.searchParams.set('error', 'exchange-error');
+      errUrl.searchParams.set('error_description', exchangeError.message);
+      return NextResponse.redirect(errUrl.toString());
     }
   }
 
-  // Redirigir a login con aviso de error si el código expiró o fue inválido
-  return NextResponse.redirect(`${baseUrl}/login?error=auth-code-error`);
+  // 3. Si no vino código ni error, redirigir a login con aviso
+  return NextResponse.redirect(`${baseUrl}/login?error=missing-auth-code`);
 }

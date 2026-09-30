@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/utils/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { fireSuccessConfetti } from '@/lib/confetti';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
 import { PushTestButton } from '@/components/PushTestButton';
@@ -91,7 +91,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null);
     });
 
@@ -230,6 +230,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       if (error) {
         showToast('Error de Autenticación', error.message || 'No se pudo conectar con Google.', 'error');
         setIsSigningInGoogle(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (err: any) {
       showToast('Error', err?.message || 'Error al iniciar sesión con Google.', 'error');
@@ -274,6 +279,42 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       setToastMessage(null);
     }, 4500);
   };
+
+  // Detección y limpieza de tokens hash o errores de autenticación provenientes de OAuth
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+        const session = data?.session;
+        if (session?.user) {
+          setUser(session.user);
+          showToast(
+            '¡Sesión iniciada!',
+            `Bienvenido/a ${session.user.user_metadata?.full_name || session.user.email}`,
+            'success'
+          );
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      });
+    }
+
+    const sp = new URLSearchParams(window.location.search);
+    const err = sp.get('error');
+    const errDesc = sp.get('error_description');
+    if (err) {
+      const msg =
+        err === 'access_denied'
+          ? 'Se canceló el inicio de sesión con Google.'
+          : errDesc || 'Hubo un inconveniente al validar la sesión con Google.';
+      showToast('Aviso de Autenticación', msg, 'info');
+      sp.delete('error');
+      sp.delete('error_description');
+      const newQuery = sp.toString() ? `?${sp.toString()}` : '';
+      window.history.replaceState(null, '', window.location.pathname + newQuery);
+    }
+  }, []);
 
   const handleMpStatus = React.useCallback(
     (data: { status: string; id: string | null }) => {

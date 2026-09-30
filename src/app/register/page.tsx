@@ -26,8 +26,22 @@ function RegisterForm() {
     searchParams.get('next') ||
     '/';
 
+  const errorParam = searchParams.get('error');
+  const errorDescParam = searchParams.get('error_description');
+
+  const getInitialError = () => {
+    if (!errorParam) return null;
+    if (errorParam === 'access_denied') {
+      return 'Se canceló el registro con Google. Podés intentarlo nuevamente cuando desees.';
+    }
+    if (errorParam === 'missing-auth-code' || errorParam === 'exchange-error') {
+      return 'Hubo un inconveniente al validar la sesión con Google. Por favor, volvé a intentarlo.';
+    }
+    return errorDescParam || 'No se pudo completar el registro. Por favor intentá nuevamente.';
+  };
+
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(getInitialError());
 
   const supabase = createClient();
 
@@ -56,6 +70,11 @@ function RegisterForm() {
       if (error) {
         setErrorMessage(error.message || 'Error al conectar con Google.');
         setLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Ocurrió un error al registrarse con Google.');

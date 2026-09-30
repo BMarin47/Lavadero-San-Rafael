@@ -174,7 +174,7 @@ export default function DashboardClient({ user }: { user: User }) {
         const unique = Array.from(
           new Map(mapped.map((item: any) => [item.id, item])).values()
         );
-        setTurnos(unique);
+        setTurnos(unique as TurnoItem[]);
         return;
       }
 

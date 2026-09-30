@@ -2,6 +2,18 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  const { pathname, searchParams } = request.nextUrl;
+
+  // Si Supabase o Google redirigieron de vuelta con un código de OAuth o un error a una ruta distinta a /auth/callback (por ejemplo / o /login)
+  if ((searchParams.has('code') || searchParams.has('error')) && !pathname.startsWith('/auth/callback')) {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = '/auth/callback';
+    if (!callbackUrl.searchParams.has('next') && pathname !== '/login' && pathname !== '/register') {
+      callbackUrl.searchParams.set('next', pathname);
+    }
+    return NextResponse.redirect(callbackUrl);
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -35,8 +47,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // Si el usuario ya está autenticado e intenta ir a login o registro, redirigir a inicio
   if (user && (pathname === '/login' || pathname === '/register')) {
