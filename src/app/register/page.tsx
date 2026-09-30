@@ -43,10 +43,32 @@ function RegisterForm() {
     setLoading(true);
 
     try {
+      // Determinar dinámicamente la URL base para la redirección de confirmación
+      let siteUrl = '';
+
+      if (typeof window !== 'undefined' && window.location.origin) {
+        siteUrl = window.location.origin;
+      }
+
+      // Variables de entorno de Vercel (si fueron configuradas)
+      const envSiteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+        process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+        (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : '');
+
+      // En producción, preferir siempre el dominio del navegador activo si no es localhost
+      const baseUrl =
+        siteUrl && !siteUrl.includes('localhost')
+          ? siteUrl
+          : (envSiteUrl || siteUrl || 'http://localhost:3000');
+
+      const emailRedirectTo = `${baseUrl.replace(/\/$/, '')}/auth/callback`;
+
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
+          emailRedirectTo,
           data: {
             full_name: fullName.trim(),
           },
