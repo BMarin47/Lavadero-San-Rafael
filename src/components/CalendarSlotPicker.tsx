@@ -9,6 +9,7 @@ interface CalendarSlotPickerProps {
   onDateChange: (date: string) => void;
   selectedSlot: { startTime: string; endTime: string } | null;
   onSlotChange: (slot: { startTime: string; endTime: string } | null) => void;
+  compact?: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   onDateChange,
   selectedSlot,
   onSlotChange,
+  compact = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -147,6 +149,165 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     }, 30000);
     return () => clearInterval(timer);
   }, []);
+
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {/* Carrusel Horizontal Swipeable de Días */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-cyan-400" />
+              <span>Días Disponibles</span>
+            </span>
+            <span className="text-[10px] text-slate-500">Deslizá ↔</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar snap-x -mx-0.5 px-0.5">
+            {nextDays.map((d) => {
+              const isSelected = selectedDate === d.dateString;
+
+              return (
+                <button
+                  key={d.dateString}
+                  type="button"
+                  disabled={d.isSunday}
+                  onClick={() => onDateChange(d.dateString)}
+                  className={`min-w-[58px] py-2 px-1.5 rounded-xl border text-center transition-all duration-200 shrink-0 snap-start cursor-pointer ${
+                    isSelected
+                      ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/40 shadow-sm'
+                      : d.isSunday
+                      ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-35'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
+                  }`}
+                >
+                  <div className="text-[9px] uppercase font-bold text-slate-400">
+                    {d.dayName}
+                  </div>
+                  <div className="text-base font-black my-0.5 text-white">
+                    {d.dayNumber}
+                  </div>
+                  <div
+                    className={`text-[8px] font-bold uppercase tracking-wider py-0.5 rounded-md ${
+                      d.isSunday
+                        ? 'text-rose-400/70'
+                        : isSelected
+                        ? 'text-cyan-300 font-black'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    {d.isSunday ? 'Cerrado' : 'Abierto'}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Estado de carga */}
+        {loading && (
+          <div className="py-4 flex items-center justify-center gap-2 text-xs text-slate-300 bg-slate-950/50 rounded-xl border border-white/[0.07]">
+            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+            <span>Consultando horarios...</span>
+          </div>
+        )}
+
+        {/* Error de Conexión */}
+        {!loading && fetchError && (
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 truncate">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="truncate">{fetchError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchAvailability()}
+              className="px-2 py-1 bg-rose-600/30 text-rose-100 rounded-lg text-[10px] font-bold shrink-0"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* Alerta de Cierre */}
+        {!loading && !fetchError && !isOpen && (
+          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{reasonClosed || 'Cerrado para atención este día.'}</span>
+          </div>
+        )}
+
+        {/* Grilla Compacta de Bloques Horarios (2 columnas) */}
+        {!loading && !fetchError && isOpen && (
+          <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-cyan-400" />
+                <span>Horarios Disponibles</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">Cupos en vivo</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+              {slots.map((slot) => {
+                const isPast = isSlotPast(slot.startTime, selectedDate);
+                const isDisabled = !slot.isAvailable || isPast;
+                const isSelected =
+                  !isDisabled &&
+                  selectedSlot?.startTime === slot.startTime &&
+                  selectedSlot?.endTime === slot.endTime;
+
+                return (
+                  <button
+                    key={`${slot.startTime}-${slot.endTime}`}
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (isDisabled) return;
+                      onSlotChange({
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                      });
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                      isDisabled
+                        ? 'opacity-35 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500'
+                        : isSelected
+                        ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/50 shadow-sm cursor-pointer'
+                        : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/30 cursor-pointer'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-1">
+                      <div className="text-xs font-bold text-white whitespace-nowrap">
+                        {slot.startTime} a {slot.endTime}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {isPast ? 'Transcurrido' : slot.isAvailable ? `${slot.remainingCapacity} cupos` : 'Lleno'}
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase shrink-0 ${
+                        isSelected
+                          ? 'bg-cyan-400 text-slate-950'
+                          : isPast
+                          ? 'bg-slate-800 text-slate-500'
+                          : !slot.isAvailable
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
+                      {isSelected ? '✓' : isPast ? 'Off' : slot.isAvailable ? 'Disp.' : 'Lleno'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">

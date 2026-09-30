@@ -48,6 +48,8 @@ import {
   LogIn,
   UserPlus,
   LogOut,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 // Componente para escuchar el retorno de Mercado Pago (?status=approved&id=...)
@@ -147,6 +149,9 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     }
   }, [user]);
 
+  // Estado del Acordeón Compacto Mobile
+  const [openSection, setOpenSection] = useState<'vehicle' | 'datetime' | 'contact'>('vehicle');
+
   // Estado del Pago
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MERCADO_PAGO');
 
@@ -218,32 +223,38 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   // Manejador de Reserva y Redirección
   const handleSubmitBooking = async () => {
     if (!effectiveBrand) {
+      setOpenSection('vehicle');
       showToast('Marca requerida', 'Por favor seleccioná o ingresá la marca de tu vehículo.', 'warning');
       return;
     }
 
     if (!effectiveModel) {
+      setOpenSection('vehicle');
       showToast('Modelo requerido', 'Por favor seleccioná o escribí el modelo de tu vehículo.', 'warning');
       return;
     }
 
     if (!selectedDate || !selectedSlot) {
+      setOpenSection('datetime');
       showToast('Horario requerido', 'Por favor seleccioná un horario disponible en el calendario.', 'warning');
       return;
     }
 
     if (isSlotPast(selectedSlot.startTime, selectedDate)) {
+      setOpenSection('datetime');
       showToast('Horario no disponible', 'El horario seleccionado ya ha transcurrido. Por favor seleccioná un turno vigente.', 'warning');
       return;
     }
 
     if (!fullName.trim()) {
+      setOpenSection('contact');
       showToast('Nombre requerido', 'Por favor ingresá tu nombre y apellido.', 'warning');
       return;
     }
 
     const rawPhoneDigits = phone.replace(/\D/g, '');
     if (!phone.trim() || rawPhoneDigits.length < 6) {
+      setOpenSection('contact');
       showToast('WhatsApp requerido', 'Por favor ingresá un número de WhatsApp celular válido.', 'warning');
       return;
     }
@@ -815,460 +826,456 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       </nav>
 
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-12">
+      <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
         
-        {/* HERO SECTION IMPACTANTE */}
-        <header className="text-center space-y-6 max-w-4xl mx-auto">
-          {/* Badge superior interactivo */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.04] border border-white/[0.09] text-slate-300 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-black/20 hover:border-cyan-400/40 hover:scale-[1.02] transition-all duration-300 cursor-default">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
-            </span>
-            <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-            <span>San Rafael, Mendoza • Turnos Online Habilitados</span>
-          </div>
-
-          {/* Título Principal Hero */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400">
-            AquaShine San Rafael
-          </h1>
-
-          {/* Subtítulo Detailing de Alta Gama */}
-          <p className="text-base sm:text-lg md:text-xl text-slate-300/90 max-w-2xl mx-auto font-normal leading-relaxed">
-            Lavadero Artesanal, Detailing de Alta Gama & Suscripciones Mensuales. Cuidamos cada detalle de tu vehículo en San Rafael.
-          </p>
-
-          {/* Badges de Confianza Contemporáneos e Interactivos */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/60 border border-white/[0.08] text-xs font-bold text-slate-200 backdrop-blur-xl hover:border-cyan-400/50 hover:bg-slate-900/80 hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 cursor-default">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>Garantía de Satisfacción</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/60 border border-[#009EE3]/30 text-xs font-bold text-[#00c8ff] backdrop-blur-xl hover:border-[#009EE3]/60 hover:bg-[#009EE3]/10 hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#009EE3]/20 transition-all duration-300 cursor-default">
-              <CreditCard className="w-4 h-4" />
-              <span>Mercado Pago Oficial</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/60 border border-emerald-500/30 text-xs font-bold text-emerald-300 backdrop-blur-xl hover:border-emerald-400/50 hover:bg-emerald-500/10 hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/15 transition-all duration-300 cursor-default">
-              <Zap className="w-4 h-4 text-emerald-400" />
-              <span>Atención Exclusiva</span>
-            </div>
-          </div>
-        </header>
-
         {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
         {!user ? (
-          <div className="w-full max-w-2xl mx-auto py-4 sm:py-8 animate-in fade-in zoom-in-95 duration-500">
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900/80 border border-white/[0.1] p-8 sm:p-12 text-center backdrop-blur-2xl shadow-2xl shadow-black/40">
-              {/* Resplandor ambiental decorativo */}
-              <div className="absolute -top-24 -left-24 w-56 h-56 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-24 -right-24 w-56 h-56 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-
-              {/* Icono central de reserva */}
-              <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10 mb-6">
-                <Calendar className="w-8 h-8 sm:w-10 sm:h-10 text-cyan-400" />
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
+            {/* HERO SECTION CUANDO NO HAY SESIÓN */}
+            <header className="text-center space-y-4 max-w-xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.09] text-slate-300 text-xs font-semibold backdrop-blur-xl">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                </span>
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                <span>San Rafael, Mendoza • Turnos Online</span>
               </div>
 
-              {/* Mensaje principal requerido */}
-              <div className="space-y-3 max-w-lg mx-auto">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-3xl sm:text-5xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400">
+                AquaShine San Rafael
+              </h1>
+
+              <p className="text-xs sm:text-base text-slate-300 max-w-md mx-auto font-normal leading-relaxed">
+                Lavadero Artesanal, Detailing & Turnos en Vivo. Cuidamos cada detalle de tu vehículo.
+              </p>
+            </header>
+
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900/80 border border-white/[0.1] p-6 sm:p-10 text-center backdrop-blur-2xl shadow-2xl shadow-black/40">
+              <div className="relative mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10 mb-4">
+                <Calendar className="w-7 h-7 text-cyan-400" />
+              </div>
+
+              <div className="space-y-2 max-w-md mx-auto">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   ¡Reserva tu turno online!
                 </h2>
-                <p className="text-base sm:text-lg font-semibold text-cyan-300 leading-relaxed">
-                  Para solicitar un turno, por favor inicia sesión o crea una cuenta.
+                <p className="text-sm font-semibold text-cyan-300">
+                  Inicia sesión o crea tu cuenta para solicitar un turno.
                 </p>
-                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed pt-1">
-                  Accede al sistema de reservas en vivo de San Rafael, consulta disponibilidad de boxes en tiempo real y gestiona el historial de tus lavados.
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Consulta disponibilidad de boxes en vivo y confirma tu horario sin demoras.
                 </p>
               </div>
 
-              {/* Botones grandes y estilizados con Tailwind */}
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
                 <Link
                   href="/login"
-                  className="w-full sm:w-1/2 py-4 px-6 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-[0.98] text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-cyan-500/25 transition-all duration-300 cursor-pointer group"
+                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-[0.98] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
                 >
-                  <LogIn className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform" />
+                  <LogIn className="w-4 h-4 text-slate-950" />
                   <span>Iniciar Sesión</span>
                 </Link>
                 <Link
                   href="/register"
-                  className="w-full sm:w-1/2 py-4 px-6 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] hover:border-cyan-400/40 active:scale-[0.98] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg backdrop-blur-xl transition-all duration-300 cursor-pointer group"
+                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] active:scale-[0.98] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                 >
-                  <UserPlus className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <UserPlus className="w-4 h-4 text-cyan-400" />
                   <span>Registrarse</span>
                 </Link>
-              </div>
-
-              {/* Pilares informativos */}
-              <div className="mt-10 pt-8 border-t border-white/[0.07] grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
-                  <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-200">Turnos en Vivo</p>
-                    <p className="text-[11px] text-slate-400">Cupo máximo de 3 boxes por bloque.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-200">100% Artesanal</p>
-                    <p className="text-[11px] text-slate-400">Detailing y productos premium.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
-                  <CreditCard className="w-4 h-4 text-[#00c8ff] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-200">Pago Flexible</p>
-                    <p className="text-[11px] text-slate-400">Mercado Pago o efectivo en el local.</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         ) : (
-          /* FORMULARIO CONTINUO EN UNA SOLA PANTALLA (SINGLE-SCREEN FLOW) */
-          <div className="max-w-2xl w-full mx-auto space-y-7 animate-in fade-in duration-500">
-            {/* 1. SELECCIÓN DE CATEGORÍA Y VEHÍCULO */}
-            <VehicleSelector
-              selectedType={vehicleType}
-              onTypeChange={setVehicleType}
-              selectedBrand={selectedBrand}
-              onBrandChange={setSelectedBrand}
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-              customBrandText={customBrandText}
-              onCustomBrandTextChange={setCustomBrandText}
-              customModelText={customModelText}
-              onCustomModelTextChange={setCustomModelText}
-            />
-
-            {/* 2. FECHA Y HORARIO DE ATENCIÓN */}
-            <CalendarSlotPicker
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-              selectedSlot={selectedSlot}
-              onSlotChange={setSelectedSlot}
-            />
-
-            {/* 3. TUS DATOS DE CONTACTO (ULTRA RÁPIDO) */}
-            <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-5 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/10">
-                    <UserIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                      Tus Datos de Contacto
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Completá solo lo indispensable para coordinar tu recepción
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                  ⚡ Ultra Rápido
-                </span>
-              </div>
-
-              <div className="space-y-4 pt-1">
-                {/* Nombre y Apellido */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2 flex items-center gap-2">
-                    <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Nombre y Apellido *</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ej: Juan Pérez"
-                    className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all shadow-inner hover:border-white/[0.18]"
-                  />
-                </div>
-
-                {/* WhatsApp / Celular */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-2 flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>WhatsApp / Celular *</span>
-                  </label>
-                  <div className="flex rounded-2xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/25 transition-all overflow-hidden shadow-inner hover:border-white/[0.18]">
-                    <span className="inline-flex items-center px-4 bg-white/[0.04] border-r border-white/[0.08] text-xs font-extrabold text-cyan-400 select-none whitespace-nowrap">
-                      +54 9
-                    </span>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => {
-                        let val = e.target.value;
-                        val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
-                        setPhone(val);
-                      }}
-                      placeholder="260 465-4255"
-                      className="w-full min-w-0 px-4 py-3.5 text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1 pl-1">
-                    Ingresá tu característica y número móvil (sin 0 y sin 15).
-                  </p>
-                </div>
-
-                {/* Indicaciones Opcionales */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1.5 flex items-center gap-2">
-                    <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Indicaciones especiales o preferencia (Opcional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Ej: Retirar por la tarde, cuidado con llantas"
-                    className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/20 transition-all"
-                  />
-                </div>
-              </div>
+          /* FORMULARIO COMPACTO MOBILE PWA CON ACORDEÓN Y SELECTOR HORIZONTAL */
+          <div className="space-y-3 animate-in fade-in duration-300">
+            {/* Header Compacto App */}
+            <div className="text-center space-y-0.5 pb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                PWA Móvil • AquaShine San Rafael
+              </span>
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                Reserva de Turno
+              </h2>
             </div>
 
-            {/* 4. MÉTODO DE PAGO */}
-            <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-5 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/10">
-                    <CreditCard className="w-5 h-5" />
+            {/* ============================================================== */}
+            {/* PASO 1: VEHÍCULO (ACORDEÓN) */}
+            {/* ============================================================== */}
+            <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
+              <button
+                type="button"
+                onClick={() => setOpenSection((prev) => (prev === 'vehicle' ? 'vehicle' : 'vehicle'))}
+                className={`w-full p-3 sm:p-3.5 flex items-center justify-between text-left transition-all cursor-pointer ${
+                  openSection === 'vehicle'
+                    ? 'bg-slate-900/90 border-b border-white/[0.06]'
+                    : 'hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/30">
+                    <Car className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                      Método de Pago
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Elegí cómo preferís abonar tu servicio
-                    </p>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span>Paso 1</span>
+                      <span className="text-slate-600">•</span>
+                      <span>Vehículo</span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-white truncate">
+                      {vehicleSummaryDisplay}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-                  Transparente
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-black text-cyan-400">
+                    ${currentTotal.toLocaleString('es-AR')}
+                  </span>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                    {openSection === 'vehicle' ? 'Editando' : '✓ Listo'}
+                  </span>
+                  {openSection === 'vehicle' ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </button>
+
+              {openSection === 'vehicle' && (
+                <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40 animate-in fade-in duration-200">
+                  <VehicleSelector
+                    selectedType={vehicleType}
+                    onTypeChange={setVehicleType}
+                    selectedBrand={selectedBrand}
+                    onBrandChange={setSelectedBrand}
+                    selectedModel={selectedModel}
+                    onModelChange={setSelectedModel}
+                    customBrandText={customBrandText}
+                    onCustomBrandTextChange={setCustomBrandText}
+                    customModelText={customModelText}
+                    onCustomModelTextChange={setCustomModelText}
+                    compact
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpenSection('datetime')}
+                    className="w-full py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <span>Continuar a Fecha y Turno</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================== */}
+            {/* PASO 2: FECHA Y TURNO (ACORDEÓN) */}
+            {/* ============================================================== */}
+            <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
+              <button
+                type="button"
+                onClick={() => setOpenSection((prev) => (prev === 'datetime' ? 'datetime' : 'datetime'))}
+                className={`w-full p-3 sm:p-3.5 flex items-center justify-between text-left transition-all cursor-pointer ${
+                  openSection === 'datetime'
+                    ? 'bg-slate-900/90 border-b border-white/[0.06]'
+                    : 'hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                    selectedSlot
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
+                  }`}>
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span>Paso 2</span>
+                      <span className="text-slate-600">•</span>
+                      <span>Fecha y Horario</span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-white truncate">
+                      {selectedSlot
+                        ? `${selectedDate} • ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`
+                        : 'Elegir día y bloque horario'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                    selectedSlot
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  }`}>
+                    {openSection === 'datetime' ? 'Editando' : selectedSlot ? '✓ Listo' : 'Pendiente'}
+                  </span>
+                  {openSection === 'datetime' ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </button>
+
+              {openSection === 'datetime' && (
+                <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40 animate-in fade-in duration-200">
+                  <CalendarSlotPicker
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                    selectedSlot={selectedSlot}
+                    onSlotChange={setSelectedSlot}
+                    compact
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpenSection('contact')}
+                    className="w-full py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <span>Continuar a Mis Datos</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================== */}
+            {/* PASO 3: TUS DATOS (ACORDEÓN) */}
+            {/* ============================================================== */}
+            <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
+              <button
+                type="button"
+                onClick={() => setOpenSection((prev) => (prev === 'contact' ? 'contact' : 'contact'))}
+                className={`w-full p-3 sm:p-3.5 flex items-center justify-between text-left transition-all cursor-pointer ${
+                  openSection === 'contact'
+                    ? 'bg-slate-900/90 border-b border-white/[0.06]'
+                    : 'hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                    fullName.trim() && phone.trim()
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
+                  }`}>
+                    <UserIcon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span>Paso 3</span>
+                      <span className="text-slate-600">•</span>
+                      <span>Contacto</span>
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-white truncate">
+                      {fullName.trim() ? fullName.trim() : 'Tus Datos'}
+                      {phone.trim() ? ` • +54 9 ${phone.replace(/\D/g, '')}` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                    fullName.trim() && phone.trim()
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  }`}>
+                    {openSection === 'contact' ? 'Editando' : fullName.trim() && phone.trim() ? '✓ Listo' : 'Pendiente'}
+                  </span>
+                  {openSection === 'contact' ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </button>
+
+              {openSection === 'contact' && (
+                <div className="p-3 sm:p-3.5 space-y-2.5 bg-slate-900/40 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* Nombre y Apellido */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                        Nombre y Apellido *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Ej: Juan Pérez"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 shadow-inner"
+                      />
+                    </div>
+
+                    {/* WhatsApp */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                        WhatsApp / Celular *
+                      </label>
+                      <div className="flex rounded-xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 overflow-hidden shadow-inner">
+                        <span className="inline-flex items-center px-2 bg-white/[0.04] border-r border-white/[0.08] text-[10px] font-black text-cyan-400 select-none">
+                          +54 9
+                        </span>
+                        <input
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
+                            setPhone(val);
+                          }}
+                          placeholder="260 465-4255"
+                          className="w-full min-w-0 px-2.5 py-2 text-xs bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Indicaciones Opcionales */}
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                      Indicaciones Especiales (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ej: Cuidado con llantas, retirar por la tarde"
+                      className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================== */}
+            {/* SELECTOR DE PAGO INTEGRADO (DOS BOTONES PÍLDORA COMPACTOS) */}
+            {/* ============================================================== */}
+            <div className="pt-0.5">
+              <div className="flex items-center justify-between mb-1 px-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <CreditCard className="w-3 h-3 text-cyan-400" />
+                  <span>Método de Pago</span>
                 </span>
+                <span className="text-[10px] text-slate-500">Seleccioná tu forma de abono</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                {/* Opción 1: Mercado Pago */}
+              <div className="p-1 rounded-2xl bg-slate-950/80 border border-white/[0.08] grid grid-cols-2 gap-1.5 shadow-inner">
+                {/* Mercado Pago */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('MERCADO_PAGO')}
-                  className={`p-5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'MERCADO_PAGO'
-                      ? 'border-[#009EE3] bg-gradient-to-b from-[#009EE3]/25 via-[#009EE3]/10 to-slate-950/85 ring-1 ring-[#009EE3]/60 shadow-xl shadow-[#009EE3]/20 scale-[1.02]'
-                      : 'border-white/[0.08] bg-slate-950/60 hover:border-[#009EE3]/50 hover:bg-slate-900/50 hover:scale-[1.01]'
+                      ? 'bg-[#009EE3] text-white shadow-md shadow-[#009EE3]/30 scale-[1.01]'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-2xl bg-[#009EE3]/20 border border-[#009EE3]/40 flex items-center justify-center text-[#00c8ff] shadow-md shadow-[#009EE3]/20">
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                    <span
-                      className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm ${
-                        paymentMethod === 'MERCADO_PAGO'
-                          ? 'bg-[#009EE3] text-white'
-                          : 'bg-white/[0.06] text-slate-400'
-                      }`}
-                    >
-                      {paymentMethod === 'MERCADO_PAGO' ? '✓ Seleccionado' : 'Online'}
-                    </span>
-                  </div>
-                  <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-cyan-300 transition-colors">
-                    Mercado Pago
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                    Aboná ahora con tarjetas, saldo en cuenta o cuotas vía Checkout Pro
-                  </p>
+                  <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Mercado Pago</span>
                 </button>
 
-                {/* Opción 2: Efectivo en el local */}
+                {/* Efectivo en el local */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('CASH')}
-                  className={`p-5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'CASH'
-                      ? 'border-emerald-500 bg-gradient-to-b from-emerald-600/25 via-emerald-600/10 to-slate-950/85 ring-1 ring-emerald-500/60 shadow-xl shadow-emerald-500/20 scale-[1.02]'
-                      : 'border-white/[0.08] bg-slate-950/60 hover:border-emerald-500/50 hover:bg-slate-900/50 hover:scale-[1.01]'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30 scale-[1.01]'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3.5">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md shadow-emerald-500/20">
-                      <Banknote className="w-5 h-5" />
-                    </div>
-                    <span
-                      className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm ${
-                        paymentMethod === 'CASH'
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-white/[0.06] text-slate-400'
-                      }`}
-                    >
-                      {paymentMethod === 'CASH' ? '✓ Seleccionado' : 'En el taller'}
-                    </span>
-                  </div>
-                  <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-emerald-300 transition-colors">
-                    Efectivo en el local
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                    Abonás directamente en el lavadero de forma presencial al entregar tu vehículo
-                  </p>
+                  <Banknote className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Efectivo en el local</span>
                 </button>
               </div>
             </div>
 
-            {/* 5. RESUMEN Y BOTÓN DE CONFIRMACIÓN / PAGO */}
-            <section
-              className={`luxury-glass rounded-3xl p-6 sm:p-8 space-y-6 border transition-all duration-300 shadow-2xl ${
+            {/* ============================================================== */}
+            {/* RESUMEN COMPACTO Y BOTÓN DE ACCIÓN DINÁMICO */}
+            {/* ============================================================== */}
+            <div
+              className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 space-y-2.5 backdrop-blur-xl ${
                 paymentMethod === 'MERCADO_PAGO'
-                  ? 'border-cyan-500/35 shadow-cyan-950/30'
-                  : 'border-emerald-500/35 shadow-emerald-950/30'
+                  ? 'bg-slate-900/80 border-cyan-500/30 shadow-xl shadow-cyan-950/20'
+                  : 'bg-slate-900/80 border-emerald-500/30 shadow-xl shadow-emerald-950/20'
               }`}
             >
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+              {/* Línea Resumen de Reserva */}
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
-                    Confirmación Oficial
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Total Reserva
                   </span>
-                  <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                    Resumen de tu Reserva
-                  </h3>
-                </div>
-                <span className="text-[11px] px-3.5 py-1.5 rounded-full bg-cyan-500/10 text-cyan-300 font-extrabold border border-cyan-500/25 shadow-sm">
-                  Lavado Completo
-                </span>
-              </div>
-
-              {/* Detalle itemizado */}
-              <div className="space-y-3.5 text-xs sm:text-sm">
-                <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Vehículo:</span>
-                  <span className="font-extrabold text-white text-right">
-                    {vehicleSummaryDisplay}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Fecha y Horario:</span>
-                  <span className="font-extrabold text-white text-right">
-                    {selectedSlot
-                      ? `${selectedDate} (${selectedSlot.startTime} a ${selectedSlot.endTime} hs)`
-                      : '⚠️ Seleccioná un horario arriba'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Contacto:</span>
-                  <span className="font-bold text-slate-200 text-right">
-                    {fullName.trim() ? fullName.trim() : 'Pendiente'}{' '}
-                    {phone.trim() ? `(+54 9 ${phone.replace(/\D/g, '')})` : ''}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-slate-300">
-                  <span className="text-slate-400">Método de Pago:</span>
-                  <span
-                    className={`font-black text-right ${
-                      paymentMethod === 'MERCADO_PAGO'
-                        ? 'text-[#00c8ff]'
-                        : 'text-emerald-400'
-                    }`}
-                  >
-                    {paymentMethod === 'MERCADO_PAGO'
-                      ? 'Mercado Pago Checkout Pro'
-                      : 'Efectivo en el local'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Total Destacado */}
-              <div className="pt-4 border-t border-white/[0.08] flex justify-between items-end">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                    Monto Total
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">IVA incluido</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                    ${currentTotal.toLocaleString('es-AR')}
+                  <div className="text-xl sm:text-2xl font-black text-white leading-tight">
+                    ${currentTotal.toLocaleString('es-AR')}{' '}
+                    <span className="text-[10px] font-normal text-slate-400">ARS</span>
                   </div>
-                  <span className="text-[10px] font-black text-cyan-400 tracking-widest uppercase">
-                    PESOS ARGENTINOS (ARS)
-                  </span>
+                </div>
+
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-black text-white truncate max-w-[170px]">
+                    {vehicleSummaryDisplay}
+                  </div>
+                  <div className="text-[11px] font-semibold text-cyan-400 truncate max-w-[170px]">
+                    {selectedSlot ? `${selectedDate} (${selectedSlot.startTime} hs)` : 'Sin turno elegido'}
+                  </div>
                 </div>
               </div>
 
-              {/* BOTÓN DE ACCIÓN DINÁMICO */}
-              <div className="space-y-3 pt-2">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={handleSubmitBooking}
-                  className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base tracking-wide transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5 cursor-pointer ${
-                    paymentMethod === 'MERCADO_PAGO'
-                      ? 'bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white shadow-xl shadow-[#009EE3]/25'
-                      : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-xl shadow-emerald-500/25'
-                  }`}
-                >
-                  {submitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>
-                        {paymentMethod === 'MERCADO_PAGO'
-                          ? 'Registrando turno y redirigiendo a Mercado Pago...'
-                          : 'Registrando reserva y abriendo WhatsApp...'}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span>
-                        {paymentMethod === 'MERCADO_PAGO'
-                          ? 'Pagar Reserva con Mercado Pago'
-                          : 'Confirmar Reserva (Pago en local)'}
-                      </span>
-                      {paymentMethod === 'MERCADO_PAGO' ? (
-                        <CreditCard className="w-5 h-5" />
-                      ) : (
-                        <Banknote className="w-5 h-5" />
-                      )}
-                    </>
-                  )}
-                </button>
-
-                {paymentMethod === 'MERCADO_PAGO' ? (
-                  <p className="text-[11px] text-center text-slate-400 leading-tight">
-                    🔒 Pago protegido mediante <strong>Mercado Pago Checkout Pro</strong>. Al confirmar, tu turno se guarda y serás redirigido para completar el pago de forma segura.
-                  </p>
+              {/* Botón de Acción Dinámico */}
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleSubmitBooking}
+                className={`w-full py-3.5 px-4 rounded-xl font-black text-sm tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                  paymentMethod === 'MERCADO_PAGO'
+                    ? 'bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white shadow-[#009EE3]/25'
+                    : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 shadow-emerald-500/25'
+                }`}
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>
+                      {paymentMethod === 'MERCADO_PAGO'
+                        ? 'Conectando con Mercado Pago...'
+                        : 'Registrando reserva...'}
+                    </span>
+                  </>
                 ) : (
-                  <p className="text-[11px] text-center text-slate-400 leading-tight">
-                    💵 Abono presencial al momento del servicio. Al confirmar, tu turno se guarda en el sistema y serás redirigido a <strong>WhatsApp</strong> para coordinar tu recepción.
-                  </p>
+                  <>
+                    <span>
+                      {paymentMethod === 'MERCADO_PAGO'
+                        ? 'Pagar con Mercado Pago'
+                        : 'Confirmar Reserva'}
+                    </span>
+                    {paymentMethod === 'MERCADO_PAGO' ? (
+                      <CreditCard className="w-4 h-4" />
+                    ) : (
+                      <MessageCircle className="w-4 h-4" />
+                    )}
+                  </>
                 )}
-              </div>
+              </button>
 
-              {/* Sellos de Seguridad Contemporáneos */}
-              <div className="pt-3 border-t border-white/[0.08] grid grid-cols-2 gap-2.5 text-[10px] text-slate-400 text-center">
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/[0.07] flex items-center justify-center gap-1.5 font-bold text-slate-300">
-                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Reserva Inmediata</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/[0.07] flex items-center justify-center gap-1.5 font-bold text-slate-300">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Atención Garantizada</span>
-                </div>
-              </div>
-            </section>
+              <p className="text-[10px] text-center text-slate-400 leading-tight">
+                {paymentMethod === 'MERCADO_PAGO' ? (
+                  <>🔒 Checkout Pro seguro. Guarda tu turno y te redirige a abonar online.</>
+                ) : (
+                  <>💵 Abonás en el local. Guarda tu turno, alerta por email y abre <strong>WhatsApp</strong>.</>
+                )}
+              </p>
+            </div>
           </div>
         )}
 
         {/* PIE DE PÁGINA CONTEMPORÁNEO */}
-        <footer className="pt-14 mt-14 border-t border-white/[0.08] text-center space-y-4">
+        <footer className="pt-6 mt-6 border-t border-white/[0.08] text-center space-y-2">
           <div className="max-w-xl mx-auto space-y-2">
             <h4 className="text-sm font-black text-white tracking-tight">
               AquaShine San Rafael • Detailing & Lavadero

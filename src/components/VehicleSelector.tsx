@@ -111,6 +111,7 @@ interface VehicleSelectorProps {
   onCustomBrandTextChange: (text: string) => void;
   customModelText: string;
   onCustomModelTextChange: (text: string) => void;
+  compact?: boolean;
 }
 
 export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
@@ -124,6 +125,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   onCustomBrandTextChange,
   customModelText,
   onCustomModelTextChange,
+  compact = false,
 }) => {
   const brandsList = BRANDS_BY_CATEGORY[selectedType] || [];
 
@@ -155,6 +157,163 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
   const isOtherBrand = selectedBrand === 'Otra Marca';
   const isOtherModel = selectedModel === 'Otro Modelo';
+
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {/* Selector de Categoría (3 columnas en 1 fila) */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Categoría
+            </span>
+            <span className="text-[10px] text-cyan-400 font-semibold">Tarifa base</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
+              const cfg = VEHICLE_CONFIG[type];
+              const isSelected = selectedType === type;
+
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleCategoryClick(type)}
+                  className={`py-2 px-1.5 rounded-xl border text-center transition-all duration-200 relative flex flex-col items-center justify-center cursor-pointer ${
+                    isSelected
+                      ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/40 shadow-sm'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg mb-0.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`}>
+                    {type === 'CAR' ? (
+                      <Car className="w-4 h-4" />
+                    ) : type === 'SUV' ? (
+                      <Car className="w-4 h-4 stroke-[2.5]" />
+                    ) : (
+                      <Truck className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="text-xs font-bold leading-tight text-white">{cfg.label}</div>
+                  <div className="text-[11px] font-black text-cyan-400 mt-0.5">
+                    ${cfg.price.toLocaleString('es-AR')}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Marca y Modelo en 2 Columnas */}
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/[0.06]">
+          {/* Marca */}
+          <div>
+            <label
+              htmlFor="vehicle-brand-select-compact"
+              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1"
+            >
+              Marca *
+            </label>
+            <div className="relative">
+              <select
+                id="vehicle-brand-select-compact"
+                value={selectedBrand}
+                onChange={(e) => handleBrandSelect(e.target.value)}
+                className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-950/90 border border-white/[0.09] text-slate-100 font-medium focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer pr-7 shadow-inner"
+              >
+                <option value="" disabled>-- Elegir marca --</option>
+                {brandsList.map((brandName) => (
+                  <option key={brandName} value={brandName} className="bg-slate-900 text-slate-100">
+                    {brandName === 'Otra Marca' ? 'Otra Marca...' : brandName}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Modelo */}
+          <div>
+            <label
+              htmlFor="vehicle-model-select-compact"
+              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1"
+            >
+              Modelo *
+            </label>
+            <div className="relative">
+              <select
+                id="vehicle-model-select-compact"
+                disabled={!selectedBrand || isOtherBrand}
+                value={selectedModel}
+                onChange={(e) => onModelChange(e.target.value)}
+                className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-950/90 border border-white/[0.09] text-slate-100 font-medium focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer pr-7 shadow-inner disabled:opacity-40"
+              >
+                <option value="" disabled>-- Elegir modelo --</option>
+                {modelsList.map((modelName) => (
+                  <option key={modelName} value={modelName} className="bg-slate-900 text-slate-100">
+                    {modelName === 'Otro Modelo' ? 'Otro Modelo...' : modelName}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Inputs personalizados si elige 'Otra Marca' */}
+        {isOtherBrand && (
+          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1.5 animate-in fade-in">
+            <div className="text-[10px] font-bold text-amber-300 flex items-center gap-1.5">
+              <Edit3 className="w-3 h-3" />
+              <span>Vehículo personalizado:</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                required
+                value={customBrandText}
+                onChange={(e) => onCustomBrandTextChange(e.target.value)}
+                placeholder="Marca (ej: Citroën)"
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-slate-950/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+              <input
+                type="text"
+                required
+                value={customModelText}
+                onChange={(e) => onCustomModelTextChange(e.target.value)}
+                placeholder="Modelo (ej: C3)"
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-slate-950/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Input personalizado si elige 'Otro Modelo' */}
+        {!isOtherBrand && isOtherModel && (
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1 animate-in fade-in">
+            <label className="text-[10px] text-amber-300 font-bold uppercase flex items-center gap-1">
+              <Edit3 className="w-3 h-3" />
+              <span>Escribí el modelo:</span>
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={customModelText}
+              onChange={(e) => onCustomModelTextChange(e.target.value)}
+              placeholder={`Ej: Modelo de ${selectedBrand}`}
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-slate-950/90 border border-amber-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">
