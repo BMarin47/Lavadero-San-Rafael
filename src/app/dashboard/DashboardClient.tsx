@@ -92,7 +92,11 @@ export default function DashboardClient({ user }: { user: User }) {
           date: b.date,
           time: b.time,
         }));
-        setTurnos(mapped);
+        // Garantizar lista única sin duplicados de forma defensiva
+        const unique = Array.from(
+          new Map(mapped.map((item: any) => [item.id, item])).values()
+        );
+        setTurnos(unique);
         return;
       }
 

@@ -167,20 +167,6 @@ export async function POST(request: Request) {
     if (!bookingErr && bookingSupabase) {
       createdRecord = bookingSupabase;
       usedSource = 'supabase:bookings';
-
-      // Replicar en tabla turnos para compatibilidad dual silenciosa si existe
-      try {
-        await supabase.from('turnos').insert({
-          id: bookingSupabase.id,
-          user_id: user.id,
-          nombre_cliente: clientName,
-          vehiculo: vehicleDetails,
-          categoria: serviceType,
-          precio: numPrice,
-          indicaciones: notesText,
-          estado: bookingStatus,
-        });
-      } catch (_) {}
     } else {
       // 2. Si falló bookings en Supabase, probar la tabla 'turnos'
       const { data: turnoSupabase, error: turnoErr } = await supabase
@@ -287,25 +273,6 @@ export async function POST(request: Request) {
             bookingStatus,
           ]
         );
-
-        // Replicar en turnos para compatibilidad
-        try {
-          await client.query(
-            `INSERT INTO public.turnos (id, user_id, nombre_cliente, vehiculo, categoria, precio, indicaciones, estado)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (id) DO NOTHING`,
-            [
-              insertRes.rows[0].id,
-              user.id,
-              clientName,
-              vehicleDetails,
-              serviceType,
-              numPrice,
-              notesText,
-              bookingStatus,
-            ]
-          );
-        } catch (_) {}
 
         return NextResponse.json({
           success: true,

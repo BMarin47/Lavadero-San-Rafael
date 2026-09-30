@@ -386,31 +386,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         );
       }
 
-      // Registro complementario no bloqueante en /api/bookings si corresponde
-      try {
-        await fetch('/api/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: effectiveEmail,
-            userFullName: fullName.trim(),
-            userPhone: fullUserPhone,
-            vehicleType,
-            vehicleBrand: effectiveBrand,
-            vehicleModel: effectiveModel,
-            appointmentDate: selectedDate,
-            startTime: selectedSlot.startTime,
-            endTime: selectedSlot.endTime,
-            serviceMode,
-            subscriptionPlanCode: undefined,
-            paymentMethod,
-            notes: notes.trim(),
-          }),
-        });
-      } catch (dbErr) {
-        console.warn('[DB Booking Error non-blocking]:', dbErr);
-      }
-
       // =========================================================================
       // FLUJO A: SI ELIGE PAGO EN EFECTIVO EN EL LOCAL
       // =========================================================================

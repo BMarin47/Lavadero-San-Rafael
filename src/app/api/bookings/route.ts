@@ -74,37 +74,6 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL ||
       `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
-    // Intentar registrar complementariamente en la tabla bookings de Supabase
-    try {
-      const supabase = await createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user?.id) {
-        const vehicleSummary = `${body.vehicleBrand || ''} ${body.vehicleModel}`.trim() || body.vehicleType;
-        const timeRange = `${body.startTime} a ${body.endTime} hs`;
-        await supabase.from('bookings').insert({
-          user_id: user.id,
-          vehicle_details: vehicleSummary,
-          service_type: body.serviceMode === 'SUBSCRIPTION' ? `Suscripción ${body.subscriptionPlanCode || ''}` : 'Lavado Individual',
-          date: body.appointmentDate,
-          time: timeRange,
-          status: body.paymentMethod === 'CASH' ? 'confirmado' : 'pendiente',
-          client_name: body.userFullName,
-          client_email: body.userEmail,
-          client_phone: body.userPhone,
-          notes: body.notes || null,
-          nombre_cliente: body.userFullName,
-          vehiculo: vehicleSummary,
-          categoria: body.vehicleType,
-          indicaciones: body.notes || null,
-          estado: body.paymentMethod === 'CASH' ? 'confirmado' : 'pendiente',
-        });
-      }
-    } catch (sbErr) {
-      console.warn('[API Bookings Supabase sync notice]:', sbErr);
-    }
 
     const result = await BookingService.createBooking(body, appBaseUrl);
 

@@ -175,6 +175,19 @@ export async function GET() {
               fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
           );
         `);
+
+        // Limpiar registros duplicados existentes si los hubiera
+        try {
+          await client.query(`
+            DELETE FROM public.bookings a
+            USING public.bookings b
+            WHERE a.id > b.id
+              AND a.user_id = b.user_id
+              AND a.date = b.date
+              AND a.time = b.time
+              AND a.vehicle_details = b.vehicle_details;
+          `);
+        } catch (_) {}
       }
 
       return NextResponse.json({
