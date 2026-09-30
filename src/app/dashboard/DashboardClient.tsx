@@ -231,11 +231,17 @@ export default function DashboardClient({ user }: { user: User }) {
         prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
       );
 
-      // Petición segura a la API
+      const currentItem = turnos.find((t) => t.id === id);
+
+      // Petición segura a la API (se incluye bookingDetails para asegurar metadatos completos en la alerta por email)
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus }),
+        body: JSON.stringify({
+          id,
+          status: newStatus,
+          bookingDetails: currentItem,
+        }),
       });
 
       if (!res.ok) {
@@ -243,7 +249,11 @@ export default function DashboardClient({ user }: { user: User }) {
         const resTurnos = await fetch('/api/turnos', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, status: newStatus }),
+          body: JSON.stringify({
+            id,
+            status: newStatus,
+            bookingDetails: currentItem,
+          }),
         });
         if (!resTurnos.ok) {
           const json = await res.json().catch(() => ({}));
@@ -267,7 +277,7 @@ export default function DashboardClient({ user }: { user: User }) {
         newStatus === 'confirmado' ? '¡Turno Confirmado!' : 'Turno Cancelado',
         newStatus === 'confirmado'
           ? 'El turno ha sido confirmado con éxito.'
-          : 'El turno ha sido cancelado.',
+          : 'El turno ha sido cancelado y se envió la alerta automática por email al administrador.',
         newStatus === 'confirmado' ? 'success' : 'warning'
       );
     } catch (err: any) {

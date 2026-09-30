@@ -1,9 +1,41 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { EmailService } from '@/lib/services/email.service';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    // 1. Manejo especializado para avisos de Cancelación de Turnos
+    if (
+      body.type === 'cancellation' ||
+      body.action === 'cancellation' ||
+      body.isCancellation === true ||
+      body.status === 'cancelado'
+    ) {
+      const cancellationResult = await EmailService.sendCancellationNotification({
+        bookingId: body.bookingId || body.id || '',
+        clientName: body.clientName || body.userFullName || body.nombre_cliente || 'Cliente',
+        clientEmail: body.clientEmail || body.userEmail || body.email,
+        clientPhone: body.clientPhone || body.userPhone || body.phone,
+        vehicle:
+          body.vehicle ||
+          body.vehiculo ||
+          `${body.vehicleBrand || ''} ${body.vehicleModel || ''}`.trim() ||
+          'Vehículo',
+        category: body.category || body.categoria || body.vehicleType,
+        service: body.service || body.serviceDescription || body.servicio || 'Lavado Completo',
+        date: body.date || body.appointmentDate || 'Fecha programada',
+        time: body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Horario programado'),
+        price: body.price || body.precio || body.amount,
+        notes: body.notes || body.indicaciones,
+      });
+
+      return NextResponse.json({
+        message: 'Notificación de cancelación enviada correctamente.',
+        ...cancellationResult,
+      });
+    }
 
     const {
       userEmail,

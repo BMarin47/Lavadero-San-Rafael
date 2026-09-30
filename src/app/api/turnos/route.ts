@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { EmailService } from '@/lib/services/email.service';
 import { createClient } from '@/utils/supabase/server';
 import { Pool } from 'pg';
 
@@ -327,21 +328,36 @@ export async function PATCH(request: Request) {
     const normalizedStatus = String(status).toLowerCase().trim();
 
     // Restricción de Cancelación: Solo si faltan más de 24 horas
+    let bookingToCancelData: any = null;
     if (normalizedStatus === 'cancelado') {
       const { data: bookingToCancel } = await supabase
         .from('bookings')
-        .select('date, time')
+        .select('*')
         .eq('id', id)
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (bookingToCancel && bookingToCancel.date) {
+      bookingToCancelData = bookingToCancel;
+      if (!bookingToCancelData) {
+        const { data: turnoToCancel } = await supabase
+          .from('turnos')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        bookingToCancelData = turnoToCancel;
+      }
+
+      const dateToCheck = bookingToCancelData?.date || (bookingToCancelData as any)?.fecha;
+      const timeToCheck = bookingToCancelData?.time || (bookingToCancelData as any)?.hora;
+
+      if (dateToCheck) {
         let startTime = '09:00';
-        const match = bookingToCancel.time?.match(/(\d{1,2}:\d{2})/);
+        const match = timeToCheck?.match(/(\d{1,2}:\d{2})/);
         if (match) {
           startTime = match[1].padStart(5, '0');
         }
-        const [year, month, day] = bookingToCancel.date.split('-').map(Number);
+        const [year, month, day] = dateToCheck.split('-').map(Number);
         const [hour, minute] = startTime.split(':').map(Number);
         if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
           const appointmentDate = new Date(year, month - 1, day, hour || 9, minute || 0, 0);
@@ -411,6 +427,71 @@ export async function PATCH(request: Request) {
       } finally {
         client.release();
         await pool.end();
+      }
+    }
+
+    // 4. Si se canceló exitosamente, enviar alerta por email automática con Resend
+    if (normalizedStatus === 'cancelado') {
+      try {
+        const clientName =
+          bookingToCancelData?.client_name ||
+          bookingToCancelData?.nombre_cliente ||
+          user.user_metadata?.full_name ||
+          user.email?.split('@')[0] ||
+          'Cliente';
+
+        const clientEmail =
+          bookingToCancelData?.client_email ||
+          user.email;
+
+        const clientPhone =
+          bookingToCancelData?.client_phone ||
+          bookingToCancelData?.phone ||
+          user.user_metadata?.phone;
+
+        const vehicle =
+          bookingToCancelData?.vehicle_details ||
+          bookingToCancelData?.vehiculo ||
+          'Vehículo';
+
+        const category =
+          bookingToCancelData?.category ||
+          bookingToCancelData?.categoria;
+
+        const service =
+          bookingToCancelData?.service_type ||
+          bookingToCancelData?.servicio ||
+          bookingToCancelData?.categoria ||
+          'Lavado Completo';
+
+        const date =
+          bookingToCancelData?.date ||
+          (bookingToCancelData as any)?.fecha ||
+          'Fecha programada';
+
+        const time =
+          bookingToCancelData?.time ||
+          (bookingToCancelData as any)?.hora ||
+          'Horario programado';
+
+        const price =
+          bookingToCancelData?.price ||
+          bookingToCancelData?.precio;
+
+        await EmailService.sendCancellationNotification({
+          bookingId: String(id),
+          clientName,
+          clientEmail,
+          clientPhone,
+          vehicle,
+          category,
+          service,
+          date,
+          time,
+          price,
+        });
+      } catch (emailErr) {
+        console.error('[Error enviando email de cancelación en /api/turnos]:', emailErr);
       }
     }
 
