@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Car, Truck, ChevronDown, Check, Edit3, Sparkles } from 'lucide-react';
 
 export type VehicleType = 'CAR' | 'SUV' | 'PICKUP';
@@ -176,17 +177,27 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               const isSelected = selectedType === type;
 
               return (
-                <button
+                <motion.button
                   key={type}
                   type="button"
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => handleCategoryClick(type)}
-                  className={`py-2 px-1.5 rounded-xl border text-center transition-all duration-200 relative flex flex-col items-center justify-center cursor-pointer ${
+                  className={`py-2 px-1.5 rounded-xl border text-center transition-colors duration-200 relative flex flex-col items-center justify-center cursor-pointer ${
                     isSelected
-                      ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/40 shadow-sm'
+                      ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 to-blue-600/15 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-500/20'
                       : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
                   }`}
                 >
-                  <div className={`p-1 rounded-lg mb-0.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`}>
+                  <motion.div
+                    animate={
+                      isSelected
+                        ? { scale: [1, 1.25, 0.95, 1], rotate: [0, -8, 8, 0] }
+                        : { scale: 1, rotate: 0 }
+                    }
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                    className={`p-1 rounded-lg mb-0.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`}
+                  >
                     {type === 'CAR' ? (
                       <Car className="w-4 h-4" />
                     ) : type === 'SUV' ? (
@@ -194,12 +205,12 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                     ) : (
                       <Truck className="w-4 h-4" />
                     )}
-                  </div>
+                  </motion.div>
                   <div className="text-xs font-bold leading-tight text-white">{cfg.label}</div>
                   <div className="text-[11px] font-black text-cyan-400 mt-0.5">
                     ${cfg.price.toLocaleString('es-AR')}
                   </div>
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -353,21 +364,29 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             const isSelected = selectedType === type;
 
             return (
-              <button
+              <motion.button
                 key={type}
                 type="button"
+                whileHover={{ scale: 1.025, y: -2 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => handleCategoryClick(type)}
-                className={`p-5 rounded-2xl border text-left transition-all duration-300 relative group flex flex-col justify-between min-h-[125px] cursor-pointer ${
+                className={`p-5 rounded-2xl border text-left transition-colors duration-300 relative group flex flex-col justify-between min-h-[125px] cursor-pointer ${
                   isSelected
-                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/20 via-blue-600/10 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/15 scale-[1.02]'
-                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white hover:scale-[1.01]'
+                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/90 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20'
+                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white'
                 }`}
               >
                 <div className="flex items-start justify-between w-full">
-                  <div
+                  <motion.div
+                    animate={
+                      isSelected
+                        ? { scale: [1, 1.22, 0.95, 1], rotate: [0, -10, 8, 0] }
+                        : { scale: 1, rotate: 0 }
+                    }
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                     className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                       isSelected
-                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                        ? 'bg-gradient-to-tr from-cyan-400 to-sky-500 text-slate-950 shadow-lg shadow-cyan-500/30'
                         : 'bg-white/[0.05] text-slate-300 group-hover:text-cyan-300 group-hover:bg-cyan-500/10'
                     }`}
                   >
@@ -378,11 +397,16 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                     ) : (
                       <Truck className="w-5 h-5 stroke-[2.2]" />
                     )}
-                  </div>
+                  </motion.div>
                   {isSelected && (
-                    <span className="w-6 h-6 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-md shadow-cyan-400/40 animate-in zoom-in-75">
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                      className="w-6 h-6 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-md shadow-cyan-400/40"
+                    >
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </span>
+                    </motion.span>
                   )}
                 </div>
 
@@ -397,7 +421,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                     ${cfg.price.toLocaleString('es-AR')}
                   </div>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>

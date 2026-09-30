@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
 import {
   Calendar,
@@ -220,16 +221,34 @@ export default function DashboardClient({ user }: { user: User }) {
           </div>
 
           {loadingTurnos ? (
-            <div className="rounded-3xl border border-white/[0.08] bg-slate-900/30 p-12 text-center flex items-center justify-center gap-3">
-              <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-slate-400">Consultando tus reservas en la base de datos...</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-5 space-y-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="h-3 w-16 rounded skeleton-shimmer" />
+                      <div className="h-5 w-36 rounded skeleton-shimmer" />
+                    </div>
+                    <div className="h-6 w-20 rounded-full skeleton-shimmer" />
+                  </div>
+                  <div className="h-10 w-full rounded-xl skeleton-shimmer" />
+                  <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between">
+                    <div className="h-4 w-24 rounded skeleton-shimmer" />
+                    <div className="h-7 w-24 rounded-xl skeleton-shimmer" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : turnos.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {turnos.map((t) => (
-                <div
+                <motion.div
                   key={t.id}
-                  className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-5 space-y-4 hover:border-cyan-500/40 transition-all shadow-lg"
+                  whileHover={{ y: -2 }}
+                  className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-5 space-y-4 hover:border-cyan-500/40 transition-colors shadow-lg luxury-glass-card"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -269,7 +288,7 @@ export default function DashboardClient({ user }: { user: User }) {
                       <span>WhatsApp</span>
                     </a>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           ) : (

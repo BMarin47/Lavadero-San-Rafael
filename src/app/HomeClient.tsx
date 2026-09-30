@@ -3,8 +3,10 @@
 import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { fireSuccessConfetti } from '@/lib/confetti';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
 import { PushTestButton } from '@/components/PushTestButton';
 import {
@@ -191,6 +193,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     (data: { status: string; id: string | null }) => {
       if (data.status === 'approved') {
         setMpReturnResult({ status: 'approved', id: data.id });
+        fireSuccessConfetti();
       } else if (data.status === 'failure') {
         setMpReturnResult({ status: 'failure', id: data.id });
       } else if (data.status === 'pending') {
@@ -456,9 +459,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           'Turno registrado con éxito. Redirigiendo a WhatsApp para coordinar tu recepción...',
           'success'
         );
+        fireSuccessConfetti();
 
         if (typeof window !== 'undefined') {
-          window.location.href = whatsAppUrl;
+          setTimeout(() => {
+            window.location.href = whatsAppUrl;
+          }, 600);
         }
         return;
       }
@@ -841,56 +847,76 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         </div>
 
         {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
+        {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
         {!user ? (
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
             {/* HERO SECTION CUANDO NO HAY SESIÓN */}
             <header className="text-center space-y-4 max-w-xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.09] text-slate-300 text-xs font-semibold backdrop-blur-xl">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-cyan-500/10">
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
                 </span>
                 <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                <span>San Rafael, Mendoza • Turnos Online</span>
+                <span>San Rafael, Mendoza • Turnos Online en Vivo</span>
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-extrabold whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white to-cyan-400">
+              <h1 className="text-3xl sm:text-5xl font-black whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-cyan-400 drop-shadow-sm">
                 AquaShine San Rafael
               </h1>
 
               <p className="text-xs sm:text-base text-slate-300 max-w-md mx-auto font-normal leading-relaxed">
-                Lavadero Artesanal, Detailing & Turnos en Vivo. Cuidamos cada detalle de tu vehículo.
+                Lavadero Artesanal, Detailing & Turnos en Vivo. Calidad de detalle para que tu auto brille como recién salido de concesionaria.
               </p>
+
+              {/* Badges de Beneficios */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  Lavado Artesanal
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <Clock className="w-3 h-3 text-emerald-400" />
+                  Cero Filas de Espera
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <ShieldCheck className="w-3 h-3 text-sky-400" />
+                  Garantía AquaShine
+                </span>
+              </div>
             </header>
 
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900/80 border border-white/[0.1] p-6 sm:p-10 text-center backdrop-blur-2xl shadow-2xl shadow-black/40">
-              <div className="relative mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/10 mb-4">
-                <Calendar className="w-7 h-7 text-cyan-400" />
+            <div className="luxury-glass-card rounded-3xl p-6 sm:p-10 text-center neon-border-cyan relative overflow-hidden">
+              {/* Resplandor superior sutil */}
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-32 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-500/20 mb-4 animate-float">
+                <Calendar className="w-8 h-8 text-cyan-400" />
               </div>
 
-              <div className="space-y-2 max-w-md mx-auto">
+              <div className="space-y-2 max-w-md mx-auto relative z-10">
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  ¡Reserva tu turno online!
+                  ¡Reserva tu turno online en 1 minuto!
                 </h2>
                 <p className="text-sm font-semibold text-cyan-300">
                   Inicia sesión o crea tu cuenta para solicitar un turno.
                 </p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Consulta disponibilidad de boxes en vivo y confirma tu horario sin demoras.
+                  Accede al calendario interactivo en vivo, selecciona el horario que prefieras y asegura tu lugar en el box sin esperas.
                 </p>
               </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto relative z-10">
                 <Link
                   href="/login"
-                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-[0.98] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
+                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all duration-200 active:scale-95 cursor-pointer"
                 >
                   <LogIn className="w-4 h-4 text-slate-950" />
                   <span>Iniciar Sesión</span>
                 </Link>
                 <Link
                   href="/register"
-                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] active:scale-[0.98] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-md"
                 >
                   <UserPlus className="w-4 h-4 text-cyan-400" />
                   <span>Registrarse</span>
@@ -903,7 +929,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           <div className="space-y-3 animate-in fade-in duration-300">
             {/* Header Compacto App */}
             <div className="text-center space-y-0.5 pb-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 flex items-center justify-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                 PWA Móvil • AquaShine San Rafael
               </span>
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
@@ -911,8 +938,121 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </h2>
             </div>
 
+            {/* INDICADOR DE PROGRESO DE 3 PASOS INTERACTIVO */}
+            <div className="p-3 rounded-2xl bg-slate-950/70 border border-white/[0.08] backdrop-blur-xl mb-3 shadow-lg">
+              <div className="flex items-center justify-between relative px-2">
+                {/* Línea base conectora */}
+                <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-1 bg-white/[0.06] rounded-full z-0" />
+
+                {/* Línea conectora animada de progreso */}
+                <div
+                  className="absolute left-6 top-1/2 -translate-y-1/2 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400 rounded-full z-0 transition-all duration-500 ease-out"
+                  style={{
+                    width:
+                      effectiveBrand && effectiveModel && selectedSlot && fullName.trim() && phone.trim()
+                        ? 'calc(100% - 48px)'
+                        : effectiveBrand && effectiveModel && selectedSlot
+                        ? 'calc(100% - 48px)'
+                        : effectiveBrand && effectiveModel
+                        ? 'calc(50% - 24px)'
+                        : '0%',
+                  }}
+                />
+
+                {/* Paso 1: Vehículo */}
+                <button
+                  type="button"
+                  onClick={() => setOpenSection('vehicle')}
+                  className="relative z-10 flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
+                      effectiveBrand && effectiveModel
+                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/30'
+                        : openSection === 'vehicle'
+                        ? 'bg-cyan-500 text-slate-950 ring-4 ring-cyan-400/30 shadow-md shadow-cyan-500/30'
+                        : 'bg-slate-900 border border-white/[0.1] text-slate-400'
+                    }`}
+                  >
+                    {effectiveBrand && effectiveModel ? (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    ) : (
+                      '1'
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      openSection === 'vehicle' ? 'text-cyan-300' : 'text-slate-400'
+                    }`}
+                  >
+                    Vehículo
+                  </span>
+                </button>
+
+                {/* Paso 2: Fecha y Turno */}
+                <button
+                  type="button"
+                  onClick={() => setOpenSection('datetime')}
+                  className="relative z-10 flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
+                      selectedSlot
+                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/30'
+                        : openSection === 'datetime'
+                        ? 'bg-cyan-500 text-slate-950 ring-4 ring-cyan-400/30 shadow-md shadow-cyan-500/30'
+                        : 'bg-slate-900 border border-white/[0.1] text-slate-400'
+                    }`}
+                  >
+                    {selectedSlot ? (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    ) : (
+                      '2'
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      openSection === 'datetime' ? 'text-cyan-300' : 'text-slate-400'
+                    }`}
+                  >
+                    Fecha y Hora
+                  </span>
+                </button>
+
+                {/* Paso 3: Contacto */}
+                <button
+                  type="button"
+                  onClick={() => setOpenSection('contact')}
+                  className="relative z-10 flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
+                      fullName.trim() && phone.trim()
+                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/30'
+                        : openSection === 'contact'
+                        ? 'bg-cyan-500 text-slate-950 ring-4 ring-cyan-400/30 shadow-md shadow-cyan-500/30'
+                        : 'bg-slate-900 border border-white/[0.1] text-slate-400'
+                    }`}
+                  >
+                    {fullName.trim() && phone.trim() ? (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    ) : (
+                      '3'
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      openSection === 'contact' ? 'text-cyan-300' : 'text-slate-400'
+                    }`}
+                  >
+                    Tus Datos
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* ============================================================== */}
-            {/* PASO 1: VEHÍCULO (ACORDEÓN) */}
+            {/* PASO 1: VEHÍCULO (ACORDEÓN ANIMADO) */}
             {/* ============================================================== */}
             <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
               <button
@@ -955,35 +1095,46 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </button>
 
-              {openSection === 'vehicle' && (
-                <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40 animate-in fade-in duration-200">
-                  <VehicleSelector
-                    selectedType={vehicleType}
-                    onTypeChange={setVehicleType}
-                    selectedBrand={selectedBrand}
-                    onBrandChange={setSelectedBrand}
-                    selectedModel={selectedModel}
-                    onModelChange={setSelectedModel}
-                    customBrandText={customBrandText}
-                    onCustomBrandTextChange={setCustomBrandText}
-                    customModelText={customModelText}
-                    onCustomModelTextChange={setCustomModelText}
-                    compact
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setOpenSection('datetime')}
-                    className="w-full py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+              <AnimatePresence initial={false}>
+                {openSection === 'vehicle' && (
+                  <motion.div
+                    key="vehicle-accordion"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeInOut' }}
+                    className="overflow-hidden"
                   >
-                    <span>Continuar a Fecha y Turno</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
+                    <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40">
+                      <VehicleSelector
+                        selectedType={vehicleType}
+                        onTypeChange={setVehicleType}
+                        selectedBrand={selectedBrand}
+                        onBrandChange={setSelectedBrand}
+                        selectedModel={selectedModel}
+                        onModelChange={setSelectedModel}
+                        customBrandText={customBrandText}
+                        onCustomBrandTextChange={setCustomBrandText}
+                        customModelText={customModelText}
+                        onCustomModelTextChange={setCustomModelText}
+                        compact
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpenSection('datetime')}
+                        className="w-full py-2.5 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+                      >
+                        <span>Continuar a Fecha y Turno</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* ============================================================== */}
-            {/* PASO 2: FECHA Y TURNO (ACORDEÓN) */}
+            {/* PASO 2: FECHA Y TURNO (ACORDEÓN ANIMADO) */}
             {/* ============================================================== */}
             <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
               <button
@@ -996,11 +1147,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                    selectedSlot
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                      selectedSlot
+                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                        : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
+                    }`}
+                  >
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
@@ -1018,11 +1171,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                    selectedSlot
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  }`}>
+                  <span
+                    className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                      selectedSlot
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    }`}
+                  >
                     {openSection === 'datetime' ? 'Editando' : selectedSlot ? '✓ Listo' : 'Pendiente'}
                   </span>
                   {openSection === 'datetime' ? (
@@ -1033,29 +1188,40 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </button>
 
-              {openSection === 'datetime' && (
-                <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40 animate-in fade-in duration-200">
-                  <CalendarSlotPicker
-                    selectedDate={selectedDate}
-                    onDateChange={setSelectedDate}
-                    selectedSlot={selectedSlot}
-                    onSlotChange={setSelectedSlot}
-                    compact
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setOpenSection('contact')}
-                    className="w-full py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+              <AnimatePresence initial={false}>
+                {openSection === 'datetime' && (
+                  <motion.div
+                    key="datetime-accordion"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeInOut' }}
+                    className="overflow-hidden"
                   >
-                    <span>Continuar a Mis Datos</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
+                    <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40">
+                      <CalendarSlotPicker
+                        selectedDate={selectedDate}
+                        onDateChange={setSelectedDate}
+                        selectedSlot={selectedSlot}
+                        onSlotChange={setSelectedSlot}
+                        compact
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpenSection('contact')}
+                        className="w-full py-2.5 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+                      >
+                        <span>Continuar a Mis Datos</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* ============================================================== */}
-            {/* PASO 3: TUS DATOS (ACORDEÓN) */}
+            {/* PASO 3: TUS DATOS (ACORDEÓN ANIMADO) */}
             {/* ============================================================== */}
             <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
               <button
@@ -1068,11 +1234,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                    fullName.trim() && phone.trim()
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                      : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                      fullName.trim() && phone.trim()
+                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                        : 'bg-white/[0.05] text-slate-400 border-white/[0.08]'
+                    }`}
+                  >
                     <UserIcon className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
@@ -1089,11 +1257,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                    fullName.trim() && phone.trim()
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  }`}>
+                  <span
+                    className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                      fullName.trim() && phone.trim()
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    }`}
+                  >
                     {openSection === 'contact' ? 'Editando' : fullName.trim() && phone.trim() ? '✓ Listo' : 'Pendiente'}
                   </span>
                   {openSection === 'contact' ? (
@@ -1104,64 +1274,75 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </button>
 
-              {openSection === 'contact' && (
-                <div className="p-3 sm:p-3.5 space-y-2.5 bg-slate-900/40 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {/* Nombre y Apellido */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                        Nombre y Apellido *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Ej: Juan Pérez"
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 shadow-inner"
-                      />
-                    </div>
+              <AnimatePresence initial={false}>
+                {openSection === 'contact' && (
+                  <motion.div
+                    key="contact-accordion"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-3 sm:p-3.5 space-y-2.5 bg-slate-900/40">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {/* Nombre y Apellido */}
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                            Nombre y Apellido *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Ej: Juan Pérez"
+                            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 shadow-inner"
+                          />
+                        </div>
 
-                    {/* WhatsApp */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                        WhatsApp / Celular *
-                      </label>
-                      <div className="flex rounded-xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 overflow-hidden shadow-inner">
-                        <span className="inline-flex items-center px-2 bg-white/[0.04] border-r border-white/[0.08] text-[10px] font-black text-cyan-400 select-none">
-                          +54 9
-                        </span>
+                        {/* WhatsApp */}
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                            WhatsApp / Celular *
+                          </label>
+                          <div className="flex rounded-xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-400/50 overflow-hidden shadow-inner">
+                            <span className="inline-flex items-center px-2 bg-white/[0.04] border-r border-white/[0.08] text-[10px] font-black text-cyan-400 select-none">
+                              +54 9
+                            </span>
+                            <input
+                              type="tel"
+                              required
+                              value={phone}
+                              onChange={(e) => {
+                                let val = e.target.value;
+                                val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
+                                setPhone(val);
+                              }}
+                              placeholder="260 465-4255"
+                              className="w-full min-w-0 px-2.5 py-2 text-xs bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Indicaciones Opcionales */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                          Indicaciones Especiales (Opcional)
+                        </label>
                         <input
-                          type="tel"
-                          required
-                          value={phone}
-                          onChange={(e) => {
-                            let val = e.target.value;
-                            val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
-                            setPhone(val);
-                          }}
-                          placeholder="260 465-4255"
-                          className="w-full min-w-0 px-2.5 py-2 text-xs bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
+                          type="text"
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          placeholder="Ej: Cuidado con llantas, retirar por la tarde"
+                          className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400"
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Indicaciones Opcionales */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                      Indicaciones Especiales (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ej: Cuidado con llantas, retirar por la tarde"
-                      className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400"
-                    />
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* ============================================================== */}
@@ -1178,8 +1359,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
               <div className="p-1 rounded-2xl bg-slate-950/80 border border-white/[0.08] grid grid-cols-2 gap-1.5 shadow-inner">
                 {/* Mercado Pago */}
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setPaymentMethod('MERCADO_PAGO')}
                   className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'MERCADO_PAGO'
@@ -1189,11 +1372,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 >
                   <CreditCard className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">Mercado Pago</span>
-                </button>
+                </motion.button>
 
                 {/* Efectivo en el local */}
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setPaymentMethod('CASH')}
                   className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     paymentMethod === 'CASH'
@@ -1203,7 +1388,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 >
                   <Banknote className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">Efectivo en el local</span>
-                </button>
+                </motion.button>
               </div>
             </div>
 
@@ -1239,17 +1424,24 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </div>
 
-              {/* Botón de Acción Dinámico */}
-              <button
+              {/* Botón de Acción Dinámico con Efecto Shimmer y Microinteracción */}
+              <motion.button
                 type="button"
                 disabled={submitting}
+                whileHover={!submitting ? { scale: 1.02 } : undefined}
+                whileTap={!submitting ? { scale: 0.98 } : undefined}
                 onClick={handleSubmitBooking}
-                className={`w-full py-3.5 px-4 rounded-xl font-black text-sm tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                className={`w-full py-3.5 px-4 rounded-xl font-black text-sm tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-lg relative overflow-hidden ${
                   paymentMethod === 'MERCADO_PAGO'
-                    ? 'bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 hover:from-[#0089c7] hover:to-cyan-400 text-white shadow-[#009EE3]/25'
-                    : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 shadow-emerald-500/25'
+                    ? 'bg-gradient-to-r from-[#009EE3] via-sky-500 to-cyan-500 text-white shadow-[#009EE3]/25'
+                    : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-slate-950 shadow-emerald-500/25'
                 }`}
               >
+                {/* Haz de luz animado (Shimmer beam) */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] animate-shimmer-sweep" />
+                </div>
+
                 {submitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1273,7 +1465,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     )}
                   </>
                 )}
-              </button>
+              </motion.button>
 
               <p className="text-[10px] text-center text-slate-400 leading-tight">
                 {paymentMethod === 'MERCADO_PAGO' ? (

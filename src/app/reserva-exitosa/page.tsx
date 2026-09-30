@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { fireSuccessConfetti } from '@/lib/confetti';
 import {
   CheckCircle2,
   Calendar,
@@ -56,6 +58,7 @@ function ReservaExitosaContent() {
         const parsed: BookingData = JSON.parse(stored);
         setBooking(parsed);
       }
+      fireSuccessConfetti();
     } catch (e) {
       console.error('[Reserva Exitosa]: Error leyendo localStorage', e);
     } finally {
@@ -208,28 +211,33 @@ function ReservaExitosaContent() {
       </header>
 
       <main className="relative z-10 flex-1 max-w-3xl w-full mx-auto px-4 py-10 sm:py-14 flex flex-col items-center">
-        {/* Ícono de Éxito */}
-        <div className="relative mb-6">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 p-0.5 shadow-2xl shadow-emerald-500/30 flex items-center justify-center animate-bounce-short">
+        {/* Ícono de Éxito con Animación Spring y Glow */}
+        <motion.div
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+          className="relative mb-6"
+        >
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-emerald-400 via-teal-300 to-cyan-400 p-0.5 shadow-2xl shadow-emerald-500/40 flex items-center justify-center">
             <div className="w-full h-full bg-[#0a101d] rounded-[22px] flex items-center justify-center">
-              <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14 text-emerald-400" />
+              <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14 text-emerald-400 animate-pulse" />
             </div>
           </div>
           <span className="absolute -top-1 -right-1 flex h-6 w-6">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-6 w-6 bg-emerald-500 items-center justify-center text-[10px] text-slate-950 font-black">
+            <span className="relative inline-flex rounded-full h-6 w-6 bg-emerald-500 items-center justify-center text-[10px] text-slate-950 font-black shadow-md">
               ✓
             </span>
           </span>
-        </div>
+        </motion.div>
 
         {/* Título Principal */}
         <div className="text-center space-y-2.5 mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold uppercase tracking-wider shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>Mercado Pago Checkout Pro</span>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-emerald-100 to-emerald-400">
             ¡Pago exitoso y reserva confirmada!
           </h1>
           <p className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto leading-relaxed">
@@ -237,8 +245,8 @@ function ReservaExitosaContent() {
           </p>
         </div>
 
-        {/* Card con Detalles de la Reserva */}
-        <div className="w-full bg-[#0d1424] border border-white/[0.08] rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl mb-8 space-y-6">
+        {/* Card con Detalles de la Reserva (Luxury Glassmorphism & Neon Glow) */}
+        <div className="w-full luxury-glass-card neon-border-emerald rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl mb-8 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -341,16 +349,23 @@ function ReservaExitosaContent() {
           </div>
         </div>
 
-        {/* Botón Final WhatsApp */}
+        {/* Botón Final WhatsApp con Efecto Shimmer */}
         <div className="w-full space-y-3.5">
-          <button
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleWhatsAppClick}
-            className="w-full py-4 sm:py-5 px-6 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.99] transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3 cursor-pointer group"
+            className="w-full py-4 sm:py-5 px-6 rounded-2xl font-black text-sm sm:text-base text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3 cursor-pointer group relative overflow-hidden"
           >
+            {/* Shimmer light sweep */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] animate-shimmer-sweep" />
+            </div>
+
             <MessageCircle className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
             <span>Abrir WhatsApp y Enviar Datos del Turno</span>
-          </button>
+          </motion.button>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <Link

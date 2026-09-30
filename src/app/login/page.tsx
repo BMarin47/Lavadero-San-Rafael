@@ -62,19 +62,19 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+    <div className="w-full max-w-md p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-cyan-500/30 shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl relative overflow-hidden">
       {/* Decorative gradient glow */}
-      <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
       <div className="text-center space-y-2 mb-8 relative">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           <span>Acceso al Sistema</span>
         </div>
         <h1 className="text-2xl font-black tracking-tight text-white">
-          AquaShine <span className="text-blue-500">San Rafael</span>
+          AquaShine <span className="text-cyan-400">San Rafael</span>
         </h1>
         <p className="text-xs text-slate-400">
           Ingresá con tu correo y contraseña
@@ -105,7 +105,7 @@ function LoginForm() {
               placeholder="ejemplo@sanrafael.com"
               autoComplete="email"
               required
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/70 border border-slate-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-100 placeholder:text-slate-500 text-sm outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950/70 border border-slate-700/80 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 text-slate-100 placeholder:text-slate-500 text-sm outline-none transition-all shadow-inner"
             />
           </div>
         </div>
@@ -124,7 +124,7 @@ function LoginForm() {
               placeholder="••••••••"
               autoComplete="current-password"
               required
-              className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-950/70 border border-slate-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-100 placeholder:text-slate-500 text-sm outline-none transition-all"
+              className="w-full pl-10 pr-11 py-3 rounded-xl bg-slate-950/70 border border-slate-700/80 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 text-slate-100 placeholder:text-slate-500 text-sm outline-none transition-all shadow-inner"
             />
             <button
               type="button"
@@ -141,15 +141,20 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Submit Button */}
+        {/* Submit Button with Shimmer */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 active:scale-[0.99] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden cursor-pointer"
         >
+          {/* Shimmer light sweep */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-[-20deg] animate-shimmer-sweep" />
+          </div>
+
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
               <span>Iniciando sesión...</span>
             </>
           ) : (

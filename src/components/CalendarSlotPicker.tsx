@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SlotAvailability } from '@/lib/services/schedule.service';
-import { Clock, Calendar, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Clock, Calendar, AlertCircle, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface CalendarSlotPickerProps {
   selectedDate: string; // YYYY-MM-DD
@@ -168,14 +169,16 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
               const isSelected = selectedDate === d.dateString;
 
               return (
-                <button
+                <motion.button
                   key={d.dateString}
                   type="button"
                   disabled={d.isSunday}
+                  whileHover={!d.isSunday ? { scale: 1.05, y: -2 } : undefined}
+                  whileTap={!d.isSunday ? { scale: 0.95 } : undefined}
                   onClick={() => onDateChange(d.dateString)}
-                  className={`min-w-[58px] py-2 px-1.5 rounded-xl border text-center transition-all duration-200 shrink-0 snap-start cursor-pointer ${
+                  className={`min-w-[58px] py-2 px-1.5 rounded-xl border text-center transition-colors duration-200 shrink-0 snap-start cursor-pointer ${
                     isSelected
-                      ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/40 shadow-sm'
+                      ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 to-blue-600/15 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-500/20'
                       : d.isSunday
                       ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-35'
                       : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
@@ -198,17 +201,33 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                   >
                     {d.isSunday ? 'Cerrado' : 'Abierto'}
                   </div>
-                </button>
+                </motion.button>
               );
             })}
           </div>
         </div>
 
-        {/* Estado de carga */}
+        {/* Skeleton animado durante la carga */}
         {loading && (
-          <div className="py-4 flex items-center justify-center gap-2 text-xs text-slate-300 bg-slate-950/50 rounded-xl border border-white/[0.07]">
-            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
-            <span>Consultando horarios...</span>
+          <div className="space-y-2 pt-1 border-t border-white/[0.06] animate-in fade-in duration-200">
+            <div className="flex items-center justify-between mb-1">
+              <div className="h-3 w-28 rounded-md skeleton-shimmer" />
+              <div className="h-3 w-16 rounded-md skeleton-shimmer" />
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="h-11 rounded-xl border border-white/[0.06] bg-slate-950/60 p-2 flex items-center justify-between overflow-hidden relative"
+                >
+                  <div className="space-y-1.5 flex-1 pr-2">
+                    <div className="h-3 w-16 rounded skeleton-shimmer" />
+                    <div className="h-2 w-10 rounded skeleton-shimmer" />
+                  </div>
+                  <div className="w-7 h-4 rounded-md skeleton-shimmer" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -222,7 +241,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
             <button
               type="button"
               onClick={() => fetchAvailability()}
-              className="px-2 py-1 bg-rose-600/30 text-rose-100 rounded-lg text-[10px] font-bold shrink-0"
+              className="px-2 py-1 bg-rose-600/30 text-rose-100 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer active:scale-95"
             >
               Reintentar
             </button>
@@ -237,7 +256,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
           </div>
         )}
 
-        {/* Grilla Compacta de Bloques Horarios (2 columnas) */}
+        {/* Grilla Compacta de Bloques Horarios (2 columnas) con microinteracciones */}
         {!loading && !fetchError && isOpen && (
           <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
             <div className="flex items-center justify-between mb-1">
@@ -245,7 +264,10 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 <Clock className="w-3 h-3 text-cyan-400" />
                 <span>Horarios Disponibles</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-medium">Cupos en vivo</span>
+              <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block" />
+                Cupos en vivo
+              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
@@ -258,10 +280,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                   selectedSlot?.endTime === slot.endTime;
 
                 return (
-                  <button
+                  <motion.button
                     key={`${slot.startTime}-${slot.endTime}`}
                     type="button"
                     disabled={isDisabled}
+                    whileHover={!isDisabled ? { scale: 1.02, y: -1 } : undefined}
+                    whileTap={!isDisabled ? { scale: 0.97 } : undefined}
                     onClick={() => {
                       if (isDisabled) return;
                       onSlotChange({
@@ -269,12 +293,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                         endTime: slot.endTime,
                       });
                     }}
-                    className={`py-2 px-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                    className={`py-2 px-2.5 rounded-xl border text-left flex items-center justify-between transition-colors ${
                       isDisabled
                         ? 'opacity-35 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500'
                         : isSelected
-                        ? 'border-cyan-400 bg-cyan-500/20 text-white ring-1 ring-cyan-400/50 shadow-sm cursor-pointer'
-                        : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/30 cursor-pointer'
+                        ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/25 via-blue-500/15 to-cyan-500/20 text-white ring-1 ring-cyan-400/60 shadow-md shadow-cyan-500/20 cursor-pointer'
+                        : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/60 cursor-pointer'
                     }`}
                   >
                     <div className="min-w-0 pr-1">
@@ -287,9 +311,9 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                     </div>
 
                     <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase shrink-0 ${
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase shrink-0 transition-transform ${
                         isSelected
-                          ? 'bg-cyan-400 text-slate-950'
+                          ? 'bg-cyan-400 text-slate-950 scale-105'
                           : isPast
                           ? 'bg-slate-800 text-slate-500'
                           : !slot.isAvailable
@@ -299,7 +323,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                     >
                       {isSelected ? '✓' : isPast ? 'Off' : slot.isAvailable ? 'Disp.' : 'Lleno'}
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -346,17 +370,19 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
             const isSelected = selectedDate === d.dateString;
 
             return (
-              <button
+              <motion.button
                 key={d.dateString}
                 type="button"
                 disabled={d.isSunday}
+                whileHover={!d.isSunday ? { scale: 1.05, y: -2 } : undefined}
+                whileTap={!d.isSunday ? { scale: 0.95 } : undefined}
                 onClick={() => onDateChange(d.dateString)}
-                className={`p-3.5 rounded-2xl border text-center transition-all duration-300 relative cursor-pointer ${
+                className={`p-3.5 rounded-2xl border text-center transition-colors duration-300 relative cursor-pointer ${
                   isSelected
-                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20 scale-[1.04]'
+                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20'
                     : d.isSunday
                     ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-40'
-                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white hover:scale-[1.02]'
+                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white'
                 }`}
               >
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
@@ -376,17 +402,33 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 >
                   {d.isSunday ? 'Cerrado' : 'Abierto'}
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
       </div>
 
-      {/* Estado de carga */}
+      {/* Estado de carga con Skeleton */}
       {loading && (
-        <div className="py-9 flex flex-col items-center justify-center text-xs text-slate-300 space-y-3 bg-slate-950/50 rounded-2xl border border-white/[0.07]">
-          <Loader2 className="w-7 h-7 text-cyan-400 animate-spin" />
-          <span className="font-semibold text-slate-300">Consultando disponibilidad en tiempo real...</span>
+        <div className="space-y-3.5 pt-2 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-32 rounded-md skeleton-shimmer" />
+            <div className="h-3 w-28 rounded-md skeleton-shimmer" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-20 rounded-2xl border border-white/[0.07] bg-slate-950/60 p-4 flex items-center justify-between overflow-hidden relative"
+              >
+                <div className="space-y-2">
+                  <div className="h-4 w-28 rounded skeleton-shimmer" />
+                  <div className="h-3 w-20 rounded skeleton-shimmer" />
+                </div>
+                <div className="w-16 h-6 rounded-full skeleton-shimmer" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -442,10 +484,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 selectedSlot?.endTime === slot.endTime;
 
               return (
-                <button
+                <motion.button
                   key={`${slot.startTime}-${slot.endTime}`}
                   type="button"
                   disabled={isDisabled}
+                  whileHover={!isDisabled ? { scale: 1.015, y: -1 } : undefined}
+                  whileTap={!isDisabled ? { scale: 0.98 } : undefined}
                   onClick={() => {
                     if (isDisabled) return;
                     onSlotChange({
@@ -453,12 +497,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                       endTime: slot.endTime,
                     });
                   }}
-                  className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between transition-all duration-300 ${
+                  className={`p-4 sm:p-5 rounded-2xl border text-left flex items-center justify-between transition-colors duration-200 ${
                     isDisabled
                       ? 'opacity-40 bg-slate-950/40 border-white/[0.04] cursor-not-allowed text-slate-500 select-none'
                       : isSelected
-                      ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/20 via-blue-600/10 to-slate-900/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/15 scale-[1.01] cursor-pointer'
-                      : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/50 hover:scale-[1.005] cursor-pointer'
+                      ? 'border-cyan-400 bg-gradient-to-r from-cyan-500/25 via-blue-600/15 to-slate-900/90 text-white ring-1 ring-cyan-400/60 shadow-xl shadow-cyan-500/20 cursor-pointer'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-200 hover:border-cyan-400/40 hover:bg-slate-900/60 cursor-pointer'
                   }`}
                 >
                   <div className="space-y-1.5">
@@ -498,7 +542,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                       ? 'Disponible'
                       : 'Lleno'}
                   </span>
-                </button>
+                </motion.button>
               );
             })}
           </div>
