@@ -1049,6 +1049,21 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </div>
 
               <div className="mt-6 flex flex-col items-center justify-center gap-3 max-w-sm mx-auto relative z-10">
+                {/* Cartel de Ayuda Accesible para Personas Mayores */}
+                <div className="w-full text-left p-4 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-slate-900/90 to-blue-950/70 border border-cyan-400/40 shadow-xl shadow-cyan-950/40 backdrop-blur-md relative overflow-hidden">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl shrink-0 select-none">👋</span>
+                    <div className="space-y-1">
+                      <h4 className="text-xs sm:text-sm font-black text-cyan-300 tracking-tight leading-snug">
+                        ¿No sabés cómo ingresar?
+                      </h4>
+                      <p className="text-xs text-slate-100 font-medium leading-relaxed">
+                        Es muy fácil y seguro: solo <strong className="text-white font-bold underline decoration-cyan-400/50 underline-offset-2">tocá el botón blanco de abajo</strong> y elegí tu cuenta. <span className="text-cyan-200 font-bold">¡No tenés que inventar ninguna contraseña nueva!</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => handleGoogleSignIn('/')}
