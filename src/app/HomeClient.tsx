@@ -54,7 +54,10 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react';
+import { GoogleIcon } from '@/components/GoogleIcon';
+
 
 // Componente para escuchar el retorno de Mercado Pago (?status=approved&id=...)
 function MercadoPagoReturnHandler({
@@ -138,20 +141,102 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   } | null>(null);
 
   // Campos de contacto (precompletados si hay sesión activa)
-  const [fullName, setFullName] = useState(initialUser?.user_metadata?.full_name || '');
+  const [fullName, setFullName] = useState(
+    initialUser?.user_metadata?.full_name ||
+    initialUser?.user_metadata?.name ||
+    ''
+  );
   const [userEmail, setUserEmail] = useState(initialUser?.email || '');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [isSigningInGoogle, setIsSigningInGoogle] = useState(false);
 
   // Sincronizar datos si el usuario inicia sesión en tiempo real
   useEffect(() => {
     if (user?.email && !userEmail) {
       setUserEmail(user.email);
     }
-    if (user?.user_metadata?.full_name && !fullName) {
-      setFullName(user.user_metadata.full_name);
+    const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+    if (googleName && !fullName) {
+      setFullName(googleName);
     }
   }, [user]);
+
+  // Guardar y restaurar borrador de reserva para que el flujo sea 100% fluido con Google OAuth
+  const saveBookingDraft = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const draft = {
+        vehicleType,
+        selectedBrand,
+        customBrandText,
+        selectedModel,
+        customModelText,
+        serviceMode,
+        selectedPlan,
+        homeDelivery,
+        deliveryAddress,
+        selectedDate,
+        selectedSlot,
+        phone,
+        notes,
+      };
+      localStorage.setItem('lavadero_draft_booking', JSON.stringify(draft));
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem('lavadero_draft_booking');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
+        if (parsed.selectedBrand) setSelectedBrand(parsed.selectedBrand);
+        if (parsed.customBrandText) setCustomBrandText(parsed.customBrandText);
+        if (parsed.selectedModel) setSelectedModel(parsed.selectedModel);
+        if (parsed.customModelText) setCustomModelText(parsed.customModelText);
+        if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
+        if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot);
+        if (parsed.phone && !phone) setPhone(parsed.phone);
+        if (parsed.notes) setNotes(parsed.notes);
+        localStorage.removeItem('lavadero_draft_booking');
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleGoogleSignIn = async (redirectTarget = '/') => {
+    try {
+      setIsSigningInGoogle(true);
+      saveBookingDraft();
+      const supabase = createClient();
+      const origin =
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : 'https://lavadero-san-rafael.vercel.app';
+      const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      });
+
+      if (error) {
+        showToast('Error de Autenticación', error.message || 'No se pudo conectar con Google.', 'error');
+        setIsSigningInGoogle(false);
+      }
+    } catch (err: any) {
+      showToast('Error', err?.message || 'Error al iniciar sesión con Google.', 'error');
+      setIsSigningInGoogle(false);
+    }
+  };
+
 
   // Estado del Acordeón Compacto Mobile
   const [openSection, setOpenSection] = useState<'vehicle' | 'datetime' | 'contact'>('vehicle');
@@ -283,11 +368,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
       if (!activeUser?.id) {
         showToast(
-          'Sesión requerida',
-          'Debés iniciar sesión para registrar tu reserva en el sistema.',
-          'warning'
+          'Iniciando con Google',
+          'Conectando con tu cuenta de Google para guardar y confirmar tu turno en 1 clic...',
+          'info'
         );
-        router.push('/login');
+        saveBookingDraft();
+        await handleGoogleSignIn('/');
         setSubmitting(false);
         return;
       }
@@ -600,13 +686,21 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 <span className="hidden sm:inline">Mi Cuenta</span>
               </Link>
             ) : (
-              <Link
-                href="/login"
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all"
+              <button
+                type="button"
+                onClick={() => handleGoogleSignIn('/')}
+                disabled={isSigningInGoogle}
+                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                title="Iniciar sesión en 1 clic con Google"
               >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Ingresar</span>
-              </Link>
+                {isSigningInGoogle ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-900" />
+                ) : (
+                  <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span className="hidden sm:inline">Entrar con Google</span>
+                <span className="sm:hidden">Google</span>
+              </button>
             )}
 
             <a
@@ -838,23 +932,19 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </button>
             </>
           ) : (
-            <>
-              {/* Usuario sin sesión */}
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.15] text-slate-200 hover:text-white font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-md"
-              >
-                <LogIn className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Iniciar Sesión</span>
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-slate-950" />
-                <span>Registrarse</span>
-              </Link>
-            </>
+            <button
+              type="button"
+              onClick={() => handleGoogleSignIn('/')}
+              disabled={isSigningInGoogle}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 active:scale-95 text-slate-950 font-black text-xs shadow-lg shadow-white/10 transition-all duration-200 cursor-pointer disabled:opacity-50"
+            >
+              {isSigningInGoogle ? (
+                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+              ) : (
+                <GoogleIcon className="w-4 h-4 shrink-0" />
+              )}
+              <span>Iniciar Sesión con Google</span>
+            </button>
           )}
         </div>
       </nav>
@@ -926,28 +1016,40 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   ¡Reserva tu turno online en 1 minuto!
                 </h2>
                 <p className="text-sm font-semibold text-cyan-300">
-                  Inicia sesión o crea tu cuenta para solicitar un turno.
+                  Acceso rápido en 1 solo clic con Google
                 </p>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Accede al calendario interactivo en vivo, selecciona el horario que prefieras y asegura tu lugar en el box sin esperas.
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Inicia sesión de forma transparente con tu cuenta de Google. Sin contraseñas complicadas ni formularios que llenar.
                 </p>
               </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto relative z-10">
-                <Link
-                  href="/login"
-                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all duration-200 active:scale-95 cursor-pointer"
+              <div className="mt-6 flex flex-col items-center justify-center gap-3 max-w-sm mx-auto relative z-10">
+                <button
+                  type="button"
+                  onClick={() => handleGoogleSignIn('/')}
+                  disabled={isSigningInGoogle}
+                  className="w-full py-4 px-6 rounded-2xl bg-white hover:bg-slate-100 active:scale-95 text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-3 shadow-2xl shadow-cyan-500/20 transition-all duration-200 cursor-pointer disabled:opacity-60 border border-slate-200"
                 >
-                  <LogIn className="w-4 h-4 text-slate-950" />
-                  <span>Iniciar Sesión</span>
-                </Link>
-                <Link
-                  href="/register"
-                  className="w-full sm:w-1/2 py-3.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-md"
-                >
-                  <UserPlus className="w-4 h-4 text-cyan-400" />
-                  <span>Registrarse</span>
-                </Link>
+                  {isSigningInGoogle ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-slate-950" />
+                      <span>Conectando con Google...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GoogleIcon className="w-5 h-5 shrink-0" />
+                      <span>Continuar con Google</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-400 pt-1">
+                  <span className="text-emerald-400 font-bold">✓ 100% Seguro</span>
+                  <span>•</span>
+                  <span>✓ Sin contraseñas</span>
+                  <span>•</span>
+                  <span>✓ Acceso inmediato</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1312,6 +1414,44 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     className="overflow-hidden"
                   >
                     <div className="p-3 sm:p-3.5 space-y-2.5 bg-slate-900/40">
+                      {/* Estado de Cuenta / Sesión de Google */}
+                      {user ? (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-white font-bold block truncate">
+                                {fullName || user.user_metadata?.full_name || 'Cliente'}
+                              </span>
+                              <span className="text-[11px] text-slate-400 block truncate">{user.email}</span>
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-[10px] font-black uppercase text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                            Google Conectado
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-white block">
+                              ¿Querés guardar tus turnos en tu cuenta?
+                            </span>
+                            <span className="text-[11px] text-slate-300 block">
+                              Iniciá sesión en 1 solo clic con Google para autorrellenar tus datos.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleGoogleSignIn('/')}
+                            disabled={isSigningInGoogle}
+                            className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                          >
+                            <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                            <span>Entrar con Google</span>
+                          </button>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {/* Nombre y Apellido */}
                         <div>
