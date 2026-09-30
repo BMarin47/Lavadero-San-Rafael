@@ -58,6 +58,14 @@ async function processSendPush(request: Request, body?: any) {
     } catch (upsertErr) {
       console.warn('[Supabase push_subscriptions upsert warning]:', upsertErr);
     }
+
+    if (body?.silent) {
+      return NextResponse.json({
+        success: true,
+        saved: true,
+        message: 'Suscripción Web Push sincronizada correctamente en segundo plano.',
+      });
+    }
   }
 
   // 2. Buscar en Supabase la suscripción (PushSubscription) del usuario

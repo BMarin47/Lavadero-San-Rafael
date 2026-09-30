@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PushTestButton } from '@/components/PushTestButton';
+import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { isSuperAdmin } from '@/lib/auth/admin';
 
 interface TurnoItem {
@@ -517,6 +518,9 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
           </div>
         </section>
+
+        {/* BANNER INFORMATIVO DE PERMISOS PUSH Y SOPORTE IOS */}
+        <PushNotificationBanner />
 
         {/* SECCIÓN PRINCIPAL: MIS TURNOS / HISTORIAL DE RESERVAS */}
         <section className="space-y-4">
