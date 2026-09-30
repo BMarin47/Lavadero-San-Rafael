@@ -53,7 +53,10 @@ function LoginForm() {
         typeof window !== 'undefined'
           ? window.location.origin
           : 'https://lavadero-san-rafael.vercel.app';
-      const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
+      const callbackUrl =
+        redirectTo && redirectTo !== '/'
+          ? `${origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+          : `${origin}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -67,7 +70,16 @@ function LoginForm() {
       });
 
       if (error) {
-        setErrorMessage(error.message || 'Error al conectar con Google.');
+        console.error('[Google OAuth Login Error]:', error);
+        let msg = error.message || 'Error al conectar con Google.';
+        if (
+          msg.toLowerCase().includes('provider is not enabled') ||
+          msg.toLowerCase().includes('unsupported provider')
+        ) {
+          msg =
+            'El proveedor de Google no está activado en Supabase. En tu panel de Supabase ve a Authentication > Providers > Google, activa el interruptor "Enable Sign in with Google" y presiona "Save".';
+        }
+        setErrorMessage(msg);
         setLoading(false);
         return;
       }
@@ -76,7 +88,16 @@ function LoginForm() {
         window.location.href = data.url;
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Ocurrió un error al iniciar sesión.');
+      console.error('[Google OAuth Login Exception]:', err);
+      let msg = err?.message || 'Ocurrió un error al iniciar sesión.';
+      if (
+        msg.toLowerCase().includes('provider is not enabled') ||
+        msg.toLowerCase().includes('unsupported provider')
+      ) {
+        msg =
+          'El proveedor de Google no está activado en Supabase. En tu panel de Supabase ve a Authentication > Providers > Google, activa el interruptor "Enable Sign in with Google" y presiona "Save".';
+      }
+      setErrorMessage(msg);
       setLoading(false);
     }
   };

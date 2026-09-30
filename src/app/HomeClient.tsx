@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, getSupabaseConfig } from '@/utils/supabase/client';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { fireSuccessConfetti } from '@/lib/confetti';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
@@ -209,12 +209,28 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     try {
       setIsSigningInGoogle(true);
       saveBookingDraft();
+
+      const { isConfigured } = getSupabaseConfig();
+      if (!isConfigured) {
+        showToast(
+          'Configuración Pendiente',
+          'Las credenciales de Supabase no están configuradas en las variables de entorno de Vercel.',
+          'error'
+        );
+        setIsSigningInGoogle(false);
+        return;
+      }
+
       const supabase = createClient();
       const origin =
-        typeof window !== 'undefined'
+        typeof window !== 'undefined' && window.location.origin
           ? window.location.origin
           : 'https://lavadero-san-rafael.vercel.app';
-      const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`;
+
+      const callbackUrl =
+        redirectTarget && redirectTarget !== '/'
+          ? `${origin}/auth/callback?next=${encodeURIComponent(redirectTarget)}`
+          : `${origin}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -228,7 +244,16 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       });
 
       if (error) {
-        showToast('Error de Autenticación', error.message || 'No se pudo conectar con Google.', 'error');
+        console.error('[Google OAuth Error]:', error);
+        let errorMsg = error.message || 'No se pudo conectar con Google.';
+        if (
+          errorMsg.toLowerCase().includes('provider is not enabled') ||
+          errorMsg.toLowerCase().includes('unsupported provider')
+        ) {
+          errorMsg =
+            'El proveedor de Google no está activado en Supabase. En tu panel de Supabase ve a Authentication > Providers > Google, activa el interruptor "Enable Sign in with Google" y presiona "Save".';
+        }
+        showToast('Error de Autenticación', errorMsg, 'error');
         setIsSigningInGoogle(false);
         return;
       }
@@ -237,7 +262,16 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         window.location.href = data.url;
       }
     } catch (err: any) {
-      showToast('Error', err?.message || 'Error al iniciar sesión con Google.', 'error');
+      console.error('[Google OAuth Exception]:', err);
+      let errorMsg = err?.message || 'Error al iniciar sesión con Google.';
+      if (
+        errorMsg.toLowerCase().includes('provider is not enabled') ||
+        errorMsg.toLowerCase().includes('unsupported provider')
+      ) {
+        errorMsg =
+          'El proveedor de Google no está activado en Supabase. En tu panel de Supabase ve a Authentication > Providers > Google, activa el interruptor "Enable Sign in with Google" y presiona "Save".';
+      }
+      showToast('Error', errorMsg, 'error');
       setIsSigningInGoogle(false);
     }
   };
@@ -716,8 +750,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </Link>
             )}
 
-            {/* Acceso a Cuenta / Iniciar Sesión */}
-            {user ? (
+            {/* Acceso a Cuenta si hay sesión activa */}
+            {user && (
               <Link
                 href="/dashboard"
                 className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-slate-200 hover:text-white border border-white/[0.1] text-xs font-bold transition-all"
@@ -726,22 +760,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="hidden sm:inline">Mi Cuenta</span>
               </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleGoogleSignIn('/')}
-                disabled={isSigningInGoogle}
-                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                title="Iniciar sesión en 1 clic con Google"
-              >
-                {isSigningInGoogle ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-900" />
-                ) : (
-                  <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
-                )}
-                <span className="hidden sm:inline">Entrar con Google</span>
-                <span className="sm:hidden">Google</span>
-              </button>
             )}
 
             <a
@@ -937,58 +955,41 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         </div>
       )}
 
-      {/* BARRA SUPERIOR CON BOTONES DE ACCESO */}
-      <nav className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
-          <span className="text-xs sm:text-sm font-black tracking-tight text-white">
-            AquaShine <span className="text-cyan-400">San Rafael</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          {user ? (
-            <>
-              {/* Usuario con sesión activa */}
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer"
-              >
-                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Mis Turnos</span>
-              </Link>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.07] border border-white/[0.12] text-xs text-slate-200 backdrop-blur-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                <span className="max-w-[120px] sm:max-w-[200px] truncate font-medium text-slate-300">
-                  {user.email}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 hover:text-rose-100 font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>{isSigningOut ? 'Saliendo...' : 'Cerrar Sesión'}</span>
-              </button>
-            </>
-          ) : (
+      {/* BARRA DE SESIÓN DE USUARIO */}
+      {user && (
+        <nav className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
+            <span className="text-xs sm:text-sm font-black tracking-tight text-white">
+              AquaShine <span className="text-cyan-400">San Rafael</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Mis Turnos</span>
+            </Link>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.07] border border-white/[0.12] text-xs text-slate-200 backdrop-blur-md">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="max-w-[120px] sm:max-w-[200px] truncate font-medium text-slate-300">
+                {user.email}
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => handleGoogleSignIn('/')}
-              disabled={isSigningInGoogle}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 active:scale-95 text-slate-950 font-black text-xs shadow-lg shadow-white/10 transition-all duration-200 cursor-pointer disabled:opacity-50"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 hover:text-rose-100 font-bold text-xs shadow-sm transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
             >
-              {isSigningInGoogle ? (
-                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-              ) : (
-                <GoogleIcon className="w-4 h-4 shrink-0" />
-              )}
-              <span>Iniciar Sesión con Google</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>{isSigningOut ? 'Saliendo...' : 'Cerrar Sesión'}</span>
             </button>
-          )}
-        </div>
-      </nav>
+          </div>
+        </nav>
+      )}
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
