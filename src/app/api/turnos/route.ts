@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     const notesText = body.indicaciones || body.notes ? String(body.indicaciones || body.notes).trim() : null;
     const bookingDate = String(body.date || body.appointmentDate || new Date().toISOString().split('T')[0]);
     const bookingTime = String(body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Por coordinar'));
-    const bookingStatus = String(body.status || body.estado || 'pendiente');
+    const bookingStatus = String(body.status || body.estado || 'confirmado');
 
     if (!clientName || !vehicleDetails || !serviceType) {
       return NextResponse.json(
@@ -325,6 +325,41 @@ export async function PATCH(request: Request) {
     }
 
     const normalizedStatus = String(status).toLowerCase().trim();
+
+    // Restricción de Cancelación: Solo si faltan más de 24 horas
+    if (normalizedStatus === 'cancelado') {
+      const { data: bookingToCancel } = await supabase
+        .from('bookings')
+        .select('date, time')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (bookingToCancel && bookingToCancel.date) {
+        let startTime = '09:00';
+        const match = bookingToCancel.time?.match(/(\d{1,2}:\d{2})/);
+        if (match) {
+          startTime = match[1].padStart(5, '0');
+        }
+        const [year, month, day] = bookingToCancel.date.split('-').map(Number);
+        const [hour, minute] = startTime.split(':').map(Number);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+          const appointmentDate = new Date(year, month - 1, day, hour || 9, minute || 0, 0);
+          const now = new Date();
+          const diffHours = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+          if (diffHours < 24) {
+            return NextResponse.json(
+              {
+                error:
+                  'La opción de cancelar turno solo está disponible si faltan más de 24 horas para la fecha y hora programada del lavado.',
+              },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
 
     // 1. Actualizar en Supabase (tabla bookings)
     try {

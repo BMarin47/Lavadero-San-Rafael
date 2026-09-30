@@ -324,7 +324,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             service_type: serviceDescription,
             date: selectedDate,
             time: `${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-            status: 'pendiente',
+            status: 'confirmado',
             client_name: fullName.trim(),
             client_email: effectiveEmail,
             client_phone: fullUserPhone,

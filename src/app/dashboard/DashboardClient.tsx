@@ -41,6 +41,83 @@ interface TurnoItem {
   time?: string;
 }
 
+/**
+ * Regla lógica: La cancelación de un turno solo está permitida si faltan más de 24 horas
+ * para la fecha y horario programado del lavado.
+ */
+export function checkCancellationEligibility(turno: TurnoItem): {
+  canCancel: boolean;
+  hoursRemaining: number;
+  reason?: string;
+} {
+  let dateStr = turno.date;
+  let timeStr = turno.time;
+
+  // Si no vienen en campos directos, buscar en indicaciones
+  if (!dateStr && turno.indicaciones) {
+    const dateMatch = turno.indicaciones.match(/\b(202\d-\d{2}-\d{2})\b/);
+    if (dateMatch) {
+      dateStr = dateMatch[1];
+    }
+  }
+
+  if (!timeStr && turno.indicaciones) {
+    const timeMatch = turno.indicaciones.match(/(\d{1,2}:\d{2})/);
+    if (timeMatch) {
+      timeStr = timeMatch[1];
+    }
+  }
+
+  if (!dateStr) {
+    return {
+      canCancel: false,
+      hoursRemaining: 0,
+      reason: 'No es posible cancelar: fecha del turno no disponible.',
+    };
+  }
+
+  let startTime = '09:00';
+  if (timeStr) {
+    const match = timeStr.match(/(\d{1,2}:\d{2})/);
+    if (match) {
+      startTime = match[1].padStart(5, '0');
+    }
+  }
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = startTime.split(':').map(Number);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    return { canCancel: false, hoursRemaining: 0, reason: 'Fecha inválida.' };
+  }
+
+  const appointmentDate = new Date(year, month - 1, day, hour || 9, minute || 0, 0);
+  const now = new Date();
+  const diffHours = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  if (diffHours <= 0) {
+    return {
+      canCancel: false,
+      hoursRemaining: diffHours,
+      reason: 'El horario programado ya ha comenzado o concluido.',
+    };
+  }
+
+  if (diffHours < 24) {
+    const rounded = Math.max(0, Math.floor(diffHours));
+    return {
+      canCancel: false,
+      hoursRemaining: diffHours,
+      reason: `La cancelación solo está disponible con más de 24 horas de anticipación (restan ${rounded}h). Comunicate por WhatsApp para reprogramar.`,
+    };
+  }
+
+  return {
+    canCancel: true,
+    hoursRemaining: diffHours,
+  };
+}
+
 export default function DashboardClient({ user }: { user: User }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -130,6 +207,22 @@ export default function DashboardClient({ user }: { user: User }) {
 
   // Actualizar estado de una reserva (Confirmar / Cancelar)
   const handleUpdateStatus = async (id: string, newStatus: 'confirmado' | 'cancelado') => {
+    // Restricción de Cancelación: Debe faltar más de 24 horas
+    if (newStatus === 'cancelado') {
+      const currentItem = turnos.find((t) => t.id === id);
+      if (currentItem) {
+        const check = checkCancellationEligibility(currentItem);
+        if (!check.canCancel) {
+          showToast(
+            'Cancelación no disponible',
+            check.reason || 'Solo es posible cancelar con más de 24 horas de anticipación.',
+            'warning'
+          );
+          return;
+        }
+      }
+    }
+
     try {
       setUpdatingId(id);
 
@@ -308,6 +401,25 @@ export default function DashboardClient({ user }: { user: User }) {
         {/* TARJETAS RESUMEN DE ACTIVIDAD */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-white/[0.06] backdrop-blur-md flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-400">Turnos Confirmados</p>
+              <p className="text-xl font-black text-white">
+                {loadingTurnos
+                  ? '...'
+                  : turnos.filter(
+                      (t) =>
+                        t.estado === 'confirmado' ||
+                        t.estado === 'confirmed' ||
+                        t.estado === 'completado'
+                    ).length}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-slate-900/40 border border-white/[0.06] backdrop-blur-md flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
               <Clock className="w-6 h-6" />
             </div>
@@ -322,25 +434,6 @@ export default function DashboardClient({ user }: { user: User }) {
                         t.estado !== 'confirmed' &&
                         t.estado !== 'cancelado' &&
                         t.estado !== 'cancelled'
-                    ).length}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/40 border border-white/[0.06] backdrop-blur-md flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-400">Turnos Confirmados</p>
-              <p className="text-xl font-black text-white">
-                {loadingTurnos
-                  ? '...'
-                  : turnos.filter(
-                      (t) =>
-                        t.estado === 'confirmado' ||
-                        t.estado === 'confirmed' ||
-                        t.estado === 'completado'
                     ).length}
               </p>
             </div>
@@ -411,6 +504,8 @@ export default function DashboardClient({ user }: { user: User }) {
                   t.estado === 'cancelled';
                 const isPendiente = !isConfirmado && !isCancelado;
                 const isBusy = updatingId === t.id;
+                const cancellation = checkCancellationEligibility(t);
+                const canCancel = cancellation.canCancel;
 
                 return (
                   <motion.div
@@ -472,17 +567,25 @@ export default function DashboardClient({ user }: { user: User }) {
                           <span>{isConfirmado ? 'Confirmado' : 'Confirmar'}</span>
                         </button>
 
-                        {/* Botón Cancelar */}
+                        {/* Botón Cancelar con regla de 24 horas */}
                         <button
                           type="button"
-                          disabled={isBusy || isCancelado}
+                          disabled={isBusy || isCancelado || (!isCancelado && !canCancel)}
                           onClick={() => handleUpdateStatus(t.id, 'cancelado')}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
                             isCancelado
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                              : 'bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 border border-rose-500/30 hover:border-rose-400'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 disabled:opacity-40 cursor-not-allowed'
+                              : !canCancel
+                              ? 'bg-slate-800/40 text-slate-500 border border-slate-700/40 cursor-not-allowed opacity-50'
+                              : 'bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 border border-rose-500/30 hover:border-rose-400 cursor-pointer'
                           }`}
-                          title={isCancelado ? 'Turno cancelado' : 'Cancelar este turno'}
+                          title={
+                            isCancelado
+                              ? 'Turno cancelado'
+                              : !canCancel
+                              ? cancellation.reason || 'Cancelación no permitida: faltan menos de 24 horas'
+                              : 'Cancelar este turno'
+                          }
                         >
                           {isBusy ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -507,6 +610,17 @@ export default function DashboardClient({ user }: { user: User }) {
                         </button>
                       )}
                     </div>
+
+                    {/* Alerta si la cancelación está bloqueada por la regla de 24 horas */}
+                    {!isCancelado && !canCancel && (
+                      <div className="w-full flex items-start gap-2 text-[11px] text-amber-300/95 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
+                        <span className="leading-tight">
+                          {cancellation.reason ||
+                            'Cancelación no disponible: debe realizarse con más de 24 horas de anticipación.'}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Fila de precio y contacto WhatsApp */}
                     <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-xs">
