@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
+import { PushTestButton } from '@/components/PushTestButton';
 import {
   VehicleSelector,
   VehicleType,
@@ -828,6 +829,17 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
         
+        {/* BOTÓN / BANNER TEMPORAL DE PRUEBA DE NOTIFICACIÓN PUSH */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center gap-2.5 text-center sm:text-left">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+            <span className="text-xs text-slate-200 font-semibold">
+              ¿Querés probar las Notificaciones Push en tu dispositivo?
+            </span>
+          </div>
+          <PushTestButton />
+        </div>
+
         {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
         {!user ? (
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">

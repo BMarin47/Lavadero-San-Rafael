@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { PushTestButton } from '@/components/PushTestButton';
 
 interface TurnoItem {
   id: string;
@@ -150,7 +151,8 @@ export default function DashboardClient({ user }: { user: User }) {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <PushTestButton />
               <Link
                 href="/"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all"
