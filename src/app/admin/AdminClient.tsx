@@ -140,7 +140,7 @@ export default function AdminClient({ user }: { user: User }) {
   const loadTurnos = async () => {
     try {
       setLoadingTurnos(true);
-      const res = await fetch('/api/admin/turnos');
+      const res = await fetch('/api/admin/turnos', { cache: 'no-store' });
       const json = await res.json().catch(() => ({}));
       if (json.success && Array.isArray(json.turnos)) {
         setTurnos(json.turnos);
@@ -157,7 +157,7 @@ export default function AdminClient({ user }: { user: User }) {
   const loadPushInfo = async () => {
     try {
       setLoadingPush(true);
-      const res = await fetch('/api/admin/push');
+      const res = await fetch('/api/admin/push', { cache: 'no-store' });
       const json = await res.json().catch(() => ({}));
       if (json.success) {
         setPushCount(json.count || 0);
@@ -172,7 +172,7 @@ export default function AdminClient({ user }: { user: User }) {
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
-      const res = await fetch('/api/admin/users');
+      const res = await fetch('/api/admin/users', { cache: 'no-store' });
       const json = await res.json().catch(() => ({}));
       if (json.success && Array.isArray(json.users)) {
         setUsersList(json.users);
@@ -194,15 +194,19 @@ export default function AdminClient({ user }: { user: User }) {
   // GESTIÓN DE TURNOS (ACCIONES ADMIN)
   // ==========================================
   const handleUpdateStatus = async (id: string, newStatus: string) => {
+    const targetTurno = turnos.find((t) => t.id === id);
+
     try {
       if (newStatus === 'cancelado') {
         setCancellingId(id);
+        // Filtrar inmediatamente del estado local de React para que desaparezca al instante de la pantalla
+        setTurnos((prev) => prev.filter((t) => t.id !== id));
+      } else {
+        // Optimistic update visual para otros estados (ej: confirmado)
+        setTurnos((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
+        );
       }
-
-      // Optimistic update visual inmediato
-      setTurnos((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
-      );
 
       const res = await fetch('/api/admin/turnos', {
         method: 'PATCH',
@@ -216,13 +220,14 @@ export default function AdminClient({ user }: { user: User }) {
         throw new Error(json.error || 'No se pudo actualizar el estado.');
       }
 
-      // Sincronización en tiempo real inmediata con la base de datos
+      // Sincronización en tiempo real inmediata con la base de datos y revalidación de Next.js
       await loadTurnos();
+      router.refresh();
 
       if (newStatus === 'cancelado') {
         showToast(
           'Turno Cancelado',
-          'El turno fue cancelado en la base de datos y se emitieron las alertas por correo y WhatsApp.',
+          'El turno fue cancelado y retirado de los turnos activos. Se emitieron las alertas por correo y WhatsApp.',
           'warning'
         );
 
@@ -233,15 +238,14 @@ export default function AdminClient({ user }: { user: User }) {
           } catch (_) {}
 
           // Abrir modal interactivo de confirmación y enlace directo de WhatsApp
-          const currentItem = turnos.find((t) => t.id === id);
           setWhatsAppModal({
             isOpen: true,
             url: json.whatsAppUrl,
-            clientName: json.turno?.nombre_cliente || currentItem?.nombre_cliente || 'Cliente',
-            phone: json.turno?.client_phone || currentItem?.client_phone || '',
-            vehicle: json.turno?.vehiculo || currentItem?.vehiculo || 'Vehículo',
-            date: json.turno?.date || currentItem?.date || '',
-            time: json.turno?.time || currentItem?.time || '',
+            clientName: json.turno?.nombre_cliente || targetTurno?.nombre_cliente || 'Cliente',
+            phone: json.turno?.client_phone || targetTurno?.client_phone || '',
+            vehicle: json.turno?.vehiculo || targetTurno?.vehiculo || 'Vehículo',
+            date: json.turno?.date || targetTurno?.date || '',
+            time: json.turno?.time || targetTurno?.time || '',
           });
         }
       } else {
@@ -336,9 +340,21 @@ export default function AdminClient({ user }: { user: User }) {
         t.vehiculo.toLowerCase().includes(q) ||
         t.id.toLowerCase().includes(q);
 
-      const matchesStatus =
-        statusFilter === 'todos' ||
-        t.estado.toLowerCase() === statusFilter.toLowerCase();
+      const isCancelled =
+        t.estado.toLowerCase() === 'cancelado' ||
+        t.estado.toLowerCase() === 'cancelled';
+
+      let matchesStatus = true;
+      if (statusFilter === 'todos' || statusFilter === 'activos') {
+        // En los turnos activos (vista principal), NO se muestran los cancelados
+        matchesStatus = !isCancelled;
+      } else if (statusFilter === 'cancelado') {
+        matchesStatus = isCancelled;
+      } else if (statusFilter === 'todos_registros') {
+        matchesStatus = true;
+      } else {
+        matchesStatus = t.estado.toLowerCase() === statusFilter.toLowerCase();
+      }
 
       const matchesDate = !dateFilter || t.date === dateFilter;
 
@@ -348,7 +364,6 @@ export default function AdminClient({ user }: { user: User }) {
 
   // Métricas de Turnos
   const stats = useMemo(() => {
-    const total = turnos.length;
     const confirmados = turnos.filter(
       (t) => t.estado === 'confirmado' || t.estado === 'confirmed'
     ).length;
@@ -358,11 +373,12 @@ export default function AdminClient({ user }: { user: User }) {
     const cancelados = turnos.filter(
       (t) => t.estado === 'cancelado' || t.estado === 'cancelled'
     ).length;
+    const activos = confirmados + pendientes;
     const ingresos = turnos
       .filter((t) => t.estado !== 'cancelado' && t.estado !== 'cancelled')
       .reduce((sum, t) => sum + (Number(t.precio) || 0), 0);
 
-    return { total, confirmados, pendientes, cancelados, ingresos };
+    return { total: activos, totalGeneral: turnos.length, confirmados, pendientes, cancelados, ingresos };
   }, [turnos]);
 
   // ==========================================
@@ -635,7 +651,7 @@ export default function AdminClient({ user }: { user: User }) {
                 }`}
               >
                 <Calendar className="w-4 h-4" />
-                <span>Turnos ({turnos.length})</span>
+                <span>Turnos Activos ({stats.total})</span>
               </button>
 
               <button
@@ -673,7 +689,7 @@ export default function AdminClient({ user }: { user: User }) {
             {/* Tarjetas de Métricas de Turnos */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
               <div className="p-4 rounded-2xl bg-slate-900/50 border border-white/[0.06] backdrop-blur-md">
-                <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Total Turnos</span>
+                <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Turnos Activos</span>
                 <p className="text-xl sm:text-2xl font-black text-white mt-1">{stats.total}</p>
               </div>
 
@@ -720,11 +736,11 @@ export default function AdminClient({ user }: { user: User }) {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="px-3 py-2 rounded-xl bg-slate-950/60 border border-white/[0.08] text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="todos">Todos los Estados</option>
-                  <option value="confirmado">Confirmados</option>
-                  <option value="pendiente">Pendientes</option>
-                  <option value="cancelado">Cancelados</option>
-                  <option value="completado">Completados</option>
+                  <option value="todos">Turnos Activos (Confirmados y Pendientes)</option>
+                  <option value="confirmado">Solo Confirmados</option>
+                  <option value="pendiente">Solo Pendientes</option>
+                  <option value="cancelado">Cancelados (Historial)</option>
+                  <option value="todos_registros">Todos los Registros (Inc. Cancelados)</option>
                 </select>
 
                 {/* Filtro de Fecha */}

@@ -227,12 +227,16 @@ export default function DashboardClient({ user }: { user: User }) {
     try {
       setUpdatingId(id);
 
-      // Actualización visual inmediata e intuitiva (Optimistic UI)
-      setTurnos((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
-      );
-
       const currentItem = turnos.find((t) => t.id === id);
+
+      // Actualización visual inmediata e intuitiva (Optimistic UI)
+      if (newStatus === 'cancelado') {
+        setTurnos((prev) => prev.filter((t) => t.id !== id));
+      } else {
+        setTurnos((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
+        );
+      }
 
       // Petición segura a la API (se incluye bookingDetails para asegurar metadatos completos en la alerta por email)
       const res = await fetch('/api/bookings', {
@@ -273,6 +277,8 @@ export default function DashboardClient({ user }: { user: User }) {
           })
           .eq('id', id);
       } catch (_) {}
+
+      router.refresh();
 
       showToast(
         newStatus === 'confirmado' ? '¡Turno Confirmado!' : 'Turno Cancelado',
