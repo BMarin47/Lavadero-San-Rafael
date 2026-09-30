@@ -102,6 +102,10 @@ export default function AdminClient({ user }: { user: User }) {
     msg: string;
   } | null>(null);
 
+  // Estados para Cron 24hs
+  const [runningCron, setRunningCron] = useState(false);
+  const [cronResult, setCronResult] = useState<any | null>(null);
+
   // Estados para Usuarios
   const [usersList, setUsersList] = useState<AdminUserItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -437,6 +441,34 @@ export default function AdminClient({ user }: { user: User }) {
     setPushTitle(title);
     setPushMessage(msg);
     setPushUrl(url);
+  };
+
+  const handleRun24hCron = async () => {
+    try {
+      setRunningCron(true);
+      setCronResult(null);
+
+      const res = await fetch('/api/cron/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Fallo al ejecutar el cron de recordatorios.');
+      }
+
+      setCronResult(data);
+      showToast(
+        'Proceso 24hs Ejecutado',
+        `Evaluados: ${data.candidatesEvaluated}. Enviados: ${data.notificationsSent}. Expirados eliminados: ${data.expiredCleaned}.`,
+        'success'
+      );
+    } catch (err: any) {
+      showToast('Error Cron 24hs', err.message || 'No se pudo ejecutar el proceso de recordatorios.', 'error');
+    } finally {
+      setRunningCron(false);
+    }
   };
 
   // ==========================================
@@ -1135,6 +1167,95 @@ export default function AdminClient({ user }: { user: User }) {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* PANEL DE CONTROL DE RECORDATORIOS AUTOMÁTICOS 24HS */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0c1424] via-slate-900/90 to-[#0c1424] border border-cyan-500/25 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] font-extrabold uppercase tracking-wider mb-2">
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Cron Automatizado en Vercel</span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <span>Recordatorios Push &quot;24 Horas Antes&quot;</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                      Activo (Cada 1h)
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400 max-w-2xl mt-1 leading-relaxed">
+                    El cron job de Vercel (<code className="text-cyan-300">/api/cron/reminders</code>) inspecciona la agenda cada hora, calcula la ventana exacta de 24 horas para <strong>San Rafael, Mendoza (UTC-3)</strong> y despacha notificaciones automáticas a los clientes sin duplicar envíos.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRun24hCron}
+                  disabled={runningCron}
+                  className="px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-black text-xs transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20 cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {runningCron ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Evaluando Turnos 24hs...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 text-slate-950" />
+                      <span>Ejecutar Verificación 24hs Ahora</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Resultado del Cron en Vivo */}
+              {cronResult && (
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/[0.08] text-xs space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
+                    <span className="font-extrabold text-cyan-300">
+                      Última ejecución: {cronResult.executedAtArgentina || 'Ahora'}
+                    </span>
+                    <span className="text-slate-400 text-[11px]">
+                      UTC: {cronResult.executedAtUtc || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Evaluados</span>
+                      <span className="text-base font-black text-white">{cronResult.candidatesEvaluated ?? 0}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">En Ventana 24h</span>
+                      <span className="text-base font-black text-cyan-300">{cronResult.in24hWindowCount ?? 0}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Push Enviados</span>
+                      <span className="text-base font-black text-emerald-400">{cronResult.notificationsSent ?? 0}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Expirados Limpiados</span>
+                      <span className="text-base font-black text-amber-400">{cronResult.expiredCleaned ?? 0}</span>
+                    </div>
+                  </div>
+
+                  {cronResult.turnosReminded && cronResult.turnosReminded.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      <span className="text-[11px] font-bold text-slate-300 block">Detalle de Turnos en la Ventana:</span>
+                      <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                        {cronResult.turnosReminded.map((t: any, idx: number) => (
+                          <div key={idx} className="p-2 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between text-[11px]">
+                            <span><strong>{t.client}</strong> ({t.vehicle}) - {t.date} {t.time}</span>
+                            <span className={t.pushSent ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                              {t.pushSent ? '✓ Notificado' : t.reason}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </section>
         )}

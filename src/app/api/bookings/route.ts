@@ -5,6 +5,7 @@ import {
   generateWhatsAppCancellationUrl,
 } from '@/lib/services/booking.service';
 import { EmailService } from '@/lib/services/email.service';
+import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { createClient } from '@/utils/supabase/server';
 import { Pool } from 'pg';
 
@@ -157,17 +158,9 @@ export async function PATCH(request: NextRequest) {
       const timeToCheck = bookingToCancelData?.time || body.bookingDetails?.time;
 
       if (dateToCheck) {
-        let startTime = '09:00';
-        const match = timeToCheck?.match(/(\d{1,2}:\d{2})/);
-        if (match) {
-          startTime = match[1].padStart(5, '0');
-        }
-        const [year, month, day] = dateToCheck.split('-').map(Number);
-        const [hour, minute] = startTime.split(':').map(Number);
-        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-          const appointmentDate = new Date(year, month - 1, day, hour || 9, minute || 0, 0);
-          const now = new Date();
-          const diffHours = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+        const appointmentDate = parseArgentinaAppointmentDate(dateToCheck, timeToCheck);
+        if (appointmentDate) {
+          const diffHours = (appointmentDate.getTime() - Date.now()) / (1000 * 60 * 60);
 
           if (diffHours < 24) {
             return NextResponse.json(

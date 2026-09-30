@@ -86,13 +86,12 @@ export function checkCancellationEligibility(turno: TurnoItem): {
   }
 
   const [year, month, day] = dateStr.split('-').map(Number);
-  const [hour, minute] = startTime.split(':').map(Number);
-
   if (isNaN(year) || isNaN(month) || isNaN(day)) {
     return { canCancel: false, hoursRemaining: 0, reason: 'Fecha inválida.' };
   }
 
-  const appointmentDate = new Date(year, month - 1, day, hour || 9, minute || 0, 0);
+  // San Rafael, Mendoza está fijado en UTC-3 (-03:00)
+  const appointmentDate = new Date(`${dateStr}T${startTime}:00-03:00`);
   const now = new Date();
   const diffHours = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 

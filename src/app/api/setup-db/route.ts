@@ -153,6 +153,41 @@ export async function GET() {
             END IF;
           END
           $$;
+
+          -- 3. Columnas de recordatorio 24hs para bookings y turnos
+          ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN DEFAULT false;
+          ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ;
+          ALTER TABLE public.turnos ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN DEFAULT false;
+          ALTER TABLE public.turnos ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ;
+
+          -- 4. Tabla push_subscriptions con RLS
+          CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID,
+              endpoint TEXT UNIQUE NOT NULL,
+              p256dh TEXT NOT NULL,
+              auth TEXT NOT NULL,
+              user_agent TEXT,
+              fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+          );
+
+          ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'push_subscriptions' AND policyname = 'Acceso abierto para push_subscriptions'
+            ) THEN
+              CREATE POLICY "Acceso abierto para push_subscriptions" ON public.push_subscriptions
+              FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+            END IF;
+          END
+          $$;
+
+          CREATE INDEX IF NOT EXISTS idx_push_subs_user_id ON public.push_subscriptions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_push_subs_endpoint ON public.push_subscriptions(endpoint);
+          CREATE INDEX IF NOT EXISTS idx_bookings_reminder_lookup ON public.bookings(date, reminder_24h_sent);
         `);
       } else {
         // En bases PostgreSQL estándar sin Supabase Auth
@@ -198,6 +233,28 @@ export async function GET() {
               estado TEXT NOT NULL DEFAULT 'pendiente',
               fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
           );
+
+          -- 3. Columnas de recordatorio 24hs
+          ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN DEFAULT false;
+          ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ;
+          ALTER TABLE public.turnos ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN DEFAULT false;
+          ALTER TABLE public.turnos ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ;
+
+          -- 4. Tabla push_subscriptions
+          CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id TEXT,
+              endpoint TEXT UNIQUE NOT NULL,
+              p256dh TEXT NOT NULL,
+              auth TEXT NOT NULL,
+              user_agent TEXT,
+              fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_push_subs_user_id ON public.push_subscriptions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_push_subs_endpoint ON public.push_subscriptions(endpoint);
+          CREATE INDEX IF NOT EXISTS idx_bookings_reminder_lookup ON public.bookings(date, reminder_24h_sent);
         `);
 
         // Limpiar registros duplicados existentes si los hubiera
