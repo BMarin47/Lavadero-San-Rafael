@@ -762,23 +762,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </Link>
             )}
 
-            <a
-              href="https://wa.me/5492604654255"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 hover:text-emerald-300 text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm whitespace-nowrap"
-              title="Atención por WhatsApp: +54 9 260 465-4255"
-            >
-              <Phone className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline text-slate-300 font-medium">Consultas:</span>
-              <span className="hidden sm:inline text-white font-extrabold whitespace-nowrap">
-                +54 9 260 465-4255
-              </span>
-              <span className="sm:hidden font-extrabold text-[11px] text-emerald-300 whitespace-nowrap">
-                WhatsApp
-              </span>
-            </a>
-
           </div>
         </div>
       </nav>
