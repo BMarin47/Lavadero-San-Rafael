@@ -44,23 +44,26 @@ function RegisterForm() {
 
     try {
       // Determinar dinámicamente la URL base para la redirección de confirmación
-      let siteUrl = '';
+      const PRODUCTION_SITE_URL = 'https://lavadero-san-rafael.vercel.app';
 
-      if (typeof window !== 'undefined' && window.location.origin) {
-        siteUrl = window.location.origin;
-      }
-
-      // Variables de entorno de Vercel (si fueron configuradas)
+      // 1. Variable de entorno explícita configurada en Vercel
       const envSiteUrl =
         process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
         process.env.NEXT_PUBLIC_APP_URL?.trim() ||
         (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : '');
 
-      // En producción, preferir siempre el dominio del navegador activo si no es localhost
-      const baseUrl =
-        siteUrl && !siteUrl.includes('localhost')
-          ? siteUrl
-          : (envSiteUrl || siteUrl || 'http://localhost:3000');
+      // 2. Origen del navegador (si está disponible y no es localhost)
+      const browserOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+      // 3. Resolver la URL base asegurando el fallback directo de producción (nunca localhost fuera de desarrollo local)
+      let baseUrl = PRODUCTION_SITE_URL;
+      if (envSiteUrl && !envSiteUrl.includes('localhost')) {
+        baseUrl = envSiteUrl;
+      } else if (browserOrigin && !browserOrigin.includes('localhost')) {
+        baseUrl = browserOrigin;
+      } else if (process.env.NODE_ENV === 'development' && browserOrigin) {
+        baseUrl = browserOrigin;
+      }
 
       const emailRedirectTo = `${baseUrl.replace(/\/$/, '')}/auth/callback`;
 

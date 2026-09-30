@@ -1,46 +1,54 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+const PRODUCTION_SITE_URL = 'https://lavadero-san-rafael.vercel.app';
+
 function getBaseUrl(request: Request): string {
-  // 1. Variable de entorno explícita configurada en Vercel
+  // 1. Entorno local de desarrollo explícito (npm run dev)
+  if (process.env.NODE_ENV === 'development') {
+    const { origin } = new URL(request.url);
+    return origin || 'http://localhost:3000';
+  }
+
+  // 2. Variable de entorno explícita configurada en Vercel
   const envUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
     process.env.SITE_URL?.trim();
 
-  if (envUrl) {
+  if (envUrl && !envUrl.includes('localhost')) {
     return envUrl.replace(/\/$/, '');
   }
 
-  // 2. Cabeceras del proxy inverso de Vercel (x-forwarded-host y x-forwarded-proto)
+  // 3. Cabeceras del proxy inverso de Vercel (x-forwarded-host y x-forwarded-proto)
   const forwardedHost = request.headers.get('x-forwarded-host');
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-  if (forwardedHost) {
+  if (forwardedHost && !forwardedHost.includes('localhost')) {
     return `${forwardedProto}://${forwardedHost}`;
   }
 
-  // 3. Variables automáticas provistas por la plataforma de Vercel
+  // 4. Variables automáticas provistas por la plataforma de Vercel
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
-  if (process.env.VERCEL_URL) {
+  if (process.env.VERCEL_URL && !process.env.VERCEL_URL.includes('localhost')) {
     return `https://${process.env.VERCEL_URL}`;
   }
 
-  // 4. Cabecera Host
+  // 5. Cabecera Host
   const host = request.headers.get('host');
   if (host && !host.includes('localhost')) {
     return `https://${host}`;
   }
 
-  // 5. Origin de la petición entrante (siempre que no apunte erróneamente a localhost en producción)
+  // 6. Origin de la petición entrante (siempre que no apunte a localhost)
   const { origin } = new URL(request.url);
   if (origin && !origin.includes('localhost')) {
     return origin;
   }
 
-  // 6. Entorno local de desarrollo
-  return origin || 'http://localhost:3000';
+  // 7. Fallback forzado de producción (¡nunca devolver localhost en producción!)
+  return PRODUCTION_SITE_URL;
 }
 
 export async function GET(request: Request) {
