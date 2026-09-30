@@ -41,7 +41,56 @@ export function PushTestButton({
 
       if (typeof window === 'undefined') return;
 
-      // 1. Verificar soporte de Service Worker y Push
+      // 1. Verificar soporte básico en navegador
+      if (!('Notification' in window)) {
+        throw new Error('Tu navegador o dispositivo no soporta Notificaciones.');
+      }
+
+      // 2. Manejo previo del estado de permisos (Notification.permission)
+      let permission = Notification.permission;
+
+      // Si es "denied": Mensaje amigable inmediato
+      if (permission === 'denied') {
+        setStatus('error');
+        setStatusMessage(
+          'Las notificaciones están bloqueadas. Toca el ícono del candado en la barra de direcciones de tu navegador para permitirlas.'
+        );
+        setTimeout(() => {
+          setStatus('idle');
+          setStatusMessage('');
+        }, 8000);
+        return;
+      }
+
+      // Si es "default": Invocar Notification.requestPermission()
+      if (permission === 'default') {
+        permission = await Notification.requestPermission();
+
+        if (permission === 'denied') {
+          setStatus('error');
+          setStatusMessage(
+            'Las notificaciones están bloqueadas. Toca el ícono del candado en la barra de direcciones de tu navegador para permitirlas.'
+          );
+          setTimeout(() => {
+            setStatus('idle');
+            setStatusMessage('');
+          }, 8000);
+          return;
+        }
+
+        if (permission !== 'granted') {
+          setStatus('idle');
+          setStatusMessage('');
+          return;
+        }
+      }
+
+      // Si no es "granted", salir limpiamente
+      if (permission !== 'granted') {
+        return;
+      }
+
+      // 3. Verificar soporte de Service Worker y PushManager
       if (!('serviceWorker' in navigator)) {
         throw new Error('Tu navegador no tiene soporte para Service Workers.');
       }
@@ -52,26 +101,15 @@ export function PushTestButton({
         );
       }
 
-      // 2. Solicitar permisos de notificación si no están concedidos
-      let permission = Notification.permission;
-      if (permission === 'default') {
-        permission = await Notification.requestPermission();
+      // 4. Asegurar registro y esperar estrictamente a que el Service Worker esté activo ("ready")
+      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.ready;
+
+      if (!registration || !registration.pushManager) {
+        throw new Error('El Service Worker activo no tiene disponible el pushManager.');
       }
 
-      if (permission !== 'granted') {
-        throw new Error(
-          'Permiso de notificaciones denegado. Habilitalo en los ajustes de tu navegador o dispositivo.'
-        );
-      }
-
-      // 3. Asegurar que el Service Worker esté activo
-      let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) {
-        registration = await navigator.serviceWorker.register('/sw.js');
-      }
-      await navigator.serviceWorker.ready;
-
-      // 4. Obtener o crear la suscripción Push con la clave VAPID pública
+      // 5. Obtener o crear la suscripción Push con la clave VAPID pública
       const vapidPublicKey =
         process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
         'BDarrysWFc8TK5jxp21cBP9AuX05ssBPoUIRK4z-5TI69HpyM4-Ua3bNBVhI6lbcvrb-NfAKhhXgfSu3XWrL7t4';

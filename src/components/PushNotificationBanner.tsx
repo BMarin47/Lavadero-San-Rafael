@@ -97,38 +97,55 @@ export function PushNotificationBanner() {
       setLoading(true);
       setFeedback(null);
 
-      // Si las notificaciones están denegadas explícitamente en el navegador
-      if (permission === 'denied') {
-        setFeedback({
-          type: 'error',
-          text: 'Las notificaciones están bloqueadas en tu navegador. Para activarlas, toca el ícono de candado o configuración junto a la barra de direcciones y cambia "Notificaciones" a "Permitir".',
-        });
-        return;
-      }
-
+      // 1. Verificar soporte
       if (!('Notification' in window)) {
         throw new Error('Tu navegador actual no admite notificaciones push.');
       }
 
-      // 1. Solicitar permiso al usuario
-      const result = await Notification.requestPermission();
-      setPermission(result);
-
-      if (result !== 'granted') {
+      // Si las notificaciones están denegadas explícitamente en el navegador
+      let currentPermission = Notification.permission;
+      if (currentPermission === 'denied') {
         setFeedback({
-          type: 'info',
-          text: 'No se activaron las notificaciones. Podés habilitarlas cuando desees para no perder los avisos de tus turnos.',
+          type: 'error',
+          text: 'Las notificaciones están bloqueadas. Toca el ícono del candado en la barra de direcciones de tu navegador para permitirlas.',
         });
         return;
       }
 
-      // 2. Registrar Service Worker si no está listo
-      if ('serviceWorker' in navigator) {
-        let registration = await navigator.serviceWorker.getRegistration();
-        if (!registration) {
-          registration = await navigator.serviceWorker.register('/sw.js');
+      // Si es "default", solicitar permiso
+      if (currentPermission === 'default') {
+        currentPermission = await Notification.requestPermission();
+        setPermission(currentPermission);
+
+        if (currentPermission === 'denied') {
+          setFeedback({
+            type: 'error',
+            text: 'Las notificaciones están bloqueadas. Toca el ícono del candado en la barra de direcciones de tu navegador para permitirlas.',
+          });
+          return;
         }
-        await navigator.serviceWorker.ready;
+
+        if (currentPermission !== 'granted') {
+          return;
+        }
+      }
+
+      if (currentPermission !== 'granted') {
+        return;
+      }
+
+      // 2. Verificar Service Worker y PushManager
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Tu navegador no admite Web Push. Si usás iPhone, agregá la App a la pantalla de inicio.');
+      }
+
+      // 3. Registrar y esperar estrictamente a que el Service Worker esté activo ("ready")
+      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.ready;
+
+      if (!registration || !registration.pushManager) {
+        throw new Error('El Service Worker activo no tiene disponible pushManager.');
+      }
 
         // 3. Crear suscripción Web Push con la clave VAPID pública
         const vapidPublicKey =
@@ -160,7 +177,6 @@ export function PushNotificationBanner() {
             text: '¡Alertas activadas con éxito! Te avisaremos automáticamente 24 horas antes de cada turno programado.',
           });
         }
-      }
     } catch (err: any) {
       console.error('[Enable Push Error]:', err);
       setFeedback({
@@ -307,7 +323,7 @@ export function PushNotificationBanner() {
             {permission === 'denied' && (
               <div className="pt-1.5 flex items-center gap-1.5 text-[11px] text-amber-300">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>Permiso bloqueado anteriormente en tu navegador. Tocá el botón para ver cómo reactivarlo.</span>
+                <span>Las notificaciones están bloqueadas. Toca el ícono del candado en la barra de direcciones de tu navegador para permitirlas.</span>
               </div>
             )}
           </div>
