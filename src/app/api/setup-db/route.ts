@@ -27,6 +27,70 @@ export async function GET() {
 
       if (hasAuthSchema) {
         await client.query(`
+          -- 1. Tabla bookings (Turnos / Reservas)
+          CREATE TABLE IF NOT EXISTS public.bookings (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+              vehicle_details TEXT NOT NULL,
+              service_type TEXT NOT NULL,
+              date TEXT NOT NULL,
+              time TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'pendiente',
+              created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              client_name TEXT,
+              client_email TEXT,
+              client_phone TEXT,
+              price NUMERIC NOT NULL DEFAULT 0,
+              notes TEXT,
+              nombre_cliente TEXT,
+              vehiculo TEXT,
+              categoria TEXT,
+              precio NUMERIC,
+              indicaciones TEXT,
+              estado TEXT DEFAULT 'pendiente',
+              fecha_creacion TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+          );
+
+          ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'bookings' AND policyname = 'Los usuarios pueden ver sus propios bookings'
+            ) THEN
+              CREATE POLICY "Los usuarios pueden ver sus propios bookings" ON public.bookings
+              FOR SELECT TO authenticated USING (auth.uid() = user_id);
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'bookings' AND policyname = 'Los usuarios pueden crear sus propios bookings'
+            ) THEN
+              CREATE POLICY "Los usuarios pueden crear sus propios bookings" ON public.bookings
+              FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'bookings' AND policyname = 'Los usuarios pueden actualizar sus propios bookings'
+            ) THEN
+              CREATE POLICY "Los usuarios pueden actualizar sus propios bookings" ON public.bookings
+              FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'bookings' AND policyname = 'Los usuarios pueden eliminar sus propios bookings'
+            ) THEN
+              CREATE POLICY "Los usuarios pueden eliminar sus propios bookings" ON public.bookings
+              FOR DELETE TO authenticated USING (auth.uid() = user_id);
+            END IF;
+          END
+          $$;
+
+          CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
+          CREATE INDEX IF NOT EXISTS idx_bookings_created_at ON public.bookings(created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings(date);
+
+          -- 2. Tabla turnos (compatibilidad continua)
           CREATE TABLE IF NOT EXISTS public.turnos (
               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
               user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -69,6 +133,36 @@ export async function GET() {
       } else {
         // En bases PostgreSQL estándar sin Supabase Auth
         await client.query(`
+          -- 1. Tabla bookings
+          CREATE TABLE IF NOT EXISTS public.bookings (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id TEXT NOT NULL,
+              vehicle_details TEXT NOT NULL,
+              service_type TEXT NOT NULL,
+              date TEXT NOT NULL,
+              time TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'pendiente',
+              created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+              client_name TEXT,
+              client_email TEXT,
+              client_phone TEXT,
+              price NUMERIC NOT NULL DEFAULT 0,
+              notes TEXT,
+              nombre_cliente TEXT,
+              vehiculo TEXT,
+              categoria TEXT,
+              precio NUMERIC,
+              indicaciones TEXT,
+              estado TEXT DEFAULT 'pendiente',
+              fecha_creacion TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
+          CREATE INDEX IF NOT EXISTS idx_bookings_created_at ON public.bookings(created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings(date);
+
+          -- 2. Tabla turnos
           CREATE TABLE IF NOT EXISTS public.turnos (
               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
               user_id TEXT NOT NULL,
@@ -86,7 +180,7 @@ export async function GET() {
       return NextResponse.json({
         success: true,
         hasAuthSchema,
-        message: 'Tabla turnos configurada correctamente en la base de datos.',
+        message: 'Tablas bookings y turnos configuradas correctamente con RLS e índices.',
       });
     } finally {
       client.release();

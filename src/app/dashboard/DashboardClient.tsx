@@ -45,7 +45,29 @@ export default function DashboardClient({ user }: { user: User }) {
     async function loadTurnos() {
       try {
         setLoadingTurnos(true);
-        // 1. Consulta en Supabase
+        // 1. Consulta en Supabase (tabla bookings)
+        const { data: bookingsData, error: bookingsErr } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!bookingsErr && bookingsData && bookingsData.length > 0) {
+          const mapped = bookingsData.map((b: any) => ({
+            id: b.id,
+            user_id: b.user_id,
+            nombre_cliente: b.client_name || b.nombre_cliente || 'Cliente',
+            vehiculo: b.vehicle_details || b.vehiculo || 'Vehículo',
+            categoria: b.service_type || b.categoria || 'Servicio',
+            precio: Number(b.price ?? b.precio ?? 0),
+            indicaciones: b.notes || b.indicaciones || (b.date && b.time ? `Turno: ${b.date} ${b.time}` : null),
+            estado: b.status || b.estado || 'pendiente',
+            fecha_creacion: b.created_at || b.fecha_creacion || new Date().toISOString(),
+          }));
+          setTurnos(mapped);
+          return;
+        }
+
+        // 2. Consulta en Supabase (tabla turnos)
         const { data, error } = await supabase
           .from('turnos')
           .select('*')
@@ -56,7 +78,7 @@ export default function DashboardClient({ user }: { user: User }) {
           return;
         }
 
-        // 2. Fallback a /api/turnos (que consulta PostgreSQL de DATABASE_URL)
+        // 3. Fallback a /api/turnos (que consulta PostgreSQL de DATABASE_URL)
         const res = await fetch('/api/turnos');
         const json = await res.json().catch(() => ({}));
         if (json.success && Array.isArray(json.turnos)) {

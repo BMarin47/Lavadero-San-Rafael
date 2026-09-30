@@ -145,3 +145,23 @@ model Turno {
   @@map("turnos")
 }
 
+model Booking {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  vehicleDetails String   @map("vehicle_details")
+  serviceType    String   @map("service_type")
+  date           String
+  time           String
+  status         String   @default("pendiente")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  clientName     String?  @map("client_name")
+  clientEmail    String?  @map("client_email")
+  clientPhone    String?  @map("client_phone")
+  price          Float    @default(0)
+  notes          String?
+
+  @@map("bookings")
+}
+
+
