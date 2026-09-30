@@ -49,8 +49,20 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath = pathname.startsWith('/admin') || pathname.startsWith('/dashboard') || pathname.startsWith('/perfil');
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = '/login';
+    url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Protección específica para /admin: Solo Superadministrador
+  if (pathname.startsWith('/admin')) {
+    const adminEmails = ['bruno.marin.soporte@gmail.com'];
+    const userEmail = user?.email?.toLowerCase().trim() || '';
+    if (!adminEmails.includes(userEmail)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

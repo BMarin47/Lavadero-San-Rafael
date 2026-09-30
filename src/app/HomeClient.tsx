@@ -9,6 +9,7 @@ import type { User } from '@supabase/supabase-js';
 import { fireSuccessConfetti } from '@/lib/confetti';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
 import { PushTestButton } from '@/components/PushTestButton';
+import { isSuperAdmin } from '@/lib/auth/admin';
 import {
   VehicleSelector,
   VehicleType,
@@ -574,6 +575,38 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </span>
               Turnos Online Habilitados
             </div>
+
+            {/* Acceso a Superadministrador */}
+            {user && isSuperAdmin(user.email) && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20 active:scale-95"
+                title="Acceder al Panel de Superadministrador"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Panel Admin</span>
+              </Link>
+            )}
+
+            {/* Acceso a Cuenta / Iniciar Sesión */}
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-slate-200 hover:text-white border border-white/[0.1] text-xs font-bold transition-all"
+                title="Ir a mi cuenta"
+              >
+                <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Mi Cuenta</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Ingresar</span>
+              </Link>
+            )}
 
             <a
               href="https://wa.me/5492604654255"

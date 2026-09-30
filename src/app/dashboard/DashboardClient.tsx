@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PushTestButton } from '@/components/PushTestButton';
+import { isSuperAdmin } from '@/lib/auth/admin';
 
 interface TurnoItem {
   id: string;
@@ -379,6 +380,45 @@ export default function DashboardClient({ user }: { user: User }) {
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+        {/* BANNER EXCLUSIVO DE SUPERADMINISTRADOR */}
+        {isSuperAdmin(user.email) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#0c1a2e] via-[#091524] to-[#0c1a2e] border border-cyan-500/40 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          >
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-emerald-400 p-[1px] shadow-lg shadow-cyan-500/20 shrink-0">
+                <div className="w-full h-full bg-[#0a1220] rounded-[15px] flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6 text-cyan-400" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    Modo Superadministrador
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  Tenés acceso de control total a AquaShine San Rafael
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Podés ver todos los turnos de los clientes, reprogramarlos, redactar notificaciones push masivas y gestionar usuarios.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href="/admin"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-cyan-500/20 transition-all active:scale-95 shrink-0"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-950" />
+              <span>Abrir Panel de Superadmin</span>
+              <ArrowRight className="w-4 h-4 text-slate-950" />
+            </Link>
+          </motion.div>
+        )}
+
         {/* SECCIÓN DE BIENVENIDA */}
         <section className="relative overflow-hidden rounded-3xl bg-slate-900/60 border border-white/[0.08] p-6 sm:p-8 backdrop-blur-xl shadow-xl">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -396,6 +436,15 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {isSuperAdmin(user.email) && (
+                <Link
+                  href="/admin"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs sm:text-sm transition-all"
+                >
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <span>Ir a /admin</span>
+                </Link>
+              )}
               <PushTestButton />
               <Link
                 href="/"

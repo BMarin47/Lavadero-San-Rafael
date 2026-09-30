@@ -83,6 +83,18 @@ export async function GET() {
               CREATE POLICY "Los usuarios pueden eliminar sus propios bookings" ON public.bookings
               FOR DELETE TO authenticated USING (auth.uid() = user_id);
             END IF;
+
+            -- Regla de Superadministrador para acceso total a bookings
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'bookings' AND policyname = 'Superadmin tiene acceso total a bookings'
+            ) THEN
+              CREATE POLICY "Superadmin tiene acceso total a bookings" ON public.bookings
+              FOR ALL TO authenticated USING (
+                (auth.jwt() ->> 'email') = 'bruno.marin.soporte@gmail.com'
+              ) WITH CHECK (
+                (auth.jwt() ->> 'email') = 'bruno.marin.soporte@gmail.com'
+              );
+            END IF;
           END
           $$;
 
@@ -126,6 +138,18 @@ export async function GET() {
             ) THEN
               CREATE POLICY "Los usuarios pueden actualizar sus propios turnos" ON public.turnos
               FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+            END IF;
+
+            -- Regla de Superadministrador para acceso total a turnos
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_policies WHERE tablename = 'turnos' AND policyname = 'Superadmin tiene acceso total a turnos'
+            ) THEN
+              CREATE POLICY "Superadmin tiene acceso total a turnos" ON public.turnos
+              FOR ALL TO authenticated USING (
+                (auth.jwt() ->> 'email') = 'bruno.marin.soporte@gmail.com'
+              ) WITH CHECK (
+                (auth.jwt() ->> 'email') = 'bruno.marin.soporte@gmail.com'
+              );
             END IF;
           END
           $$;
