@@ -331,3 +331,158 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'No autorizado. Debés iniciar sesión para actualizar reservas.' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { id, status } = body;
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: 'Faltan parámetros requeridos: id y status son obligatorios.' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedStatus = String(status).toLowerCase().trim();
+
+    // 1. Actualizar en Supabase (tabla bookings)
+    try {
+      await supabase
+        .from('bookings')
+        .update({
+          status: normalizedStatus,
+          estado: normalizedStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+    } catch (_) {}
+
+    // 2. Actualizar en Supabase (tabla turnos)
+    try {
+      await supabase
+        .from('turnos')
+        .update({
+          estado: normalizedStatus,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+    } catch (_) {}
+
+    // 3. Fallback en PostgreSQL
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+      const pool = new Pool({
+        connectionString: dbUrl,
+        ssl: { rejectUnauthorized: false },
+      });
+      const client = await pool.connect();
+      try {
+        await client.query(
+          `UPDATE public.bookings 
+           SET status = $1, estado = $1, updated_at = NOW() 
+           WHERE id = $2 AND user_id = $3`,
+          [normalizedStatus, id, user.id]
+        );
+        await client.query(
+          `UPDATE public.turnos 
+           SET estado = $1 
+           WHERE id = $2 AND user_id = $3`,
+          [normalizedStatus, id, user.id]
+        );
+      } catch (pgErr) {
+        console.warn('[PATCH /api/turnos PG update warning]:', pgErr);
+      } finally {
+        client.release();
+        await pool.end();
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `El estado del turno ha sido actualizado a "${normalizedStatus}".`,
+      id,
+      status: normalizedStatus,
+    });
+  } catch (err: any) {
+    console.error('[API Turnos PATCH Server Error]:', err);
+    return NextResponse.json(
+      { error: err.message || 'Error interno al actualizar la reserva.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'No autorizado. Debés iniciar sesión para eliminar tus reservas.' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Se requiere el parámetro id de la reserva a eliminar.' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      await supabase.from('bookings').delete().eq('id', id).eq('user_id', user.id);
+      await supabase.from('turnos').delete().eq('id', id).eq('user_id', user.id);
+    } catch (_) {}
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+      const pool = new Pool({
+        connectionString: dbUrl,
+        ssl: { rejectUnauthorized: false },
+      });
+      const client = await pool.connect();
+      try {
+        await client.query('DELETE FROM public.bookings WHERE id = $1 AND user_id = $2', [id, user.id]);
+        await client.query('DELETE FROM public.turnos WHERE id = $1 AND user_id = $2', [id, user.id]);
+      } finally {
+        client.release();
+        await pool.end();
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Reserva eliminada exitosamente.',
+      id,
+    });
+  } catch (err: any) {
+    console.error('[API Turnos DELETE Server Error]:', err);
+    return NextResponse.json(
+      { error: err.message || 'Error interno al eliminar la reserva.' },
+      { status: 500 }
+    );
+  }
+}
