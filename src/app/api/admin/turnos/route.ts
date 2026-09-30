@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { isSuperAdmin } from '@/lib/auth/admin';
 import { EmailService } from '@/lib/services/email.service';
+import { generateWhatsAppCancellationUrl } from '@/lib/services/booking.service';
 import { Pool } from 'pg';
+
+/**
+ * Obtiene el cliente Supabase Admin si la Service Role Key está configurada,
+ * permitiendo omitir las políticas RLS para operaciones del Superadministrador.
+ */
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY;
+
+  if (url && serviceKey) {
+    return createSupabaseClient(url, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  }
+  return null;
+}
 
 export async function GET() {
   try {
@@ -19,16 +39,27 @@ export async function GET() {
       );
     }
 
-    // 1. Consultar todos los bookings en Supabase (todos los usuarios)
+    const supabaseAdmin = getSupabaseAdmin();
+    const clientToUse = supabaseAdmin || supabase;
+
+    // 1. Consultar todos los bookings en Supabase (todos los usuarios, sin bloqueo RLS)
     let allBookings: any[] = [];
     try {
-      const { data, error } = await supabase
+      const { data, error } = await clientToUse
         .from('bookings')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && Array.isArray(data)) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         allBookings = data;
+      } else {
+        const { data: turnosData, error: turnosErr } = await clientToUse
+          .from('turnos')
+          .select('*')
+          .order('fecha_creacion', { ascending: false });
+        if (!turnosErr && Array.isArray(turnosData) && turnosData.length > 0) {
+          allBookings = turnosData;
+        }
       }
     } catch (sbErr) {
       console.warn('[Admin Turnos GET Supabase]:', sbErr);
@@ -36,7 +67,7 @@ export async function GET() {
 
     // 2. Si no trajo resultados o para complementar, consultar PostgreSQL directo
     const dbUrl = process.env.DATABASE_URL;
-    if (allBookings.length === 0 && dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+    if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
       try {
         const pool = new Pool({
           connectionString: dbUrl,
@@ -46,10 +77,24 @@ export async function GET() {
         try {
           const res = await client.query('SELECT * FROM public.bookings ORDER BY created_at DESC');
           if (res.rows && res.rows.length > 0) {
-            allBookings = res.rows;
+            const existingIds = new Set(allBookings.map((b) => String(b.id)));
+            for (const row of res.rows) {
+              if (!existingIds.has(String(row.id))) {
+                allBookings.push(row);
+                existingIds.add(String(row.id));
+              }
+            }
           } else {
             const resTurnos = await client.query('SELECT * FROM public.turnos ORDER BY fecha_creacion DESC');
-            allBookings = resTurnos.rows;
+            if (resTurnos.rows && resTurnos.rows.length > 0) {
+              const existingIds = new Set(allBookings.map((b) => String(b.id)));
+              for (const row of resTurnos.rows) {
+                if (!existingIds.has(String(row.id))) {
+                  allBookings.push(row);
+                  existingIds.add(String(row.id));
+                }
+              }
+            }
           }
         } finally {
           client.release();
@@ -116,13 +161,18 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    const supabaseAdmin = getSupabaseAdmin();
+    const clientToUse = supabaseAdmin || supabase;
+
+    // Normalizar estado
+    const normalizedStatus = status ? String(status).toLowerCase().trim() : undefined;
+
     // Construir objeto dinámico de actualización
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
-    if (status !== undefined) {
-      const normalizedStatus = String(status).toLowerCase().trim();
+    if (normalizedStatus) {
       updatePayload.status = normalizedStatus;
       updatePayload.estado = normalizedStatus;
     }
@@ -141,17 +191,59 @@ export async function PATCH(request: NextRequest) {
       updatePayload.vehiculo = String(vehicle).trim();
     }
 
-    // 1. Obtener la información del turno antes de actualizar
-    const { data: existingBooking } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+    // 1. Obtener la información del turno antes de actualizar para garantizar datos de notificación
+    let existingBooking: any = null;
+    try {
+      const { data: bData } = await clientToUse
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (bData) existingBooking = bData;
+    } catch (_) {}
 
-    // 2. Actualizar en Supabase (tabla bookings)
+    if (!existingBooking) {
+      try {
+        const { data: tData } = await clientToUse
+          .from('turnos')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (tData) existingBooking = tData;
+      } catch (_) {}
+    }
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (!existingBooking && dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+      try {
+        const pool = new Pool({
+          connectionString: dbUrl,
+          ssl: { rejectUnauthorized: false },
+        });
+        const client = await pool.connect();
+        try {
+          const pgRes = await client.query('SELECT * FROM public.bookings WHERE id = $1 LIMIT 1', [id]);
+          if (pgRes.rows.length > 0) {
+            existingBooking = pgRes.rows[0];
+          } else {
+            const pgResT = await client.query('SELECT * FROM public.turnos WHERE id = $1 LIMIT 1', [id]);
+            if (pgResT.rows.length > 0) {
+              existingBooking = pgResT.rows[0];
+            }
+          }
+        } finally {
+          client.release();
+          await pool.end();
+        }
+      } catch (pgErr) {
+        console.warn('[Admin PATCH PG Fetch Error]:', pgErr);
+      }
+    }
+
+    // 2. Actualizar en Supabase (tabla bookings) con permisos de administrador
     let updated = false;
     try {
-      const { data, error } = await supabase
+      const { data, error } = await clientToUse
         .from('bookings')
         .update(updatePayload)
         .eq('id', id)
@@ -160,6 +252,7 @@ export async function PATCH(request: NextRequest) {
 
       if (!error && data) {
         updated = true;
+        existingBooking = { ...existingBooking, ...data };
       }
     } catch (sbErr) {
       console.warn('[Admin PATCH Supabase bookings]:', sbErr);
@@ -167,20 +260,21 @@ export async function PATCH(request: NextRequest) {
 
     // 3. Replicar en tabla turnos
     try {
-      const turnosPayload: Record<string, any> = {};
+      const turnosPayload: Record<string, any> = {
+        fecha_actualizacion: new Date().toISOString(),
+      };
       if (updatePayload.estado) turnosPayload.estado = updatePayload.estado;
       if (updatePayload.indicaciones) turnosPayload.indicaciones = updatePayload.indicaciones;
-      if (updatePayload.precio) turnosPayload.precio = updatePayload.precio;
+      if (updatePayload.precio !== undefined) turnosPayload.precio = updatePayload.precio;
       if (updatePayload.vehiculo) turnosPayload.vehiculo = updatePayload.vehiculo;
 
-      await supabase
+      await clientToUse
         .from('turnos')
         .update(turnosPayload)
         .eq('id', id);
     } catch (_) {}
 
-    // 4. Fallback PostgreSQL
-    const dbUrl = process.env.DATABASE_URL;
+    // 4. Fallback y sincronización asegurada en PostgreSQL
     if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
       try {
         const pool = new Pool({
@@ -204,6 +298,14 @@ export async function PATCH(request: NextRequest) {
               [updatePayload.status, id]
             );
           }
+          if (updatePayload.status) {
+            await client.query(
+              `UPDATE public.turnos 
+               SET estado = $1 
+               WHERE id = $2`,
+              [updatePayload.status, id]
+            );
+          }
         } finally {
           client.release();
           await pool.end();
@@ -213,30 +315,64 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // 5. Si el Superadministrador canceló el turno, notificar por email
-    if (updatePayload.status === 'cancelado') {
+    // Datos consolidados para avisos
+    const clientName = existingBooking?.client_name || existingBooking?.nombre_cliente || 'Cliente';
+    const clientEmail = existingBooking?.client_email || null;
+    const clientPhone = existingBooking?.client_phone || existingBooking?.phone || null;
+    const vehicleFinal = updatePayload.vehicle_details || existingBooking?.vehicle_details || existingBooking?.vehiculo || 'Vehículo';
+    const dateFinal = updatePayload.date || existingBooking?.date || 'Fecha programada';
+    const timeFinal = updatePayload.time || existingBooking?.time || 'Horario programado';
+    const priceFinal = updatePayload.price ?? existingBooking?.price ?? existingBooking?.precio ?? 0;
+
+    let whatsAppUrl = '';
+
+    // 5. Si el Superadministrador canceló el turno, notificar por email y por WhatsApp
+    if (normalizedStatus === 'cancelado') {
       try {
         await EmailService.sendCancellationNotification({
           bookingId: String(id),
-          clientName: existingBooking?.client_name || existingBooking?.nombre_cliente || 'Cliente',
-          clientEmail: existingBooking?.client_email,
-          clientPhone: existingBooking?.client_phone || existingBooking?.phone,
-          vehicle: existingBooking?.vehicle_details || existingBooking?.vehiculo || 'Vehículo',
-          category: existingBooking?.category || existingBooking?.categoria,
-          service: existingBooking?.service_type || existingBooking?.servicio || 'Lavado',
-          date: updatePayload.date || existingBooking?.date || 'Fecha programada',
-          time: updatePayload.time || existingBooking?.time || 'Horario programado',
-          price: updatePayload.price || existingBooking?.price,
+          clientName,
+          clientEmail,
+          clientPhone,
+          vehicle: vehicleFinal,
+          category: existingBooking?.category || existingBooking?.categoria || 'General',
+          service: existingBooking?.service_type || existingBooking?.servicio || 'Lavado Detailing',
+          date: dateFinal,
+          time: timeFinal,
+          price: priceFinal,
         });
       } catch (mailErr) {
         console.error('[Admin PATCH Email Notification Warning]:', mailErr);
       }
+
+      // Generar URL de WhatsApp dirigida al teléfono del cliente
+      whatsAppUrl = generateWhatsAppCancellationUrl({
+        clientPhone,
+        clientName,
+        vehicle: vehicleFinal,
+        date: dateFinal,
+        time: timeFinal,
+      });
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Turno actualizado con éxito por el Superadministrador.',
+      message: normalizedStatus === 'cancelado'
+        ? 'Turno cancelado exitosamente en la base de datos.'
+        : 'Turno actualizado con éxito por el Superadministrador.',
       id,
+      status: normalizedStatus || 'actualizado',
+      whatsAppUrl,
+      turno: {
+        id,
+        nombre_cliente: clientName,
+        client_phone: clientPhone,
+        client_email: clientEmail,
+        vehiculo: vehicleFinal,
+        date: dateFinal,
+        time: timeFinal,
+        estado: normalizedStatus || existingBooking?.status || 'confirmado',
+      },
       updated,
     });
   } catch (error: any) {
@@ -273,9 +409,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const supabaseAdmin = getSupabaseAdmin();
+    const clientToUse = supabaseAdmin || supabase;
+
     // 1. Eliminar de Supabase bookings y turnos
-    await supabase.from('bookings').delete().eq('id', id);
-    await supabase.from('turnos').delete().eq('id', id);
+    await clientToUse.from('bookings').delete().eq('id', id);
+    await clientToUse.from('turnos').delete().eq('id', id);
 
     // 2. Fallback PostgreSQL
     const dbUrl = process.env.DATABASE_URL;

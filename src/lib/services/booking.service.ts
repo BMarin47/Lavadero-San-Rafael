@@ -115,6 +115,48 @@ export function generateWhatsAppBookingUrl(params: {
   return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 }
 
+/**
+ * Genera la URL de WhatsApp (wa.me) con el mensaje de aviso de cancelación
+ * para notificar al cliente al número de teléfono registrado en el turno.
+ */
+export function generateWhatsAppCancellationUrl(params: {
+  clientPhone?: string | null;
+  clientName?: string;
+  vehicle?: string;
+  date?: string;
+  time?: string;
+  reason?: string;
+}): string {
+  const cleanPhone = sanitizeWhatsAppPhone(params.clientPhone || '');
+  if (!cleanPhone) return '';
+
+  const lines = [
+    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *AquaShine San Rafael* 🚗✨`,
+    '',
+    'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
+    '',
+    `🚗 *Vehículo:* ${params.vehicle || 'Vehículo'}`,
+    `📅 *Fecha:* ${params.date || '-'}`,
+    `⏰ *Horario:* ${params.time || '-'}`,
+  ];
+
+  if (params.reason) {
+    lines.push(`📝 *Motivo:* ${params.reason}`);
+  }
+
+  lines.push(
+    '',
+    'Si deseas reprogramar tu lavado para otra fecha u horario disponible, podés hacerlo ingresando a nuestra plataforma web: https://lavadero-san-rafael.vercel.app/',
+    'O responder directamente a este mensaje para coordinar con nuestro equipo de atención.',
+    '',
+    '¡Disculpas por las molestias y muchas gracias!'
+  );
+
+  const encodedMessage = encodeURIComponent(lines.join('\n'));
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+}
+
+
 export class BookingService {
   static async createBooking(dto: CreateBookingDTO, appBaseUrl: string) {
     // 1. Validar disponibilidad del horario y que no sea feriado ni domingo

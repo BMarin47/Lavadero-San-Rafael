@@ -78,6 +78,16 @@ export default function AdminClient({ user }: { user: User }) {
   const [dateFilter, setDateFilter] = useState<string>('');
   const [editingTurno, setEditingTurno] = useState<AdminTurno | null>(null);
   const [isUpdatingTurno, setIsUpdatingTurno] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [whatsAppModal, setWhatsAppModal] = useState<{
+    isOpen: boolean;
+    url: string;
+    clientName: string;
+    phone: string;
+    vehicle: string;
+    date: string;
+    time: string;
+  } | null>(null);
 
   // Estados para Push
   const [pushCount, setPushCount] = useState<number>(0);
@@ -185,7 +195,11 @@ export default function AdminClient({ user }: { user: User }) {
   // ==========================================
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      // Optimistic update
+      if (newStatus === 'cancelado') {
+        setCancellingId(id);
+      }
+
+      // Optimistic update visual inmediato
       setTurnos((prev) =>
         prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
       );
@@ -196,20 +210,55 @@ export default function AdminClient({ user }: { user: User }) {
         body: JSON.stringify({ id, status: newStatus }),
       });
 
+      const json = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        throw new Error('No se pudo actualizar el estado.');
+        throw new Error(json.error || 'No se pudo actualizar el estado.');
       }
 
-      showToast(
-        'Turno Actualizado',
-        `El estado del turno fue cambiado a "${newStatus}" exitosamente.`,
-        'success'
-      );
+      // Sincronización en tiempo real inmediata con la base de datos
+      await loadTurnos();
+
+      if (newStatus === 'cancelado') {
+        showToast(
+          'Turno Cancelado',
+          'El turno fue cancelado en la base de datos y se emitieron las alertas por correo y WhatsApp.',
+          'warning'
+        );
+
+        if (json.whatsAppUrl) {
+          // Intentar abrir WhatsApp automáticamente
+          try {
+            window.open(json.whatsAppUrl, '_blank', 'noopener,noreferrer');
+          } catch (_) {}
+
+          // Abrir modal interactivo de confirmación y enlace directo de WhatsApp
+          const currentItem = turnos.find((t) => t.id === id);
+          setWhatsAppModal({
+            isOpen: true,
+            url: json.whatsAppUrl,
+            clientName: json.turno?.nombre_cliente || currentItem?.nombre_cliente || 'Cliente',
+            phone: json.turno?.client_phone || currentItem?.client_phone || '',
+            vehicle: json.turno?.vehiculo || currentItem?.vehiculo || 'Vehículo',
+            date: json.turno?.date || currentItem?.date || '',
+            time: json.turno?.time || currentItem?.time || '',
+          });
+        }
+      } else {
+        showToast(
+          'Turno Actualizado',
+          `El estado del turno fue cambiado a "${newStatus}" exitosamente.`,
+          'success'
+        );
+      }
     } catch (err: any) {
       showToast('Error', err.message || 'Falló la actualización.', 'error');
-      loadTurnos();
+      await loadTurnos();
+    } finally {
+      setCancellingId(null);
     }
   };
+
 
   const handleSaveTurnoModification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -817,11 +866,16 @@ export default function AdminClient({ user }: { user: User }) {
 
                           <button
                             onClick={() => handleUpdateStatus(t.id, 'cancelado')}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
-                            title="Cancelar reserva (sin restricción 24h)"
+                            disabled={cancellingId === t.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                            title="Cancelar reserva y notificar por email y WhatsApp"
                           >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Cancelar</span>
+                            {cancellingId === t.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                            ) : (
+                              <XCircle className="w-3.5 h-3.5" />
+                            )}
+                            <span>{cancellingId === t.id ? 'Cancelando...' : 'Cancelar'}</span>
                           </button>
 
                           {/* Botón Modificar Horario / Fecha */}
@@ -837,7 +891,22 @@ export default function AdminClient({ user }: { user: User }) {
 
                         {/* WhatsApp y Eliminar */}
                         <div className="flex items-center gap-1.5">
-                          {cleanPhone && (
+                          {isCancelado && cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                                `Hola ${t.nombre_cliente}, te contactamos de AquaShine San Rafael para informarte que tu turno de ${t.vehiculo} para el día ${t.date} a las ${t.time} ha sido CANCELADO. Podés consultar por este medio o ingresar a https://lavadero-san-rafael.vercel.app/ para reprogramar.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/35 text-emerald-300 text-xs font-bold transition-all"
+                              title="Reenviar alerta de cancelación por WhatsApp"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="hidden sm:inline">Aviso WhatsApp</span>
+                            </a>
+                          )}
+
+                          {!isCancelado && cleanPhone && (
                             <a
                               href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
                                 `Hola ${t.nombre_cliente}, te escribo desde la administración de AquaShine San Rafael sobre tu turno de ${t.vehiculo} del día ${t.date} a las ${t.time}.`
@@ -1472,6 +1541,88 @@ export default function AdminClient({ user }: { user: User }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* MODAL: ALERTA DE CANCELACIÓN POR WHATSAPP */}
+      {whatsAppModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl shadow-emerald-500/10 space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-lg shadow-emerald-500/20">
+                  <MessageCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    Notificación Disparada
+                  </span>
+                  <h3 className="text-lg font-black text-white mt-1">
+                    Alerta de Cancelación por WhatsApp
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setWhatsAppModal(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+                title="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.06] space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Cliente:</span>
+                <span className="text-white font-bold">{whatsAppModal.clientName}</span>
+              </div>
+              {whatsAppModal.phone && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Teléfono:</span>
+                  <span className="text-emerald-400 font-bold">{whatsAppModal.phone}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Vehículo:</span>
+                <span className="text-white font-bold">{whatsAppModal.vehicle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Fecha y Hora:</span>
+                <span className="text-cyan-300 font-bold">
+                  {whatsAppModal.date} • {whatsAppModal.time}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              El estado ha sido actualizado a <strong className="text-rose-400">Cancelado</strong> en la base de datos y el correo electrónico fue enviado. Hacé clic abajo para abrir o enviar el mensaje prearmado al WhatsApp del cliente:
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <a
+                href={whatsAppModal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setWhatsAppModal(null)}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-emerald-500/25 transition-all active:scale-95 text-center cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4 fill-slate-950" />
+                <span>Abrir WhatsApp del Cliente</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(whatsAppModal.url);
+                  showToast('Enlace Copiado', 'URL de WhatsApp copiada al portapapeles.', 'success');
+                }}
+                className="py-3 px-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 text-xs font-bold transition-colors border border-white/[0.08]"
+              >
+                Copiar Enlace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+
 }

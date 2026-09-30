@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BookingService, CreateBookingDTO } from '@/lib/services/booking.service';
+import {
+  BookingService,
+  CreateBookingDTO,
+  generateWhatsAppCancellationUrl,
+} from '@/lib/services/booking.service';
 import { EmailService } from '@/lib/services/email.service';
 import { createClient } from '@/utils/supabase/server';
 import { Pool } from 'pg';
+
 
 export async function GET() {
   try {
@@ -305,6 +310,23 @@ export async function PATCH(request: NextRequest) {
           time,
           price,
         });
+
+        const whatsAppUrl = generateWhatsAppCancellationUrl({
+          clientPhone,
+          clientName,
+          vehicle,
+          date,
+          time,
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `El estado del turno ha sido actualizado a "${normalizedStatus}".`,
+          id,
+          status: normalizedStatus,
+          updatedInSupabase,
+          whatsAppUrl,
+        });
       } catch (emailErr) {
         console.error('[Error enviando email de cancelación en /api/bookings]:', emailErr);
       }
@@ -317,6 +339,7 @@ export async function PATCH(request: NextRequest) {
       status: normalizedStatus,
       updatedInSupabase,
     });
+
   } catch (err: any) {
     console.error('[API Bookings PATCH Server Error]:', err);
     return NextResponse.json(

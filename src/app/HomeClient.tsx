@@ -580,11 +580,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             {user && isSuperAdmin(user.email) && (
               <Link
                 href="/admin"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20 active:scale-95"
+                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20 active:scale-95"
                 title="Acceder al Panel de Superadministrador"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Panel Admin</span>
+                <span className="hidden sm:inline">Panel Admin</span>
+                <span className="sm:hidden">Admin</span>
               </Link>
             )}
 
@@ -592,7 +593,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             {user ? (
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-slate-200 hover:text-white border border-white/[0.1] text-xs font-bold transition-all"
+                className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-slate-200 hover:text-white border border-white/[0.1] text-xs font-bold transition-all"
                 title="Ir a mi cuenta"
               >
                 <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
@@ -601,7 +602,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             ) : (
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Ingresar</span>
@@ -612,12 +613,19 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               href="https://wa.me/5492604654255"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] hover:border-cyan-400/50 text-xs font-bold text-slate-200 hover:text-white transition-all duration-300 hover:scale-[1.03] shadow-md shadow-black/20 cursor-pointer"
+              className="shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 hover:text-emerald-300 text-xs font-bold transition-all duration-200 active:scale-95 shadow-sm whitespace-nowrap"
+              title="Atención por WhatsApp: +54 9 260 465-4255"
             >
-              <Phone className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden md:inline">Consultas:</span>
-              <span className="text-white font-extrabold">+54 9 260 465-4255</span>
+              <Phone className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline text-slate-300 font-medium">Consultas:</span>
+              <span className="hidden sm:inline text-white font-extrabold whitespace-nowrap">
+                +54 9 260 465-4255
+              </span>
+              <span className="sm:hidden font-extrabold text-[11px] text-emerald-300 whitespace-nowrap">
+                WhatsApp
+              </span>
             </a>
+
           </div>
         </div>
       </nav>
@@ -1517,6 +1525,23 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         </footer>
 
       </div>
+
+      {/* Botón Flotante de WhatsApp para Contacto Inmediato */}
+      <a
+        href="https://wa.me/5492604654255?text=Hola%20AquaShine%20San%20Rafael,%20quisiera%20hacer%20una%20consulta%20sobre%20los%20turnos."
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-2xl shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all duration-300 group cursor-pointer"
+        title="Consultar por WhatsApp (+54 9 260 465-4255)"
+      >
+        <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-40"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-slate-950"></span>
+        </span>
+        <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-950 group-hover:rotate-12 transition-transform shrink-0" />
+        <span className="whitespace-nowrap font-black">WhatsApp</span>
+      </a>
     </main>
   );
+
 }
