@@ -1,6 +1,5 @@
-const CACHE_NAME = 'aquashine-pwa-v1';
+const CACHE_NAME = 'aquashine-pwa-v2';
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
