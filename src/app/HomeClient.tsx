@@ -8,6 +8,7 @@ import { createClient, getSupabaseConfig } from '@/utils/supabase/client';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { fireSuccessConfetti } from '@/lib/confetti';
 import { AppDownloadBadges } from '@/components/AppDownloadBadges';
+import { PlansAccordion } from '@/components/PlansAccordion';
 import { isSuperAdmin } from '@/lib/auth/admin';
 import {
   VehicleSelector,
@@ -975,6 +976,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
+        
+        {/* COMPONENTE COLAPSABLE DE PLANES (CERO SCROLL - EXPANDIBLE) */}
+        <PlansAccordion initialVehicleType={vehicleType} />
+
         {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
         {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
         {!user ? (
