@@ -3,6 +3,7 @@ import { EmailService } from '@/lib/services/email.service';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
@@ -109,17 +110,14 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autorizado. Iniciá sesión para registrar tu reserva.' },
-        { status: 401 }
-      );
+    // Obtener usuario si existe sesión activa (opcional, para vincular el turno)
+    let user: any = null;
+    try {
+      const supabase = await createClient();
+      const { data } = await supabase.auth.getUser();
+      user = data?.user || null;
+    } catch {
+      user = null;
     }
 
     const body = await request.json();
@@ -131,6 +129,9 @@ export async function POST(request: Request) {
     const bookingDate = String(body.date || body.appointmentDate || new Date().toISOString().split('T')[0]);
     const bookingTime = String(body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Por coordinar'));
     const bookingStatus = String(body.status || body.estado || 'confirmado');
+    const effectiveUserId = user?.id || body.user_id || body.userId || `anon_${Date.now()}`;
+    const effectiveEmail = user?.email || body.client_email || body.userEmail || body.email || 'cliente@lavadero.com';
+    const effectivePhone = body.client_phone || body.phone || '';
 
     if (!clientName || !vehicleDetails || !serviceType) {
       return NextResponse.json(
@@ -142,39 +143,87 @@ export async function POST(request: Request) {
     let createdRecord: any = null;
     let usedSource = 'none';
 
-    // 1. Intentar inserción en la tabla 'bookings' de Supabase Cloud
-    const { data: bookingSupabase, error: bookingErr } = await supabase
-      .from('bookings')
-      .insert({
-        user_id: user.id,
-        vehicle_details: vehicleDetails,
-        service_type: serviceType,
-        date: bookingDate,
-        time: bookingTime,
-        status: bookingStatus,
-        client_name: clientName,
-        client_email: user.email,
-        price: numPrice,
-        notes: notesText,
+    // 1. Guardar turno en Prisma para registrar la reserva en la base de datos
+    try {
+      const userRecord = await prisma.user.upsert({
+        where: { email: effectiveEmail },
+        update: {
+          fullName: clientName || undefined,
+          phone: effectivePhone || undefined,
+        },
+        create: {
+          email: effectiveEmail,
+          fullName: clientName || 'Cliente',
+          phone: effectivePhone || '',
+          role: 'CUSTOMER',
+        },
+      });
+
+      const vehicleRecord = await prisma.vehicle.create({
+        data: {
+          userId: userRecord.id,
+          vehicleType:
+            body.categoria && ['CAR', 'SUV', 'PICKUP'].includes(body.categoria)
+              ? body.categoria
+              : 'CAR',
+          brand: body.brand || 'General',
+          model: vehicleDetails || 'Vehículo',
+        },
+      });
+
+      const parts = bookingDate.split('-').map(Number);
+      const appDate =
+        parts.length === 3
+          ? new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0)
+          : new Date();
+
+      const prismaAppointment = await prisma.appointment.create({
+        data: {
+          userId: userRecord.id,
+          vehicleId: vehicleRecord.id,
+          appointmentDate: appDate,
+          startTime: body.startTime || bookingTime.split(' ')[0] || '09:00',
+          endTime: body.endTime || bookingTime.split(' ')[2] || '11:00',
+          status: 'CONFIRMED',
+          basePrice: numPrice,
+          notes: notesText,
+        },
+      });
+
+      createdRecord = {
+        id: prismaAppointment.id,
+        user_id: userRecord.id,
         nombre_cliente: clientName,
         vehiculo: vehicleDetails,
         categoria: serviceType,
         precio: numPrice,
         indicaciones: notesText,
         estado: bookingStatus,
-      })
-      .select()
-      .single();
+        fecha_creacion: prismaAppointment.createdAt.toISOString(),
+        date: bookingDate,
+        time: bookingTime,
+      };
+      usedSource = 'prisma:appointment';
+    } catch (prismaErr) {
+      console.warn('[Prisma Booking Notice]:', prismaErr);
+    }
 
-    if (!bookingErr && bookingSupabase) {
-      createdRecord = bookingSupabase;
-      usedSource = 'supabase:bookings';
-    } else {
-      // 2. Si falló bookings en Supabase, probar la tabla 'turnos'
-      const { data: turnoSupabase, error: turnoErr } = await supabase
-        .from('turnos')
+    // 2. Intentar inserción en la tabla 'bookings' o 'turnos' de Supabase Cloud
+    try {
+      const supabase = await createClient();
+      const { data: bookingSupabase, error: bookingErr } = await supabase
+        .from('bookings')
         .insert({
-          user_id: user.id,
+          user_id: effectiveUserId,
+          vehicle_details: vehicleDetails,
+          service_type: serviceType,
+          date: bookingDate,
+          time: bookingTime,
+          status: bookingStatus,
+          client_name: clientName,
+          client_email: effectiveEmail,
+          price: numPrice,
+          notes: notesText,
           nombre_cliente: clientName,
           vehiculo: vehicleDetails,
           categoria: serviceType,
@@ -185,17 +234,40 @@ export async function POST(request: Request) {
         .select()
         .single();
 
-      if (!turnoErr && turnoSupabase) {
-        createdRecord = turnoSupabase;
-        usedSource = 'supabase:turnos';
+      if (!bookingErr && bookingSupabase) {
+        if (!createdRecord) {
+          createdRecord = bookingSupabase;
+          usedSource = 'supabase:bookings';
+        }
+      } else {
+        const { data: turnoSupabase, error: turnoErr } = await supabase
+          .from('turnos')
+          .insert({
+            user_id: effectiveUserId,
+            nombre_cliente: clientName,
+            vehiculo: vehicleDetails,
+            categoria: serviceType,
+            precio: numPrice,
+            indicaciones: notesText,
+            estado: bookingStatus,
+          })
+          .select()
+          .single();
+
+        if (!turnoErr && turnoSupabase && !createdRecord) {
+          createdRecord = turnoSupabase;
+          usedSource = 'supabase:turnos';
+        }
       }
+    } catch (sbErr) {
+      console.warn('[Supabase Booking Notice]:', sbErr);
     }
 
     if (createdRecord) {
       return NextResponse.json({
         success: true,
         source: usedSource,
-        message: 'Turno registrado correctamente en Supabase.',
+        message: 'Turno registrado correctamente.',
         turno: createdRecord,
       });
     }
@@ -257,14 +329,14 @@ export async function POST(request: Request) {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING *`,
           [
-            user.id,
+            effectiveUserId,
             vehicleDetails,
             serviceType,
             bookingDate,
             bookingTime,
             bookingStatus,
             clientName,
-            user.email,
+            effectiveEmail,
             numPrice,
             notesText,
             clientName,
@@ -289,7 +361,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: 'No se pudo guardar el turno en la base de datos. Verificá la configuración de Supabase.' },
+      { error: 'No se pudo guardar el turno en la base de datos. Verificá la configuración de la base de datos.' },
       { status: 500 }
     );
   } catch (err: any) {

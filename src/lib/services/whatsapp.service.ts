@@ -21,9 +21,17 @@ export interface WhatsAppSendResult {
   rawResponse?: any;
 }
 
+// Emojis en secuencias Unicode seguras (inmunes a fallos de codificación en compilación/bundling)
+const EMOJI_WAVE = '\u{1F44B}';      // 👋 Mano saludando
+const EMOJI_CAR = '\u{1F697}';       // 🚗 Automóvil
+const EMOJI_SPARKLES = '\u{2728}';   // ✨ Brillos
+const EMOJI_PIN = '\u{1F4CD}';       // 📍 Pin de ubicación
+const EMOJI_SPEECH = '\u{1F4AC}';    // 💬 Globo de diálogo
+
 /**
  * Genera el texto del recordatorio de 24 horas amigable y claro,
  * según el formato establecido para Lavadero San Rafael.
+ * Garantiza la normalización Unicode NFC para evitar emojis corruptos.
  */
 export function build24hReminderMessage(params: {
   clientName: string;
@@ -31,15 +39,18 @@ export function build24hReminderMessage(params: {
   vehicle: string;
   date?: string;
 }): string {
-  const name = params.clientName?.trim() || 'Cliente';
-  const time = params.time?.trim() || 'tu horario programado';
-  const vehicle = params.vehicle?.trim() || 'vehículo';
+  const name = (params.clientName || 'Cliente').trim();
+  const time = (params.time || 'tu horario programado').trim();
+  const vehicle = (params.vehicle || 'vehículo').trim();
 
-  return (
-    `¡Hola ${name}! 👋 Te recordamos que mañana a las ${time} hs tenés un turno en Lavadero San Rafael para tu ${vehicle}. ¡Te esperamos! 🚗✨\n\n` +
-    `📍 San Rafael, Mendoza\n` +
-    `💬 Si necesitás reprogramar o tenés alguna duda, podés responder directamente a este mensaje.`
-  );
+  const lines = [
+    `¡Hola ${name}! ${EMOJI_WAVE} Te recordamos que mañana a las ${time} hs tenés un turno en Lavadero San Rafael para tu ${vehicle}. ¡Te esperamos! ${EMOJI_CAR}${EMOJI_SPARKLES}`,
+    '',
+    `${EMOJI_PIN} San Rafael, Mendoza`,
+    `${EMOJI_SPEECH} Si necesitás reprogramar o tenés alguna duda, podés responder directamente a este mensaje.`,
+  ];
+
+  return lines.join('\n').normalize('NFC');
 }
 
 export class WhatsAppService {
@@ -110,6 +121,9 @@ export class WhatsAppService {
     const provider = this.getProvider();
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
 
+    // Normalizar texto en Unicode NFC para preservar integridad de caracteres multibyte
+    const normalizedBodyText = (messageText || '').normalize('NFC');
+
     // ==============================================================
     // 1. MODO SIMULACIÓN (Fallback seguro sin fallar si no hay claves)
     // ==============================================================
@@ -117,7 +131,7 @@ export class WhatsAppService {
       console.log('----------------------------------------------------');
       console.log('[WhatsApp 24h - MODO SIMULACIÓN / DRY-RUN]');
       console.log(`Destinatario: +${cleanPhone} (${metadata?.clientName || 'Cliente'})`);
-      console.log(`Mensaje:\n${messageText}`);
+      console.log(`Mensaje:\n${normalizedBodyText}`);
       console.log(`Enlace directo wa.me: ${waUrl}`);
       console.log('Aviso: Para envíos reales, configurá WHATSAPP_API_KEY y WHATSAPP_PHONE_ID o WHATSAPP_INSTANCE_ID en Vercel.');
       console.log('----------------------------------------------------');
@@ -128,7 +142,7 @@ export class WhatsAppService {
         provider: 'simulation',
         phone: cleanPhone,
         messageId: `sim_${Date.now()}_${cleanPhone}`,
-        message: messageText,
+        message: normalizedBodyText,
         waUrl,
       };
     }
@@ -158,18 +172,24 @@ export class WhatsAppService {
         type: 'text',
         text: {
           preview_url: false,
-          body: messageText,
+          body: normalizedBodyText,
         },
       };
+
+      // Serialización y codificación binaria estricta en UTF-8
+      const jsonPayload = JSON.stringify(payload);
+      const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
 
       try {
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json',
+            'Content-Length': String(utf8BodyBuffer.byteLength),
           },
-          body: JSON.stringify(payload),
+          body: utf8BodyBuffer,
         });
 
         const resJson = await response.json().catch(() => ({}));
@@ -194,7 +214,7 @@ export class WhatsAppService {
           provider: 'meta',
           phone: cleanPhone,
           messageId,
-          message: messageText,
+          message: normalizedBodyText,
           rawResponse: resJson,
         };
       } catch (err: any) {
@@ -226,15 +246,24 @@ export class WhatsAppService {
 
       const url = `https://api.ultramsg.com/${instanceId}/messages/chat`;
 
+      const payload = {
+        token,
+        to: cleanPhone,
+        body: normalizedBodyText,
+      };
+
+      const jsonPayload = JSON.stringify(payload);
+      const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
+
       try {
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            to: cleanPhone,
-            body: messageText,
-          }),
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json',
+            'Content-Length': String(utf8BodyBuffer.byteLength),
+          },
+          body: utf8BodyBuffer,
         });
 
         const resJson = await response.json().catch(() => ({}));
@@ -259,7 +288,7 @@ export class WhatsAppService {
           provider: 'ultramsg',
           phone: cleanPhone,
           messageId,
-          message: messageText,
+          message: normalizedBodyText,
           rawResponse: resJson,
         };
       } catch (err: any) {
@@ -296,14 +325,14 @@ export class WhatsAppService {
       const params = new URLSearchParams();
       params.append('From', fromPhone.startsWith('whatsapp:') ? fromPhone : `whatsapp:${fromPhone}`);
       params.append('To', `whatsapp:+${cleanPhone}`);
-      params.append('Body', messageText);
+      params.append('Body', normalizedBodyText);
 
       try {
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
           },
           body: params.toString(),
         });
@@ -326,7 +355,7 @@ export class WhatsAppService {
           provider: 'twilio',
           phone: cleanPhone,
           messageId: resJson.sid,
-          message: messageText,
+          message: normalizedBodyText,
           rawResponse: resJson,
         };
       } catch (err: any) {
@@ -346,8 +375,21 @@ export class WhatsAppService {
       const apiUrl = process.env.WHATSAPP_API_URL!;
       const apiKey = process.env.WHATSAPP_API_KEY;
 
+      const payload = {
+        number: cleanPhone,
+        phone: cleanPhone,
+        message: normalizedBodyText,
+        text: normalizedBodyText,
+        metadata,
+      };
+
+      const jsonPayload = JSON.stringify(payload);
+      const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
+
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': 'application/json',
+        'Content-Length': String(utf8BodyBuffer.byteLength),
       };
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
@@ -358,13 +400,7 @@ export class WhatsAppService {
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            number: cleanPhone,
-            phone: cleanPhone,
-            message: messageText,
-            text: messageText,
-            metadata,
-          }),
+          body: utf8BodyBuffer,
         });
 
         const resJson = await response.json().catch(() => ({}));
@@ -384,7 +420,7 @@ export class WhatsAppService {
           provider: 'custom',
           phone: cleanPhone,
           messageId: resJson.id || `custom_${Date.now()}`,
-          message: messageText,
+          message: normalizedBodyText,
           rawResponse: resJson,
         };
       } catch (err: any) {

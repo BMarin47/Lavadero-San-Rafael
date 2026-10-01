@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { isSuperAdmin } from '@/lib/auth/admin';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 export const maxDuration = 60; // Hasta 60 segundos de ejecución en Vercel Serverless
 
 /**
