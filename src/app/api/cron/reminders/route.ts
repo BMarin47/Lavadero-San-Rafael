@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     const maxHours = searchParams.get('maxHours') ? Number(searchParams.get('maxHours')) : undefined;
     const forceTurnoId = searchParams.get('forceTurnoId') || undefined;
 
-    console.log(`[Cron Reminders GET]: Ejecutando proceso 24hs (Autorizado por: ${authCheck.reason})...`);
+    console.log(`[Cron Reminders GET]: Ejecutando recordatorios WhatsApp 24hs (Autorizado por: ${authCheck.reason})...`);
     const result = await ReminderService.process24hReminders({
       minHours,
       maxHours,
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      message: 'Proceso de recordatorios push 24hs ejecutado correctamente.',
+      message: 'Proceso de recordatorios automáticos por WhatsApp 24hs ejecutado correctamente.',
       authorizedVia: authCheck.reason,
       ...result,
     });
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     const maxHours = body.maxHours !== undefined ? Number(body.maxHours) : undefined;
     const forceTurnoId = body.forceTurnoId ? String(body.forceTurnoId).trim() : undefined;
 
-    console.log(`[Cron Reminders POST]: Disparo manual (Autorizado por: ${authCheck.reason})...`);
+    console.log(`[Cron Reminders POST]: Disparo manual WhatsApp (Autorizado por: ${authCheck.reason})...`);
     const result = await ReminderService.process24hReminders({
       minHours,
       maxHours,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      message: 'Proceso de recordatorios push 24hs ejecutado manualmente con éxito.',
+      message: 'Proceso de recordatorios por WhatsApp 24hs ejecutado manualmente con éxito.',
       authorizedVia: authCheck.reason,
       ...result,
     });

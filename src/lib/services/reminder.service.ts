@@ -1,7 +1,8 @@
-import webpush from 'web-push';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { Pool } from 'pg';
+import { WhatsAppService } from './whatsapp.service';
+import { sanitizeWhatsAppPhone } from './booking.service';
 
 /**
  * Constantes de Zona Horaria de Argentina
@@ -9,20 +10,6 @@ import { Pool } from 'pg';
  */
 export const ARGENTINA_TIMEZONE = 'America/Argentina/Mendoza';
 export const ARGENTINA_OFFSET = '-03:00';
-
-const vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
-const vapidPrivateKey = (process.env.VAPID_PRIVATE_KEY || '').trim();
-const vapidSubject = (
-  process.env.VAPID_SUBJECT || 'mailto:bruno.marin.soporte@gmail.com'
-).trim();
-
-if (vapidPublicKey && vapidPrivateKey) {
-  try {
-    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-  } catch (err) {
-    console.error('[WebPush VAPID Init Warning]:', err);
-  }
-}
 
 /**
  * Normaliza y extrae el horario de inicio (HH:mm) desde cualquier cadena de texto.
@@ -131,6 +118,7 @@ export interface CronRunResult {
   success: boolean;
   executedAtUtc: string;
   executedAtArgentina: string;
+  provider?: string;
   candidatesEvaluated: number;
   in24hWindowCount: number;
   notificationsSent: number;
@@ -143,7 +131,10 @@ export interface CronRunResult {
     date: string;
     time: string;
     diffHours: number;
-    pushSent: boolean;
+    pushSent: boolean; // Mantenido para retrocompatibilidad con interfaces previas
+    whatsAppSent?: boolean;
+    phone?: string;
+    simulated?: boolean;
     reason?: string;
   }>;
   logs: string[];
@@ -404,44 +395,96 @@ export class ReminderService {
   }
 
   /**
-   * Obtiene las suscripciones Web Push activas vinculadas a un user_id.
+   * Resuelve el número de teléfono del cliente consultando en cascada:
+   * 1. El registro del turno / reserva
+   * 2. Metadatos de auth.users en Supabase
+   * 3. Tabla users / perfiles en Supabase
+   * 4. Otras reservas del mismo usuario
+   * 5. Tablas de PostgreSQL
    */
-  private static async getPushSubscriptionsForUser(
-    userId: string,
+  public static async resolveClientPhone(
+    turno: ReminderTurno,
     supabaseClient: any
-  ): Promise<any[]> {
-    let subs: any[] = [];
+  ): Promise<string | null> {
+    // 1. Número presente directamente en el turno
+    if (turno.client_phone && turno.client_phone.trim().length >= 6) {
+      return turno.client_phone.trim();
+    }
 
-    // 1. Supabase
-    if (supabaseClient) {
+    // 2. Supabase Auth y perfiles
+    if (supabaseClient && turno.user_id) {
       try {
-        const { data, error } = await supabaseClient
-          .from('push_subscriptions')
-          .select('*')
-          .eq('user_id', userId);
+        // A) Buscar en auth.users mediante admin client si está disponible
+        if (typeof supabaseClient.auth?.admin?.getUserById === 'function') {
+          const { data: authData, error: aErr } = await supabaseClient.auth.admin.getUserById(
+            turno.user_id
+          );
+          if (!aErr && authData?.user) {
+            const meta = authData.user.user_metadata || {};
+            const phoneInAuth =
+              meta.phone || meta.celular || meta.whatsapp || authData.user.phone;
+            if (phoneInAuth && typeof phoneInAuth === 'string' && phoneInAuth.trim().length >= 6) {
+              return phoneInAuth.trim();
+            }
+          }
+        }
 
-        if (!error && Array.isArray(data) && data.length > 0) {
-          subs = data;
+        // B) Buscar en tabla users / profiles
+        const { data: userData } = await supabaseClient
+          .from('users')
+          .select('phone')
+          .eq('id', turno.user_id)
+          .maybeSingle();
+
+        if (userData?.phone && typeof userData.phone === 'string' && userData.phone.trim().length >= 6) {
+          return userData.phone.trim();
+        }
+
+        // C) Buscar en otra reserva del mismo usuario que tenga teléfono
+        const { data: priorBookings } = await supabaseClient
+          .from('bookings')
+          .select('client_phone')
+          .eq('user_id', turno.user_id)
+          .not('client_phone', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (priorBookings && priorBookings.length > 0 && priorBookings[0].client_phone) {
+          return priorBookings[0].client_phone.trim();
         }
       } catch (_) {}
     }
 
-    // 2. Fallback PostgreSQL
-    if (subs.length === 0 && process.env.DATABASE_URL) {
+    // 3. PostgreSQL directo
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl && turno.user_id) {
       try {
         const pool = new Pool({
-          connectionString: process.env.DATABASE_URL,
+          connectionString: dbUrl,
           ssl: { rejectUnauthorized: false },
         });
         const client = await pool.connect();
         try {
-          const res = await client.query(
-            'SELECT * FROM public.push_subscriptions WHERE user_id = $1',
-            [userId]
-          );
-          if (res.rows.length > 0) {
-            subs = res.rows;
-          }
+          // Consultar en tabla "User" de Prisma
+          try {
+            const resU = await client.query('SELECT phone FROM public."User" WHERE id = $1 LIMIT 1', [
+              turno.user_id,
+            ]);
+            if (resU.rows[0]?.phone && resU.rows[0].phone.trim().length >= 6) {
+              return resU.rows[0].phone.trim();
+            }
+          } catch (_) {}
+
+          // Consultar en bookings
+          try {
+            const resB = await client.query(
+              'SELECT client_phone FROM public.bookings WHERE user_id = $1 AND client_phone IS NOT NULL AND client_phone != \'\' LIMIT 1',
+              [turno.user_id]
+            );
+            if (resB.rows[0]?.client_phone && resB.rows[0].client_phone.trim().length >= 6) {
+              return resB.rows[0].client_phone.trim();
+            }
+          } catch (_) {}
         } finally {
           client.release();
           await pool.end();
@@ -449,7 +492,7 @@ export class ReminderService {
       } catch (_) {}
     }
 
-    return subs;
+    return null;
   }
 
   /**
@@ -516,45 +559,7 @@ export class ReminderService {
   }
 
   /**
-   * Elimina endpoints de suscripción expirados (HTTP 410 Gone / 404 Not Found).
-   */
-  private static async cleanExpiredSubscriptions(
-    endpoints: string[],
-    supabaseClient: any
-  ) {
-    if (!endpoints || endpoints.length === 0) return;
-
-    if (supabaseClient) {
-      try {
-        await supabaseClient
-          .from('push_subscriptions')
-          .delete()
-          .in('endpoint', endpoints);
-      } catch (_) {}
-    }
-
-    if (process.env.DATABASE_URL) {
-      try {
-        const pool = new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-        });
-        const client = await pool.connect();
-        try {
-          await client.query(
-            'DELETE FROM public.push_subscriptions WHERE endpoint = ANY($1)',
-            [endpoints]
-          );
-        } finally {
-          client.release();
-          await pool.end();
-        }
-      } catch (_) {}
-    }
-  }
-
-  /**
-   * Ejecuta el proceso integral de recordatorios de 24 horas.
+   * Ejecuta el proceso integral de recordatorios de 24 horas vía WhatsApp.
    * Diseñado para invocación periódica desde Vercel Cron ("/api/cron/reminders").
    */
   static async process24hReminders(options?: {
@@ -565,33 +570,13 @@ export class ReminderService {
     const startTimeMs = Date.now();
     const nowInfo = getArgentinaNowInfo();
     const logs: string[] = [];
+    const provider = WhatsAppService.getProvider();
 
     logs.push(`================================================================`);
-    logs.push(`[Cron Recordatorio 24hs] Inicio de ejecución.`);
+    logs.push(`[Cron Recordatorio 24hs WhatsApp] Inicio de ejecución.`);
     logs.push(`Horario Servidor (UTC): ${nowInfo.utcIso}`);
     logs.push(`Horario San Rafael, Mendoza (UTC-3): ${nowInfo.argentinaLocalStr}`);
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      const msg = '[WebPush Error] Claves VAPID no configuradas en Vercel/.env.';
-      logs.push(msg);
-      console.error(msg);
-      return {
-        success: false,
-        executedAtUtc: nowInfo.utcIso,
-        executedAtArgentina: nowInfo.argentinaLocalStr,
-        candidatesEvaluated: 0,
-        in24hWindowCount: 0,
-        notificationsSent: 0,
-        notificationsFailed: 0,
-        expiredCleaned: 0,
-        turnosReminded: [],
-        logs,
-      };
-    }
-
-    try {
-      webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-    } catch (_) {}
+    logs.push(`Proveedor de WhatsApp: ${provider.toUpperCase()}`);
 
     const adminSupabase = this.getSupabaseAdminClient();
     let supabaseClient = adminSupabase;
@@ -607,24 +592,20 @@ export class ReminderService {
 
     let sentCount = 0;
     let failedCount = 0;
-    const expiredEndpoints: string[] = [];
     const remindedList: CronRunResult['turnosReminded'] = [];
 
-    // 2. Procesar cada turno calificado
+    // 2. Procesar cada turno calificado y despachar WhatsApp
     for (const turno of qualifiedTurnos) {
       logs.push(
         `[Procesando Turno] ID: ${turno.id} | Cliente: ${turno.client_name} | Vehículo: ${turno.vehiculo} | Fecha: ${turno.date} ${turno.time} | Faltan: ${turno.diffHours}hs`
       );
 
-      // Buscar suscripciones activas del usuario
-      const subscriptions = await this.getPushSubscriptionsForUser(
-        turno.user_id,
-        supabaseClient
-      );
+      // Obtener o resolver el teléfono del cliente
+      const rawPhone = await this.resolveClientPhone(turno, supabaseClient);
 
-      if (subscriptions.length === 0) {
+      if (!rawPhone) {
         logs.push(
-          `[Push 24h Aviso] El usuario ${turno.user_id} (${turno.client_name}) no tiene dispositivos en push_subscriptions.`
+          `[WhatsApp 24h Aviso] El cliente "${turno.client_name}" (User ID: ${turno.user_id}) no tiene teléfono registrado.`
         );
         remindedList.push({
           id: turno.id,
@@ -634,7 +615,8 @@ export class ReminderService {
           time: turno.time,
           diffHours: turno.diffHours,
           pushSent: false,
-          reason: 'Usuario sin dispositivos registrados en push_subscriptions',
+          whatsAppSent: false,
+          reason: 'Cliente sin teléfono registrado en reserva ni perfil',
         });
 
         // Marcamos como procesado para no recalcularlo en cada hora consecutiva
@@ -642,91 +624,90 @@ export class ReminderService {
         continue;
       }
 
-      // Preparar payload atractivo y amigable
-      const payload = JSON.stringify({
-        title: '⏰ Recordatorio: Mañana es tu turno de lavado',
-        body: `Hola ${turno.client_name}! Te recordamos que mañana a las ${turno.time} hs tenés tu turno en AquaShine San Rafael para tu ${turno.vehiculo}. ¡Te esperamos!`,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-192x192.png',
-        url: '/dashboard',
-        data: {
-          url: '/dashboard',
-          bookingId: turno.id,
-          type: 'reminder_24h',
-        },
-      });
+      const cleanPhone = sanitizeWhatsAppPhone(rawPhone);
+      if (!cleanPhone) {
+        logs.push(
+          `[WhatsApp 24h Advertencia] Teléfono inválido para "${turno.client_name}": ${rawPhone}`
+        );
+        remindedList.push({
+          id: turno.id,
+          client: turno.client_name,
+          vehicle: turno.vehiculo,
+          date: turno.date,
+          time: turno.time,
+          diffHours: turno.diffHours,
+          pushSent: false,
+          whatsAppSent: false,
+          phone: rawPhone,
+          reason: `Número telefónico inválido (${rawPhone})`,
+        });
 
-      let turnoSuccess = false;
-
-      // Enviar a todos los dispositivos registrados del cliente
-      for (const sub of subscriptions) {
-        if (!sub.endpoint || !sub.p256dh || !sub.auth) {
-          failedCount++;
-          continue;
-        }
-
-        const webPushSub = {
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-        };
-
-        try {
-          const pushRes = await webpush.sendNotification(webPushSub, payload);
-          sentCount++;
-          turnoSuccess = true;
-          logs.push(
-            `[Push 24h Enviado Exitosamente] Dispositivo: ${sub.endpoint.slice(0, 35)}... (Status: ${pushRes.statusCode})`
-          );
-        } catch (pushErr: any) {
-          failedCount++;
-          const status = pushErr.statusCode || pushErr.status;
-          logs.push(
-            `[Push 24h Error de Envío] Dispositivo: ${sub.endpoint.slice(0, 35)}... Código: ${status}. Error: ${pushErr.message}`
-          );
-
-          // Error 410 Gone / 404 Not Found: suscripción revocada o expirada
-          if (status === 410 || status === 404) {
-            logs.push(
-              `[Push 24h Limpieza] Suscripción expirada en el navegador (HTTP ${status}). Se marcará para eliminación.`
-            );
-            expiredEndpoints.push(sub.endpoint);
-          } else if (status === 400 || status === 413) {
-            logs.push(
-              `[Push 24h Payload Inválido] El navegador rechazó el payload (HTTP ${status}).`
-            );
-          }
-        }
+        await this.markReminderSent(turno.id, turno.sourceTable, supabaseClient);
+        continue;
       }
 
-      remindedList.push({
-        id: turno.id,
-        client: turno.client_name,
+      // Enviar recordatorio vía WhatsAppService
+      const sendResult = await WhatsAppService.sendReminderMessage({
+        phone: cleanPhone,
+        clientName: turno.client_name,
+        time: turno.time,
         vehicle: turno.vehiculo,
         date: turno.date,
-        time: turno.time,
-        diffHours: turno.diffHours,
-        pushSent: turnoSuccess,
-        reason: turnoSuccess ? 'Notificación despachada' : 'Fallo en envío push a dispositivos',
+        bookingId: turno.id,
       });
 
-      // Marcar turno como recordado para no duplicar el aviso
-      await this.markReminderSent(turno.id, turno.sourceTable, supabaseClient);
-    }
+      if (sendResult.success) {
+        sentCount++;
+        const modeLabel = sendResult.simulated
+          ? 'Simulado (Dry-Run / Sin credenciales)'
+          : `Entregado (${sendResult.provider})`;
 
-    // 3. Limpiar suscripciones expiradas de la base de datos
-    if (expiredEndpoints.length > 0) {
-      logs.push(
-        `[Limpieza Suscripciones] Eliminando ${expiredEndpoints.length} endpoint(s) expirado(s) de la base de datos...`
-      );
-      await this.cleanExpiredSubscriptions(expiredEndpoints, supabaseClient);
+        logs.push(
+          `[WhatsApp 24h Éxito] Turno #${turno.id.slice(0, 8)} | Destino: +${sendResult.phone} | Modo: ${modeLabel}`
+        );
+
+        remindedList.push({
+          id: turno.id,
+          client: turno.client_name,
+          vehicle: turno.vehiculo,
+          date: turno.date,
+          time: turno.time,
+          diffHours: turno.diffHours,
+          pushSent: true, // retrocompatibilidad
+          whatsAppSent: true,
+          phone: sendResult.phone,
+          simulated: sendResult.simulated,
+          reason: sendResult.simulated
+            ? 'WhatsApp simulado (configurá credenciales API en Vercel para despacho real)'
+            : `Mensaje de WhatsApp entregado exitosamente vía ${sendResult.provider}`,
+        });
+
+        // Marcar turno como recordado para no duplicar el aviso
+        await this.markReminderSent(turno.id, turno.sourceTable, supabaseClient);
+      } else {
+        failedCount++;
+        logs.push(
+          `[WhatsApp 24h Error] Turno #${turno.id.slice(0, 8)} | Destino: +${cleanPhone} | Error: ${sendResult.error}`
+        );
+
+        remindedList.push({
+          id: turno.id,
+          client: turno.client_name,
+          vehicle: turno.vehiculo,
+          date: turno.date,
+          time: turno.time,
+          diffHours: turno.diffHours,
+          pushSent: false,
+          whatsAppSent: false,
+          phone: cleanPhone,
+          reason: sendResult.error || 'Error al enviar por WhatsApp',
+        });
+      }
     }
 
     const elapsedMs = Date.now() - startTimeMs;
     logs.push(
-      `[Cron Recordatorio 24hs] Finalizado en ${elapsedMs}ms. Enviados: ${sentCount}, Fallidos: ${failedCount}, Expirados limpiados: ${expiredEndpoints.length}`
+      `[Cron Recordatorio 24hs WhatsApp] Finalizado en ${elapsedMs}ms. Enviados: ${sentCount}, Fallidos: ${failedCount}, Proveedor: ${provider}`
     );
     logs.push(`================================================================`);
 
@@ -734,11 +715,12 @@ export class ReminderService {
       success: true,
       executedAtUtc: nowInfo.utcIso,
       executedAtArgentina: nowInfo.argentinaLocalStr,
+      provider,
       candidatesEvaluated: qualifiedTurnos.length,
       in24hWindowCount: qualifiedTurnos.length,
       notificationsSent: sentCount,
       notificationsFailed: failedCount,
-      expiredCleaned: expiredEndpoints.length,
+      expiredCleaned: 0,
       turnosReminded: remindedList,
       logs,
     };
