@@ -113,34 +113,34 @@ function ReservaExitosaContent() {
   // Construir mensaje de WhatsApp con los datos del turno
   const staticLavaderoPhone = '5492604654255';
   const lines = [
-    '¡Hola AquaShine San Rafael! 👋',
+    '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
     'Acabo de abonar mi reserva en Mercado Pago y confirmo mi turno:',
     '',
   ];
 
   if (booking) {
-    lines.push(`📅 *Fecha:* ${booking.appointmentDate}`);
-    lines.push(`⏰ *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
-    lines.push(`🚗 *Vehículo:* ${booking.vehicleSummary}`);
-    lines.push(`🧼 *Servicio:* ${booking.serviceDescription}`);
+    lines.push(`\uD83D\uDCC5 *Fecha:* ${booking.appointmentDate}`);
+    lines.push(`\u23F0 *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
+    lines.push(`\uD83D\uDE97 *Vehículo:* ${booking.vehicleSummary}`);
+    lines.push(`\uD83E\uDDFC *Servicio:* ${booking.serviceDescription}`);
     lines.push(
-      `💰 *Total Pagado:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
+      `\uD83D\uDCB0 *Total Pagado:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
     );
-    lines.push(`👤 *Cliente:* ${booking.clientName}`);
-    lines.push(`📱 *Teléfono:* ${booking.clientPhone}`);
-    lines.push(`📧 *Email:* ${booking.clientEmail}`);
+    lines.push(`\uD83D\uDC64 *Cliente:* ${booking.clientName}`);
+    lines.push(`\uD83D\uDCF1 *Teléfono:* ${booking.clientPhone}`);
+    lines.push(`\uD83D\uDCE7 *Email:* ${booking.clientEmail}`);
 
     if (booking.homeDelivery && booking.deliveryAddress) {
-      lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
+      lines.push(`\uD83D\uDE9A *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
     }
 
     if (booking.notes) {
-      lines.push(`📝 *Notas:* ${booking.notes}`);
+      lines.push(`\uD83D\uDCDD *Notas:* ${booking.notes}`);
     }
   }
 
   if (paymentId) {
-    lines.push(`💳 *Nº Comprobante MP:* #${paymentId}`);
+    lines.push(`\uD83D\uDCB3 *Nº Comprobante MP:* #${paymentId}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo confirmación de la recepción.');

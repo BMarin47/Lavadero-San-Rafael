@@ -21,17 +21,24 @@ export interface WhatsAppSendResult {
   rawResponse?: any;
 }
 
-// Emojis en secuencias Unicode seguras (inmunes a fallos de codificación en compilación/bundling)
-const EMOJI_WAVE = '\u{1F44B}';      // 👋 Mano saludando
-const EMOJI_CAR = '\u{1F697}';       // 🚗 Automóvil
-const EMOJI_SPARKLES = '\u{2728}';   // ✨ Brillos
-const EMOJI_PIN = '\u{1F4CD}';       // 📍 Pin de ubicación
-const EMOJI_SPEECH = '\u{1F4AC}';    // 💬 Globo de diálogo
+// Emojis en secuencias de escape Unicode UTF-16 (surrogate pairs / ASCII puro, inmunes a codificación de archivo)
+export const EMOJI_WAVE = '\uD83D\uDC4B';      // Mano saludando
+export const EMOJI_CAR = '\uD83D\uDE97';       // Automovil
+export const EMOJI_SPARKLES = '\u2728';        // Brillos
+export const EMOJI_PIN = '\uD83D\uDCCD';       // Pin de ubicacion
+export const EMOJI_SPEECH = '\uD83D\uDCAC';    // Globo de dialogo
+export const EMOJI_CALENDAR = '\uD83D\uDCC5';  // Calendario
+export const EMOJI_CLOCK = '\u23F0';           // Reloj
+export const EMOJI_MONEY = '\uD83D\uDCB0';     // Bolsa de dinero
+export const EMOJI_SOAP = '\uD83E\uDDFC';      // Jabon
+export const EMOJI_USER = '\uD83D\uDC64';      // Cliente
+export const EMOJI_TRUCK = '\uD83D\uDE9A';     // Camion
+export const EMOJI_MEMO = '\uD83D\uDCDD';      // Notas
 
 /**
  * Genera el texto del recordatorio de 24 horas amigable y claro,
  * según el formato establecido para Lavadero San Rafael.
- * Garantiza la normalización Unicode NFC para evitar emojis corruptos.
+ * Garantiza secuencias de escape Unicode puras para evitar emojis corruptos.
  */
 export function build24hReminderMessage(params: {
   clientName: string;
@@ -50,7 +57,7 @@ export function build24hReminderMessage(params: {
     `${EMOJI_SPEECH} Si necesitás reprogramar o tenés alguna duda, podés responder directamente a este mensaje.`,
   ];
 
-  return lines.join('\n').normalize('NFC');
+  return lines.join('\n');
 }
 
 export class WhatsAppService {
@@ -176,8 +183,13 @@ export class WhatsAppService {
         },
       };
 
-      // Serialización y codificación binaria estricta en UTF-8
-      const jsonPayload = JSON.stringify(payload);
+      // Serialización y codificación binaria estricta con escape Unicode seguro (\uXXXX)
+      // Garantiza que cualquier emoji o carácter multibyte viaje como ASCII puro en el JSON,
+      // evitando cualquier desajuste de charset en el servidor o red.
+      const jsonPayload = JSON.stringify(payload).replace(
+        /[\u007F-\uFFFF]/g,
+        (c) => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)
+      );
       const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
 
       try {
@@ -252,7 +264,10 @@ export class WhatsAppService {
         body: normalizedBodyText,
       };
 
-      const jsonPayload = JSON.stringify(payload);
+      const jsonPayload = JSON.stringify(payload).replace(
+        /[\u007F-\uFFFF]/g,
+        (c) => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)
+      );
       const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
 
       try {
@@ -383,7 +398,10 @@ export class WhatsAppService {
         metadata,
       };
 
-      const jsonPayload = JSON.stringify(payload);
+      const jsonPayload = JSON.stringify(payload).replace(
+        /[\u007F-\uFFFF]/g,
+        (c) => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)
+      );
       const utf8BodyBuffer = Buffer.from(jsonPayload, 'utf-8');
 
       const headers: Record<string, string> = {

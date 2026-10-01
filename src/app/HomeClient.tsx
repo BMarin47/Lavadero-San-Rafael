@@ -580,21 +580,21 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
         // 2. Armar mensaje de WhatsApp y redirigir directamente
         const lines = [
-          '¡Hola AquaShine San Rafael! 👋',
+          '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
           'Quiero confirmar mi reserva de turno con *Pago en Efectivo en el local*:',
           '',
-          `📅 *Fecha:* ${selectedDate}`,
-          `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-          `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
-          `🧼 *Servicio:* ${serviceDescription}`,
-          `💰 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo en el local)`,
-          `👤 *Cliente:* ${fullName.trim()}`,
-          `📱 *Teléfono:* ${fullUserPhone}`,
-          `📧 *Email:* ${effectiveEmail}`,
+          `\uD83D\uDCC5 *Fecha:* ${selectedDate}`,
+          `\u23F0 *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+          `\uD83D\uDE97 *Vehículo:* ${vehicleSummaryDisplay}`,
+          `\uD83E\uDDFC *Servicio:* ${serviceDescription}`,
+          `\uD83D\uDCB0 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo en el local)`,
+          `\uD83D\uDC64 *Cliente:* ${fullName.trim()}`,
+          `\uD83D\uDCF1 *Teléfono:* ${fullUserPhone}`,
+          `\uD83D\uDCE7 *Email:* ${effectiveEmail}`,
         ];
 
         if (notes.trim()) {
-          lines.push(`📝 *Indicaciones:* ${notes.trim()}`);
+          lines.push(`\uD83D\uDCDD *Indicaciones:* ${notes.trim()}`);
         }
 
         lines.push('', '¡Muchas gracias! Aguardo confirmación del turno.');

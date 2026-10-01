@@ -94,19 +94,19 @@ export function generateWhatsAppBookingUrl(params: {
       : 'Efectivo en el lavadero (Presencial)';
 
   const lines = [
-    '¡Hola AquaShine San Rafael! 👋',
+    '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
     'Acabo de confirmar una reserva a través de la Web App:',
     '',
-    `📅 *Fecha:* ${params.appointmentDate}`,
-    `⏰ *Horario:* ${params.startTime} a ${params.endTime} hs`,
-    `🚗 *Vehículo:* ${VEHICLE_TYPE_LABELS[params.vehicleType] || params.vehicleType} - ${params.vehicleModel}`,
-    `🧼 *Servicio:* ${params.serviceDescription}`,
-    `💰 *Método de Pago:* ${paymentText} ($${params.amount.toLocaleString('es-AR')})`,
-    `👤 *Cliente:* ${params.userName} (${params.userPhone})`,
+    `\uD83D\uDCC5 *Fecha:* ${params.appointmentDate}`,
+    `\u23F0 *Horario:* ${params.startTime} a ${params.endTime} hs`,
+    `\uD83D\uDE97 *Vehículo:* ${VEHICLE_TYPE_LABELS[params.vehicleType] || params.vehicleType} - ${params.vehicleModel}`,
+    `\uD83E\uDDFC *Servicio:* ${params.serviceDescription}`,
+    `\uD83D\uDCB0 *Método de Pago:* ${paymentText} ($${params.amount.toLocaleString('es-AR')})`,
+    `\uD83D\uDC64 *Cliente:* ${params.userName} (${params.userPhone})`,
   ];
 
   if (params.homeDelivery && params.deliveryAddress) {
-    lines.push(`🚚 *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
+    lines.push(`\uD83D\uDE9A *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo la recepción del vehículo.');
@@ -131,17 +131,17 @@ export function generateWhatsAppCancellationUrl(params: {
   if (!cleanPhone) return '';
 
   const lines = [
-    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *AquaShine San Rafael* 🚗✨`,
+    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *AquaShine San Rafael* \uD83D\uDE97\u2728`,
     '',
     'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
     '',
-    `🚗 *Vehículo:* ${params.vehicle || 'Vehículo'}`,
-    `📅 *Fecha:* ${params.date || '-'}`,
-    `⏰ *Horario:* ${params.time || '-'}`,
+    `\uD83D\uDE97 *Vehículo:* ${params.vehicle || 'Vehículo'}`,
+    `\uD83D\uDCC5 *Fecha:* ${params.date || '-'}`,
+    `\u23F0 *Horario:* ${params.time || '-'}`,
   ];
 
   if (params.reason) {
-    lines.push(`📝 *Motivo:* ${params.reason}`);
+    lines.push(`\uD83D\uDCDD *Motivo:* ${params.reason}`);
   }
 
   lines.push(
