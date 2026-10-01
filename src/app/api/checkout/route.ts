@@ -1,23 +1,43 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { BASE_PRICES } from '@/lib/services/booking.service';
+
+const PLANS_PRICES: Record<string, Record<string, number>> = {
+  PLATA: { CAR: 38000, SUV: 45500, PICKUP: 55000 },
+  ORO: { CAR: 56000, SUV: 67500, PICKUP: 81500 },
+  PLATINO: { CAR: 75000, SUV: 90000, PICKUP: 109000 },
+};
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
       categoria,
-      precio,
+      planCode,
       turnoId,
       vehiculo,
       nombre_cliente,
       userEmail,
     } = body;
 
-    if (!categoria || precio === undefined) {
+    if (!categoria) {
       return NextResponse.json(
-        { error: 'Faltan parámetros obligatorios: categoria y precio son requeridos.' },
+        { error: 'Faltan parámetros obligatorios: categoria es requerida.' },
         { status: 400 }
       );
+    }
+
+    // Cálculo y blindaje de precio en el SERVIDOR (Protección contra manipulación)
+    const catUpper = String(categoria).toUpperCase();
+    let verifiedPrice: number;
+
+    if (planCode && PLANS_PRICES[String(planCode).toUpperCase()]) {
+      const planPrices = PLANS_PRICES[String(planCode).toUpperCase()];
+      verifiedPrice = planPrices[catUpper] || planPrices['CAR'] || 38000;
+    } else if (BASE_PRICES[catUpper]) {
+      verifiedPrice = BASE_PRICES[catUpper];
+    } else {
+      verifiedPrice = BASE_PRICES.CAR || 22000;
     }
 
     const token =
@@ -67,7 +87,7 @@ export async function POST(request: Request) {
         {
           id: turnoId ? String(turnoId) : `turno-${Date.now()}`,
           title: itemTitle.substring(0, 120),
-          unit_price: Math.max(1, Math.round(Number(precio))),
+          unit_price: verifiedPrice,
           quantity: 1,
           currency_id: 'ARS',
         },
@@ -82,7 +102,7 @@ export async function POST(request: Request) {
       metadata: {
         turno_id: turnoId,
         categoria,
-        precio,
+        precio: verifiedPrice,
         vehiculo,
         nombre_cliente,
         email: userEmail,

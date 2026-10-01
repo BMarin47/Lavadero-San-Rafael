@@ -13,6 +13,13 @@ export async function POST(request: Request) {
       body.isCancellation === true ||
       body.status === 'cancelado'
     ) {
+      if (!body.bookingId && !body.clientEmail && !body.userEmail) {
+        return NextResponse.json(
+          { error: 'Parámetros insuficientes para la notificación de cancelación.' },
+          { status: 400 }
+        );
+      }
+
       const cancellationResult = await EmailService.sendCancellationNotification({
         bookingId: body.bookingId || body.id || '',
         clientName: body.clientName || body.userFullName || body.nombre_cliente || 'Cliente',
@@ -53,6 +60,22 @@ export async function POST(request: Request) {
       deliveryAddress,
       notes,
     } = body;
+
+    // VALIDACIÓN ESTRICTA DE ENTRADA (Anti-Spam / Anti-Relay abuse)
+    if (!userEmail || !appointmentDate || !startTime) {
+      return NextResponse.json(
+        { error: 'Faltan parámetros obligatorios para registrar la reserva (userEmail, appointmentDate, startTime).' },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(String(userEmail).trim())) {
+      return NextResponse.json(
+        { error: 'El formato del correo electrónico es inválido.' },
+        { status: 400 }
+      );
+    }
 
     const apiKey = process.env.RESEND_API_KEY?.trim();
 
