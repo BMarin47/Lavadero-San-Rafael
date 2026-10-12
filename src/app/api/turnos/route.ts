@@ -263,101 +263,141 @@ export async function POST(request: Request) {
       console.warn('[Supabase Booking Notice]:', sbErr);
     }
 
+    if (!createdRecord) {
+      // 3. Fallback directo a base de datos PostgreSQL remota (DATABASE_URL)
+      const dbUrl = process.env.DATABASE_URL;
+      if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
+        const pool = new Pool({
+          connectionString: dbUrl,
+          ssl: { rejectUnauthorized: false },
+        });
+        const client = await pool.connect();
+        try {
+          // Asegurar que la tabla bookings exista en PostgreSQL
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS public.bookings (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id TEXT NOT NULL,
+                vehicle_details TEXT NOT NULL,
+                service_type TEXT NOT NULL,
+                date TEXT NOT NULL,
+                time TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pendiente',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+                client_name TEXT,
+                client_email TEXT,
+                client_phone TEXT,
+                price NUMERIC NOT NULL DEFAULT 0,
+                notes TEXT,
+                nombre_cliente TEXT,
+                vehiculo TEXT,
+                categoria TEXT,
+                precio NUMERIC,
+                indicaciones TEXT,
+                estado TEXT DEFAULT 'pendiente',
+                fecha_creacion TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+            );
+
+            CREATE TABLE IF NOT EXISTS public.turnos (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id TEXT NOT NULL,
+                nombre_cliente TEXT NOT NULL,
+                vehiculo TEXT NOT NULL,
+                categoria TEXT NOT NULL,
+                precio NUMERIC NOT NULL,
+                indicaciones TEXT,
+                estado TEXT NOT NULL DEFAULT 'pendiente',
+                fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+            );
+          `);
+
+          const insertRes = await client.query(
+            `INSERT INTO public.bookings (
+              user_id, vehicle_details, service_type, date, time, status,
+              client_name, client_email, price, notes,
+              nombre_cliente, vehiculo, categoria, precio, indicaciones, estado
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             RETURNING *`,
+            [
+              effectiveUserId,
+              vehicleDetails,
+              serviceType,
+              bookingDate,
+              bookingTime,
+              bookingStatus,
+              clientName,
+              effectiveEmail,
+              numPrice,
+              notesText,
+              clientName,
+              vehicleDetails,
+              serviceType,
+              numPrice,
+              notesText,
+              bookingStatus,
+            ]
+          );
+
+          createdRecord = insertRes.rows[0];
+          usedSource = 'postgresql:bookings';
+        } finally {
+          client.release();
+          await pool.end();
+        }
+      }
+    }
+
     if (createdRecord) {
+      let emailStatus: {
+        sent: boolean;
+        emailId?: string;
+        errorCategory?: string;
+        errorMessage?: string;
+      } = { sent: false };
+
+      try {
+        emailStatus = await EmailService.sendBookingConfirmation({
+          appointmentId: String(createdRecord.id || ''),
+          userFullName: clientName,
+          userEmail: effectiveEmail,
+          userPhone: effectivePhone,
+          vehicleType: body.categoria || 'CAR',
+          vehicleSummary: vehicleDetails,
+          appointmentDate: bookingDate,
+          startTime: bookingTime,
+          serviceDescription: serviceType,
+          amount: numPrice,
+          notes: notesText,
+        });
+
+        if (!emailStatus.sent) {
+          console.error(
+            '[API Turnos POST][Email Failure en Vercel]: El turno se guardó pero falló el envío del correo a bruno.marin.soporte@gmail.com:',
+            emailStatus
+          );
+        }
+      } catch (emailErr: any) {
+        console.error(
+          '[API Turnos POST][Excepción Crítica Email en Vercel]:',
+          {
+            message: emailErr?.message,
+            code: emailErr?.code,
+            stack: emailErr?.stack,
+          }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         source: usedSource,
         message: 'Turno registrado correctamente.',
         turno: createdRecord,
+        emailSent: emailStatus.sent,
+        emailErrorCategory: emailStatus.errorCategory,
+        emailErrorMessage: emailStatus.errorMessage,
       });
-    }
-
-    // 3. Fallback directo a base de datos PostgreSQL remota (DATABASE_URL)
-    const dbUrl = process.env.DATABASE_URL;
-    if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
-      const pool = new Pool({
-        connectionString: dbUrl,
-        ssl: { rejectUnauthorized: false },
-      });
-      const client = await pool.connect();
-      try {
-        // Asegurar que la tabla bookings exista en PostgreSQL
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS public.bookings (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              user_id TEXT NOT NULL,
-              vehicle_details TEXT NOT NULL,
-              service_type TEXT NOT NULL,
-              date TEXT NOT NULL,
-              time TEXT NOT NULL,
-              status TEXT NOT NULL DEFAULT 'pendiente',
-              created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-              updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-              client_name TEXT,
-              client_email TEXT,
-              client_phone TEXT,
-              price NUMERIC NOT NULL DEFAULT 0,
-              notes TEXT,
-              nombre_cliente TEXT,
-              vehiculo TEXT,
-              categoria TEXT,
-              precio NUMERIC,
-              indicaciones TEXT,
-              estado TEXT DEFAULT 'pendiente',
-              fecha_creacion TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-          );
-
-          CREATE TABLE IF NOT EXISTS public.turnos (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              user_id TEXT NOT NULL,
-              nombre_cliente TEXT NOT NULL,
-              vehiculo TEXT NOT NULL,
-              categoria TEXT NOT NULL,
-              precio NUMERIC NOT NULL,
-              indicaciones TEXT,
-              estado TEXT NOT NULL DEFAULT 'pendiente',
-              fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-          );
-        `);
-
-        const insertRes = await client.query(
-          `INSERT INTO public.bookings (
-            user_id, vehicle_details, service_type, date, time, status,
-            client_name, client_email, price, notes,
-            nombre_cliente, vehiculo, categoria, precio, indicaciones, estado
-           )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-           RETURNING *`,
-          [
-            effectiveUserId,
-            vehicleDetails,
-            serviceType,
-            bookingDate,
-            bookingTime,
-            bookingStatus,
-            clientName,
-            effectiveEmail,
-            numPrice,
-            notesText,
-            clientName,
-            vehicleDetails,
-            serviceType,
-            numPrice,
-            notesText,
-            bookingStatus,
-          ]
-        );
-
-        return NextResponse.json({
-          success: true,
-          source: 'postgresql:bookings',
-          message: 'Turno registrado correctamente en la base de datos PostgreSQL.',
-          turno: insertRes.rows[0],
-        });
-      } finally {
-        client.release();
-        await pool.end();
-      }
     }
 
     return NextResponse.json(

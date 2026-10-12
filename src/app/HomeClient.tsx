@@ -475,6 +475,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       // =========================================================================
       let dbError: string | null = null;
       let turnoCreado: any = null;
+      let serverEmailSent = false;
 
       try {
         const turnoRes = await fetch('/api/turnos', {
@@ -506,6 +507,14 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           dbError = turnoResult.error || 'Error al registrar el turno en la base de datos.';
         } else {
           turnoCreado = turnoResult.turno;
+          serverEmailSent = Boolean(turnoResult.emailSent);
+          if (!serverEmailSent && turnoResult.emailErrorMessage) {
+            console.error(
+              '[HomeClient][Email Warning desde /api/turnos]:',
+              turnoResult.emailErrorCategory,
+              turnoResult.emailErrorMessage
+            );
+          }
         }
       } catch (err: any) {
         dbError = err.message || 'Error de conexión con el servidor.';
@@ -552,30 +561,37 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       // FLUJO A: SI ELIGE PAGO EN EFECTIVO EN EL LOCAL
       // =========================================================================
       if (paymentMethod === 'CASH') {
-        // 1. Disparar el correo de alerta interna con Resend para el administrador
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userEmail: effectiveEmail,
-              userFullName: fullName.trim(),
-              userPhone: fullUserPhone,
-              vehicleType,
-              vehicleBrand: effectiveBrand,
-              vehicleModel: effectiveModel,
-              appointmentDate: selectedDate,
-              startTime: selectedSlot.startTime,
-              endTime: selectedSlot.endTime,
-              serviceDescription: `${serviceDescription} (Pago: Efectivo en el local)`,
-              amount: currentTotal,
-              notes: notes.trim()
-                ? `${notes.trim()} (Pago en efectivo en el local)`
-                : 'Pago en efectivo en el local',
-            }),
-          });
-        } catch (emailErr) {
-          console.warn('[Resend Email Error - Cash]:', emailErr);
+        // 1. Si /api/turnos no pudo enviar el correo en el primer intento, reintentar vía /api/send-email
+        if (!serverEmailSent) {
+          try {
+            const emailRes = await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userEmail: effectiveEmail,
+                userFullName: fullName.trim(),
+                userPhone: fullUserPhone,
+                vehicleType,
+                vehicleBrand: effectiveBrand,
+                vehicleModel: effectiveModel,
+                appointmentDate: selectedDate,
+                startTime: selectedSlot.startTime,
+                endTime: selectedSlot.endTime,
+                serviceDescription: `${serviceDescription} (Pago: Efectivo en el local)`,
+                amount: currentTotal,
+                notes: notes.trim()
+                  ? `${notes.trim()} (Pago en efectivo en el local)`
+                  : 'Pago en efectivo en el local',
+              }),
+            });
+
+            if (!emailRes.ok) {
+              const errBody = await emailRes.json().catch(() => ({}));
+              console.error('[HomeClient][Error en /api/send-email - Cash]:', errBody);
+            }
+          } catch (emailErr) {
+            console.error('[HomeClient][Excepción de red en /api/send-email - Cash]:', emailErr);
+          }
         }
 
         // 2. Armar mensaje de WhatsApp y redirigir directamente
