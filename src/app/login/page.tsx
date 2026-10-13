@@ -33,14 +33,30 @@ function LoginForm() {
     if (errorParam === 'access_denied') {
       return 'Se canceló el inicio de sesión con Google. Podés intentarlo nuevamente cuando desees.';
     }
-    if (errorParam === 'missing-auth-code' || errorParam === 'exchange-error') {
-      return 'Hubo un inconveniente al validar la sesión con Google. Por favor, volvé a intentarlo.';
+    if (
+      errorParam === 'missing-auth-code' ||
+      errorParam === 'exchange-error' ||
+      errorParam === 'session-expired'
+    ) {
+      return 'La sesión de validación expiró. Por favor, presioná "Continuar con Google" nuevamente.';
     }
     return errorDescParam || 'No se pudo completar el inicio de sesión. Por favor intentá nuevamente.';
   };
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(getInitialError());
+
+  // Limpiar los parámetros ?error= y ?error_description= de la barra de direcciones para evitar bucles o URLs sucias
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (errorParam || errorDescParam)) {
+      const sp = new URLSearchParams(window.location.search);
+      sp.delete('error');
+      sp.delete('error_description');
+      sp.delete('code');
+      const cleanQuery = sp.toString() ? `?${sp.toString()}` : '';
+      window.history.replaceState(null, '', `${window.location.pathname}${cleanQuery}`);
+    }
+  }, [errorParam, errorDescParam]);
 
   const supabase = createClient();
 

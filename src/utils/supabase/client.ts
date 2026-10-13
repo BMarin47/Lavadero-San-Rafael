@@ -41,16 +41,21 @@ export function createClient() {
   if (typeof window !== 'undefined') {
     if (!browserClient) {
       browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          flowType: 'pkce',
-          detectSessionInUrl: true,
-          persistSession: true,
-          autoRefreshToken: true,
+        cookieOptions: {
+          path: '/',
+          sameSite: 'lax',
+          secure: window.location.protocol === 'https:',
         },
       });
     }
     return browserClient;
   }
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    },
+  });
 }

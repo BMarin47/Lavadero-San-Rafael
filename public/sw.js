@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aquashine-pwa-v2';
+const CACHE_NAME = 'aquashine-pwa-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192x192.png',
@@ -36,13 +36,18 @@ self.addEventListener('activate', (event) => {
 
 // Estrategia de Fetch: Network First con fallback a Cache para navegación, Stale-While-Revalidate para estáticos
 self.addEventListener('fetch', (event) => {
-  // Ignorar requests no GET y llamadas a API o Supabase
+  // Ignorar requests no GET y llamadas a API, Auth, Login o Supabase
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/login') ||
+    url.pathname.startsWith('/dashboard') ||
+    url.pathname.startsWith('/admin') ||
+    url.searchParams.has('code') ||
+    url.searchParams.has('error') ||
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('accounts.google.com')
   ) {
