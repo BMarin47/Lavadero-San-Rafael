@@ -112,12 +112,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     }
   };
 
-  // Estado del Vehículo (Flujo de 3 Pasos en Cascada: Categoría -> Marca -> Modelo)
+  // Estado del Vehículo: Categoría
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
-  const [selectedBrand, setSelectedBrand] = useState<string>('Fiat');
-  const [selectedModel, setSelectedModel] = useState<string>('Cronos');
-  const [customBrandText, setCustomBrandText] = useState<string>('');
-  const [customModelText, setCustomModelText] = useState<string>('');
 
   // Estado del Servicio
   const [serviceMode, setServiceMode] = useState<ServiceMode>('INDIVIDUAL');
@@ -168,10 +164,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     try {
       const draft = {
         vehicleType,
-        selectedBrand,
-        customBrandText,
-        selectedModel,
-        customModelText,
         serviceMode,
         selectedPlan,
         homeDelivery,
@@ -192,10 +184,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
-        if (parsed.selectedBrand) setSelectedBrand(parsed.selectedBrand);
-        if (parsed.customBrandText) setCustomBrandText(parsed.customBrandText);
-        if (parsed.selectedModel) setSelectedModel(parsed.selectedModel);
-        if (parsed.customModelText) setCustomModelText(parsed.customModelText);
         if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
         if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot);
         if (parsed.phone && !phone) setPhone(parsed.phone);
@@ -364,21 +352,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     []
   );
 
-  // Determinar marca y modelo efectivos según selecciones
-  const effectiveBrand =
-    selectedBrand === 'Otra Marca' ? customBrandText.trim() : selectedBrand;
-
-  const effectiveModel =
-    selectedBrand === 'Otra Marca'
-      ? customModelText.trim()
-      : selectedModel === 'Otro Modelo'
-      ? customModelText.trim()
-      : selectedModel;
-
-  const vehicleSummaryDisplay =
-    effectiveBrand && effectiveModel
-      ? `${effectiveBrand} ${effectiveModel}`
-      : VEHICLE_CONFIG[vehicleType].label;
+  // Resumen del vehículo seleccionado (únicamente categoría)
+  const vehicleSummaryDisplay = VEHICLE_CONFIG[vehicleType]?.label || 'Auto';
 
   // Cálculo de Precio
   const currentTotal = useMemo(() => {
@@ -387,17 +362,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
   // Manejador de Reserva y Redirección
   const handleSubmitBooking = async () => {
-    if (!effectiveBrand) {
-      setOpenSection('vehicle');
-      showToast('Marca requerida', 'Por favor seleccioná o ingresá la marca de tu vehículo.', 'warning');
-      return;
-    }
-
-    if (!effectiveModel) {
-      setOpenSection('vehicle');
-      showToast('Modelo requerido', 'Por favor seleccioná o escribí el modelo de tu vehículo.', 'warning');
-      return;
-    }
 
     if (!selectedDate || !selectedSlot) {
       setOpenSection('datetime');
@@ -539,8 +503,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         clientPhone: fullUserPhone,
         vehicleSummary: vehicleSummaryDisplay,
         vehicleType,
-        vehicleBrand: effectiveBrand,
-        vehicleModel: effectiveModel,
+        vehicleBrand: vehicleSummaryDisplay,
+        vehicleModel: vehicleSummaryDisplay,
         appointmentDate: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
@@ -572,8 +536,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 userFullName: fullName.trim(),
                 userPhone: fullUserPhone,
                 vehicleType,
-                vehicleBrand: effectiveBrand,
-                vehicleModel: effectiveModel,
+                vehicleBrand: vehicleSummaryDisplay,
+                vehicleModel: vehicleSummaryDisplay,
                 appointmentDate: selectedDate,
                 startTime: selectedSlot.startTime,
                 endTime: selectedSlot.endTime,
@@ -1126,11 +1090,9 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   className="absolute left-6 top-1/2 -translate-y-1/2 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400 rounded-full z-0 transition-all duration-500 ease-out"
                   style={{
                     width:
-                      effectiveBrand && effectiveModel && selectedSlot && fullName.trim() && phone.trim()
+                      selectedSlot && fullName.trim() && phone.trim()
                         ? 'calc(100% - 48px)'
-                        : effectiveBrand && effectiveModel && selectedSlot
-                        ? 'calc(100% - 48px)'
-                        : effectiveBrand && effectiveModel
+                        : selectedSlot
                         ? 'calc(50% - 24px)'
                         : '0%',
                   }}
@@ -1144,17 +1106,15 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 >
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300 ${
-                      effectiveBrand && effectiveModel
-                        ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/30'
-                        : openSection === 'vehicle'
+                      openSection === 'vehicle'
                         ? 'bg-cyan-500 text-slate-950 ring-4 ring-cyan-400/30 shadow-md shadow-cyan-500/30'
-                        : 'bg-slate-900 border border-white/[0.1] text-slate-400'
+                        : 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/30'
                     }`}
                   >
-                    {effectiveBrand && effectiveModel ? (
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    ) : (
+                    {openSection === 'vehicle' ? (
                       '1'
+                    ) : (
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
                     )}
                   </div>
                   <span
@@ -1285,15 +1245,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40">
                       <VehicleSelector
                         selectedType={vehicleType}
-                        onTypeChange={setVehicleType}
-                        selectedBrand={selectedBrand}
-                        onBrandChange={setSelectedBrand}
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                        customBrandText={customBrandText}
-                        onCustomBrandTextChange={setCustomBrandText}
-                        customModelText={customModelText}
-                        onCustomModelTextChange={setCustomModelText}
+                        onTypeChange={(type) => {
+                          setVehicleType(type);
+                          setTimeout(() => setOpenSection('datetime'), 200);
+                        }}
+                        onAutoAdvance={() => {
+                          setTimeout(() => setOpenSection('datetime'), 200);
+                        }}
                         compact
                       />
                       <button
