@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { isSuperAdmin, SUPERADMIN_EMAILS } from '@/lib/auth/admin';
+import { isSuperAdmin } from '@/lib/auth/admin';
 import { Pool } from 'pg';
 
 /**

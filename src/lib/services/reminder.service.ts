@@ -500,7 +500,7 @@ export class ReminderService {
    */
   private static async markReminderSent(
     turnoId: string,
-    sourceTable: 'bookings' | 'turnos',
+    _sourceTable: 'bookings' | 'turnos',
     supabaseClient: any
   ) {
     const nowIso = new Date().toISOString();

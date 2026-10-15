@@ -13,7 +13,7 @@ export const AppDownloadBadges: React.FC<AppDownloadBadgesProps> = ({
   onSimulateClick,
 }) => {
   const handleStoreClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
+    _e: React.MouseEvent<HTMLAnchorElement>,
     store: 'App Store' | 'Google Play'
   ) => {
     if (onSimulateClick) {

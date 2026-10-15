@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { VehicleType, VEHICLE_CONFIG } from './VehicleSelector';
-import { Sparkles, Check, Truck, Zap, ShieldCheck } from 'lucide-react';
+import { Sparkles, Check, Truck } from 'lucide-react';
 
 export type ServiceMode = 'INDIVIDUAL' | 'SUBSCRIPTION';
 export type PlanCode = 'PLATA' | 'ORO' | 'PLATINO';

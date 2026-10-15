@@ -182,6 +182,7 @@ export function PlansAccordion({
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => onSelectPlan?.(plan.code)}
                       className={`w-full py-2.5 px-3 rounded-xl font-black text-xs inline-flex items-center justify-center gap-1.5 transition-all duration-200 active:scale-95 cursor-pointer shadow-md ${
                         isPopular
                           ? 'bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 shadow-cyan-500/20'

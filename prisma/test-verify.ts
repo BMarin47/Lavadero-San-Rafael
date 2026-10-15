@@ -1,4 +1,3 @@
-import { ScheduleService } from '../src/lib/services/schedule.service';
 import {
   BookingService,
   sanitizeWhatsAppPhone,

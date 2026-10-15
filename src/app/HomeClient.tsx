@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createClient, getSupabaseConfig } from '@/utils/supabase/client';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { fireSuccessConfetti } from '@/lib/confetti';
-import { AppDownloadBadges } from '@/components/AppDownloadBadges';
 import { PlansAccordion } from '@/components/PlansAccordion';
 import { isSuperAdmin } from '@/lib/auth/admin';
 import {
@@ -15,17 +14,12 @@ import {
   VehicleType,
   VEHICLE_CONFIG,
 } from '@/components/VehicleSelector';
-import {
-  ServiceModeSelector,
+import type {
   ServiceMode,
   PlanCode,
-  PLANS_CATALOG,
 } from '@/components/ServiceModeSelector';
 import { CalendarSlotPicker, isSlotPast } from '@/components/CalendarSlotPicker';
-import {
-  PaymentMethodSelector,
-  PaymentMethod,
-} from '@/components/PaymentMethodSelector';
+import type { PaymentMethod } from '@/components/PaymentMethodSelector';
 import {
   Sparkles,
   ShieldCheck,
@@ -44,13 +38,7 @@ import {
   Car,
   Droplets,
   Check,
-  ChevronRight,
-  Award,
-  Zap,
   User as UserIcon,
-  MessageSquare,
-  LogIn,
-  UserPlus,
   LogOut,
   ChevronDown,
   ChevronUp,
@@ -115,11 +103,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   // Estado del Vehículo: Categoría
   const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
 
-  // Estado del Servicio
-  const [serviceMode, setServiceMode] = useState<ServiceMode>('INDIVIDUAL');
-  const [selectedPlan, setSelectedPlan] = useState<PlanCode>('ORO');
-  const [homeDelivery, setHomeDelivery] = useState(false);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  // Estado del Servicio (Turnos individuales)
+  const serviceMode: ServiceMode = 'INDIVIDUAL';
+  const selectedPlan: PlanCode = 'ORO';
+  const homeDelivery = false;
+  const deliveryAddress = '';
 
   // Estado de Fecha y Turno Horario
   const todayStr = useMemo(() => {
@@ -418,10 +406,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       }
 
       const staticLavaderoPhone = '5492604654255';
-      const paymentLabel =
-        paymentMethod === 'MERCADO_PAGO'
-          ? 'Mercado Pago (A coordinar)'
-          : 'Efectivo en recepción';
       const serviceDescription =
         serviceMode === 'INDIVIDUAL'
           ? 'Lavado Completo Individual'

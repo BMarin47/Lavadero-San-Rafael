@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { User, Mail, Phone, MessageSquare, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, MessageSquare, CreditCard, Banknote } from 'lucide-react';
 
 export type PaymentMethod = 'MERCADO_PAGO' | 'CASH';
 

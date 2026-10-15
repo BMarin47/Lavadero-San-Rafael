@@ -11,8 +11,6 @@ import {
   Clock,
   Car,
   User,
-  Phone,
-  Mail,
   MessageCircle,
   Home,
   FileText,
@@ -43,10 +41,8 @@ interface BookingData {
 function ReservaExitosaContent() {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
-  const paymentStatus = searchParams.get('status') || searchParams.get('collection_status');
 
   const [booking, setBooking] = useState<BookingData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const emailDispatchedRef = useRef(false);
 
@@ -59,10 +55,8 @@ function ReservaExitosaContent() {
         setBooking(parsed);
       }
       fireSuccessConfetti();
-    } catch (e) {
-      console.error('[Reserva Exitosa]: Error leyendo localStorage', e);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Manejo silencioso en cliente si no hay borrador guardado
     }
   }, []);
 
@@ -98,14 +92,11 @@ function ReservaExitosaContent() {
       .then((res) => {
         if (res.ok) {
           setEmailStatus('sent');
-          console.log('[Reserva Exitosa]: Correo de alerta interna enviado exitosamente con Resend.');
         } else {
           setEmailStatus('error');
-          console.warn('[Reserva Exitosa]: El servidor respondió con error al enviar el email.');
         }
       })
-      .catch((err) => {
-        console.error('[Reserva Exitosa]: Error de red al enviar el correo:', err);
+      .catch(() => {
         setEmailStatus('error');
       });
   }, [booking]);
@@ -171,7 +162,7 @@ function ReservaExitosaContent() {
           deliveryAddress: booking.deliveryAddress,
           notes: booking.notes,
         }),
-      }).catch((e) => console.error(e));
+      }).catch(() => {});
     }
     window.open(whatsAppUrl, '_blank');
   };

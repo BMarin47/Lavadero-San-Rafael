@@ -10,7 +10,6 @@ import {
   Clock,
   Car,
   ShieldCheck,
-  CreditCard,
   LogOut,
   ArrowRight,
   Sparkles,

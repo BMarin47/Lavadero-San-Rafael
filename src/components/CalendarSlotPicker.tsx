@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { SlotAvailability } from '@/lib/services/schedule.service';
-import { Clock, Calendar, AlertCircle, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
+import { Clock, Calendar, AlertCircle } from 'lucide-react';
 
 interface CalendarSlotPickerProps {
   selectedDate: string; // YYYY-MM-DD

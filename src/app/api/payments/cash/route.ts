@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { appointmentId, operatorEmail } = await request.json();
+    const { appointmentId } = await request.json();
 
     if (!appointmentId) {
       return NextResponse.json({ error: 'appointmentId es requerido.' }, { status: 400 });

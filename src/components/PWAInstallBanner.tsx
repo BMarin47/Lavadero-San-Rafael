@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Download, Smartphone, X, Check } from 'lucide-react';
+import { Download, Smartphone, X } from 'lucide-react';
 
 export function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -14,12 +14,7 @@ export function PWAInstallBanner() {
       window.addEventListener('load', () => {
         navigator.serviceWorker
           .register('/sw.js')
-          .then((registration) => {
-            console.log('[PWA]: Service Worker registrado con éxito en scope:', registration.scope);
-          })
-          .catch((error) => {
-            console.warn('[PWA]: Fallo al registrar el Service Worker:', error);
-          });
+          .catch(() => {});
       });
     }
 
