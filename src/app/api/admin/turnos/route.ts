@@ -5,6 +5,8 @@ import { isSuperAdmin } from '@/lib/auth/admin';
 import { EmailService } from '@/lib/services/email.service';
 import { generateWhatsAppCancellationUrl } from '@/lib/services/booking.service';
 import { Pool } from 'pg';
+import { Resend } from 'resend';
+import { prisma } from '@/lib/prisma';
 
 /**
  * Obtiene el cliente Supabase Admin si la Service Role Key está configurada,
@@ -240,6 +242,87 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Si aún no se encontró el turno, buscar en Prisma (Appointment)
+    if (!existingBooking) {
+      try {
+        const pApp = await prisma.appointment.findUnique({
+          where: { id },
+          include: { user: true, vehicle: true },
+        });
+        if (pApp) {
+          existingBooking = {
+            id: pApp.id,
+            user_id: pApp.userId,
+            client_name: pApp.user.fullName,
+            client_email: pApp.user.email,
+            client_phone: pApp.user.phone,
+            vehicle_details: `${pApp.vehicle.brand} ${pApp.vehicle.model}`.trim(),
+            date: pApp.appointmentDate.toISOString().split('T')[0],
+            time: `${pApp.startTime} a ${pApp.endTime} hs`,
+            status: pApp.status,
+            price: pApp.basePrice,
+          };
+        }
+      } catch (_) {}
+    }
+
+    // Recuperar el email del cliente asociado a la reserva (garantizando el email de Google Auth)
+    let clientEmail =
+      existingBooking?.client_email ||
+      existingBooking?.email ||
+      existingBooking?.user_email ||
+      null;
+
+    const targetUserId =
+      existingBooking?.user_id ||
+      existingBooking?.userId ||
+      null;
+
+    if ((!clientEmail || !clientEmail.includes('@')) && targetUserId) {
+      // 1. Buscar en Prisma User
+      try {
+        const pUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+        if (pUser?.email && pUser.email.includes('@')) {
+          clientEmail = pUser.email;
+        }
+      } catch (_) {}
+
+      // 2. Buscar en Supabase Auth Admin
+      if ((!clientEmail || !clientEmail.includes('@')) && supabaseAdmin) {
+        try {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+          if (authUser?.user?.email && authUser.user.email.includes('@')) {
+            clientEmail = authUser.user.email;
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback directo a PostgreSQL (auth.users o public."User")
+      if ((!clientEmail || !clientEmail.includes('@')) && dbUrl) {
+        try {
+          const pool = new Pool({
+            connectionString: dbUrl,
+            ssl: { rejectUnauthorized: false },
+          });
+          const client = await pool.connect();
+          try {
+            const pgU = await client.query('SELECT email FROM auth.users WHERE id::text = $1 LIMIT 1', [String(targetUserId)]);
+            if (pgU.rows.length > 0 && pgU.rows[0].email) {
+              clientEmail = pgU.rows[0].email;
+            } else {
+              const pgU2 = await client.query('SELECT email FROM public."User" WHERE id = $1 LIMIT 1', [String(targetUserId)]);
+              if (pgU2.rows.length > 0 && pgU2.rows[0].email) {
+                clientEmail = pgU2.rows[0].email;
+              }
+            }
+          } finally {
+            client.release();
+            await pool.end();
+          }
+        } catch (_) {}
+      }
+    }
+
     // 2. Actualizar en Supabase (tabla bookings) con permisos de administrador
     let updated = false;
     try {
@@ -315,19 +398,166 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Replicar en Prisma si corresponde
+    if (normalizedStatus === 'cancelado') {
+      try {
+        await prisma.appointment.updateMany({
+          where: { id },
+          data: { status: 'CANCELLED' },
+        });
+      } catch (_) {}
+    }
+
     // Datos consolidados para avisos
     const clientName = existingBooking?.client_name || existingBooking?.nombre_cliente || 'Cliente';
-    const clientEmail = existingBooking?.client_email || null;
     const clientPhone = existingBooking?.client_phone || existingBooking?.phone || null;
     const vehicleFinal = updatePayload.vehicle_details || existingBooking?.vehicle_details || existingBooking?.vehiculo || 'Vehículo';
     const dateFinal = updatePayload.date || existingBooking?.date || 'Fecha programada';
     const timeFinal = updatePayload.time || existingBooking?.time || 'Horario programado';
     const priceFinal = updatePayload.price ?? existingBooking?.price ?? existingBooking?.precio ?? 0;
+    const serviceFinal = existingBooking?.service_type || existingBooking?.servicio || 'Lavado Detailing';
 
     let whatsAppUrl = '';
 
-    // 5. Si el Superadministrador canceló el turno, notificar por email y por WhatsApp
+    // 5. Si el Superadministrador canceló el turno, notificar al cliente por email vía Resend (Fail-safe)
     if (normalizedStatus === 'cancelado') {
+      // Envío de correo al cliente informando la cancelación por imprevisto con botón a la web
+      if (clientEmail && clientEmail.includes('@')) {
+        try {
+          const resendApiKey = process.env.RESEND_API_KEY?.trim();
+          if (!resendApiKey) {
+            console.warn('[Admin Cancelación]: RESEND_API_KEY no configurada. Omitiendo envío de correo al cliente.');
+          } else {
+            const resend = new Resend(resendApiKey);
+            const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'Lavadero San Rafael <onboarding@resend.dev>';
+
+            const cancellationHtml = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviso importante sobre tu turno - Lavadero San Rafael</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #06090f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #06090f; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #0d131f; border-radius: 20px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 28px 24px; text-align: center; background: linear-gradient(180deg, rgba(239, 68, 68, 0.15) 0%, rgba(13, 19, 31, 0) 100%);">
+              <div style="display: inline-block; padding: 6px 14px; border-radius: 9999px; background-color: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 14px;">
+                ⚠️ Aviso de Cancelación
+              </div>
+              <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
+                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+              </h1>
+              <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                Estética Vehicular & Detailing Profesional
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 10px 30px 28px;">
+              <p style="font-size: 16px; color: #f1f5f9; margin-top: 0; line-height: 1.6;">
+                Hola <strong>${clientName}</strong>,
+              </p>
+              <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
+                Te contactamos para informarte que, lamentablemente por un <strong>imprevisto operativo</strong> en nuestras instalaciones, hemos tenido que cancelar tu turno programado:
+              </p>
+
+              <!-- Card con datos del turno -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #131c2e; border: 1px solid #1e293b; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;">
+                <tr>
+                  <td colspan="2" style="padding-bottom: 10px; font-size: 12px; font-weight: 800; color: #f87171; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #1e293b;">
+                    Detalles del Turno Cancelado
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0 4px; font-size: 13px; color: #94a3b8;">🚗 Vehículo:</td>
+                  <td style="padding: 10px 0 4px; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${vehicleFinal}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">📅 Fecha:</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${dateFinal}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">⏰ Horario:</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${timeFinal}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0 6px; font-size: 13px; color: #94a3b8;">✨ Servicio:</td>
+                  <td style="padding: 4px 0 6px; font-size: 13px; color: #22d3ee; text-align: right; font-weight: 700;">${serviceFinal}</td>
+                </tr>
+              </table>
+
+              <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
+                Te pedimos sinceras disculpas por las molestias ocasionadas. Ya podés elegir un nuevo día y horario disponible ingresando directamente a nuestra plataforma:
+              </p>
+
+              <!-- Botón Reprogramar Turno -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 26px;">
+                <tr>
+                  <td align="center">
+                    <a href="https://lavadero-san-rafael.vercel.app" target="_blank" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35); letter-spacing: 0.3px;">
+                      📅 Reprogramar Mi Turno
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="background-color: rgba(30, 41, 59, 0.5); border: 1px solid #1e293b; border-radius: 12px; padding: 14px 16px;">
+                <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                  💬 Si abonaste mediante Mercado Pago o preferís coordinar personalmente con nosotros, podés escribirnos respondiendo a este correo o por WhatsApp.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 30px; background-color: #080c14; border-top: 1px solid #1e293b; text-align: center;">
+              <p style="margin: 0 0 4px; font-size: 12px; font-weight: 700; color: #cbd5e1;">
+                Lavadero San Rafael
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #64748b;">
+                San Rafael, Mendoza, Argentina • Cuidamos cada detalle de tu vehículo
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+            `;
+
+            const emailRes = await resend.emails.send({
+              from: fromEmail,
+              to: [clientEmail],
+              subject: 'Aviso importante sobre tu turno - Lavadero San Rafael',
+              html: cancellationHtml,
+            });
+
+            if (emailRes.error) {
+              console.error('[Admin Cancelación Resend Error]:', emailRes.error);
+            } else {
+              console.log('[Admin Cancelación Resend Exitoso]: Correo enviado a', clientEmail, 'ID:', emailRes.data?.id);
+            }
+          }
+        } catch (mailErr: any) {
+          // Fail-safe: No bloquea la cancelación en la base de datos ni la respuesta 200 al frontend
+          console.error('[Admin PATCH Resend Exception Fail-safe]:', mailErr);
+        }
+      } else {
+        console.warn(`[Admin Cancelación]: No se encontró un correo electrónico válido para notificar la cancelación del turno ${id}.`);
+      }
+
+      // Notificación complementaria interna y log de trazabilidad
       try {
         await EmailService.sendCancellationNotification({
           bookingId: String(id),
@@ -336,13 +566,13 @@ export async function PATCH(request: NextRequest) {
           clientPhone,
           vehicle: vehicleFinal,
           category: existingBooking?.category || existingBooking?.categoria || 'General',
-          service: existingBooking?.service_type || existingBooking?.servicio || 'Lavado Detailing',
+          service: serviceFinal,
           date: dateFinal,
           time: timeFinal,
           price: priceFinal,
         });
-      } catch (mailErr) {
-        console.error('[Admin PATCH Email Notification Warning]:', mailErr);
+      } catch (internalMailErr) {
+        console.warn('[Admin PATCH Email Notification Warning]:', internalMailErr);
       }
 
       // Generar URL de WhatsApp dirigida al teléfono del cliente

@@ -15,6 +15,16 @@ export interface CancellationEmailParams {
   notes?: string | null;
 }
 
+export interface CustomerCancellationEmailParams {
+  clientEmail: string;
+  clientName?: string;
+  vehicle?: string;
+  date?: string;
+  time?: string;
+  service?: string;
+  notes?: string | null;
+}
+
 export interface BookingConfirmationEmailParams {
   appointmentId?: string;
   userFullName: string;
@@ -838,5 +848,154 @@ export class EmailService {
       clientSent: Boolean(clientResult?.data?.id),
       adminEmailId: adminResult?.data?.id,
     };
+  }
+
+  /**
+   * Envía notificación automática por correo al cliente cuando un administrador cancela su turno.
+   * Informa que la cancelación se debió a un imprevisto operativo e incluye el botón de reprogramación.
+   */
+  static async sendCustomerCancellationEmail(params: CustomerCancellationEmailParams): Promise<{
+    sent: boolean;
+    id?: string;
+    error?: string;
+  }> {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey) {
+      console.warn('[EmailService][Cancelación Admin -> Cliente]: RESEND_API_KEY no configurada en el entorno.');
+      return { sent: false, error: 'RESEND_API_KEY no configurada' };
+    }
+
+    try {
+      const resend = new Resend(apiKey);
+      const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'Lavadero San Rafael <onboarding@resend.dev>';
+      const clientName = params.clientName?.trim() || 'Estimado/a cliente';
+      const vehicle = params.vehicle?.trim() || 'Vehículo';
+      const date = params.date?.trim() || 'Fecha programada';
+      const time = params.time?.trim() || 'Horario programado';
+      const service = params.service?.trim() || 'Lavado Detailing';
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviso importante sobre tu turno - Lavadero San Rafael</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #06090f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #06090f; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #0d131f; border-radius: 20px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 28px 24px; text-align: center; background: linear-gradient(180deg, rgba(239, 68, 68, 0.15) 0%, rgba(13, 19, 31, 0) 100%);">
+              <div style="display: inline-block; padding: 6px 14px; border-radius: 9999px; background-color: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 14px;">
+                ⚠️ Aviso de Cancelación
+              </div>
+              <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
+                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+              </h1>
+              <p style="margin: 0; font-size: 13px; color: #94a3b8;">
+                Estética Vehicular & Detailing Profesional
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 10px 30px 28px;">
+              <p style="font-size: 16px; color: #f1f5f9; margin-top: 0; line-height: 1.6;">
+                Hola <strong>${clientName}</strong>,
+              </p>
+              <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
+                Te contactamos para informarte que, lamentablemente por un <strong>imprevisto operativo</strong> en nuestras instalaciones, hemos tenido que cancelar tu turno programado:
+              </p>
+
+              <!-- Card con datos del turno -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #131c2e; border: 1px solid #1e293b; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;">
+                <tr>
+                  <td colspan="2" style="padding-bottom: 10px; font-size: 12px; font-weight: 800; color: #f87171; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #1e293b;">
+                    Detalles del Turno Cancelado
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0 4px; font-size: 13px; color: #94a3b8;">🚗 Vehículo:</td>
+                  <td style="padding: 10px 0 4px; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${vehicle}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">📅 Fecha:</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${date}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">⏰ Horario:</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">${time}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0 6px; font-size: 13px; color: #94a3b8;">✨ Servicio:</td>
+                  <td style="padding: 4px 0 6px; font-size: 13px; color: #22d3ee; text-align: right; font-weight: 700;">${service}</td>
+                </tr>
+              </table>
+
+              <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
+                Te pedimos sinceras disculpas por las molestias ocasionadas. Ya podés elegir un nuevo día y horario disponible ingresando directamente a nuestra plataforma:
+              </p>
+
+              <!-- Botón Reprogramar Turno -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 26px;">
+                <tr>
+                  <td align="center">
+                    <a href="https://lavadero-san-rafael.vercel.app" target="_blank" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35); letter-spacing: 0.3px;">
+                      📅 Reprogramar Mi Turno
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="background-color: rgba(30, 41, 59, 0.5); border: 1px solid #1e293b; border-radius: 12px; padding: 14px 16px;">
+                <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                  💬 Si abonaste mediante Mercado Pago o preferís coordinar personalmente con nosotros, podés escribirnos respondiendo a este correo o por WhatsApp.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 30px; background-color: #080c14; border-top: 1px solid #1e293b; text-align: center;">
+              <p style="margin: 0 0 4px; font-size: 12px; font-weight: 700; color: #cbd5e1;">
+                Lavadero San Rafael
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #64748b;">
+                San Rafael, Mendoza, Argentina • Cuidamos cada detalle de tu vehículo
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `;
+
+      const result = await this.sendWithRateLimitRetry(resend, {
+        from: fromEmail,
+        to: [params.clientEmail],
+        subject: 'Aviso importante sobre tu turno - Lavadero San Rafael',
+        html: htmlContent,
+      });
+
+      if (result.error) {
+        console.error('[EmailService][Cancelación Admin -> Cliente Resend Error]:', result.error);
+        return { sent: false, error: (result.error as any).message || String(result.error) };
+      }
+
+      console.log('[EmailService][Cancelación Admin -> Cliente] Correo enviado exitosamente a:', params.clientEmail, 'ID:', result.data?.id);
+      return { sent: true, id: result.data?.id };
+    } catch (err: any) {
+      console.error('[EmailService][Cancelación Admin -> Cliente Catch Error]:', err);
+      return { sent: false, error: err?.message || String(err) };
+    }
   }
 }
