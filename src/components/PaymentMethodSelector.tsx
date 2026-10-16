@@ -91,7 +91,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <span>WhatsApp / Celular *</span>
             </label>
             <div className="flex rounded-2xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-500/25 transition-all duration-200 overflow-hidden shadow-inner hover:border-white/[0.18]">
-              <span className="inline-flex items-center px-4 bg-white/[0.04] border-r border-white/[0.08] text-xs font-extrabold text-cyan-400 select-none whitespace-nowrap">
+              <span className="inline-flex items-center px-4 bg-white/[0.04] border-r border-white/[0.08] text-xs font-extrabold text-cyan-400 select-none whitespace-nowrap shrink-0">
                 +54 9
               </span>
               <input

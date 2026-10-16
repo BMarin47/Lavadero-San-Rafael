@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, Suspense, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -118,11 +118,43 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<{
     startTime: string;
     endTime: string;
   } | null>(null);
+
+  // Estado del Acordeón Compacto Mobile ('vehicle' | 'datetime' | 'contact')
+  const [openSection, setOpenSection] = useState<'vehicle' | 'datetime' | 'contact'>('vehicle');
+
+  // Referencia para scroll automático suave hacia el contenedor del PASO 3 - CONTACTO
+  const step3Ref = useRef<HTMLDivElement>(null);
+
+  // Auto-avance: al seleccionar un horario, se guarda en el estado y se avanza automáticamente
+  const handleSlotSelect = useCallback(
+    (slot: { startTime: string; endTime: string } | null) => {
+      setSelectedSlot(slot);
+      if (slot) {
+        // Abrir automáticamente el Paso 3 (Contacto) en el acordeón
+        setOpenSection('contact');
+        // Scroll suave hacia el contenedor del Paso 3 de contacto
+        setTimeout(() => {
+          step3Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+      }
+    },
+    []
+  );
+
+  // Efecto adicional reactivo al slot y sección para garantizar el scroll suave al contenedor
+  useEffect(() => {
+    if (selectedSlot && openSection === 'contact' && step3Ref.current) {
+      const timer = setTimeout(() => {
+        step3Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedSlot, openSection]);
 
   // Campos de contacto (precompletados si hay sesión activa)
   const [fullName, setFullName] = useState(
@@ -253,8 +285,6 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   };
 
 
-  // Estado del Acordeón Compacto Mobile
-  const [openSection, setOpenSection] = useState<'vehicle' | 'datetime' | 'contact'>('vehicle');
 
   // Estado del Pago
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MERCADO_PAGO');
@@ -1284,6 +1314,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     <div className="text-xs sm:text-sm font-extrabold text-white truncate">
                       {selectedSlot
                         ? `${selectedDate} • ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`
+                        : selectedDate
+                        ? `${selectedDate} • Seleccioná un horario`
                         : 'Elegir día y bloque horario'}
                     </div>
                   </div>
@@ -1320,19 +1352,16 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     <div className="p-3 sm:p-3.5 space-y-3 bg-slate-900/40">
                       <CalendarSlotPicker
                         selectedDate={selectedDate}
-                        onDateChange={setSelectedDate}
+                        onDateChange={(d) => {
+                          setSelectedDate(d);
+                          setSelectedSlot(null);
+                        }}
                         selectedSlot={selectedSlot}
-                        onSlotChange={setSelectedSlot}
+                        onSlotChange={handleSlotSelect}
+                        onSlotSelect={handleSlotSelect}
+                        contactRef={step3Ref}
                         compact
                       />
-                      <button
-                        type="button"
-                        onClick={() => setOpenSection('contact')}
-                        className="w-full py-2.5 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
-                      >
-                        <span>Continuar a Mis Datos</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -1342,7 +1371,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             {/* ============================================================== */}
             {/* PASO 3: TUS DATOS (ACORDEÓN ANIMADO) */}
             {/* ============================================================== */}
-            <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
+            <div
+              ref={step3Ref}
+              id="paso-3-contacto"
+              className="scroll-mt-20 rounded-2xl overflow-hidden border border-white/[0.08] bg-slate-950/60 backdrop-blur-xl transition-all duration-300"
+            >
               <button
                 type="button"
                 onClick={() => setOpenSection((prev) => (prev === 'contact' ? 'contact' : 'contact'))}
@@ -1464,7 +1497,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                             WhatsApp / Celular *
                           </label>
                           <div className="flex rounded-xl bg-slate-950/80 border border-white/[0.09] focus-within:border-cyan-400 focus-within:ring-1 focus-within:ring-cyan-400/50 overflow-hidden shadow-inner">
-                            <span className="inline-flex items-center px-2 bg-white/[0.04] border-r border-white/[0.08] text-[10px] font-black text-cyan-400 select-none">
+                            <span className="inline-flex items-center px-3 bg-white/[0.04] border-r border-white/[0.08] text-[10px] sm:text-xs font-black text-cyan-400 select-none whitespace-nowrap shrink-0">
                               +54 9
                             </span>
                             <input
