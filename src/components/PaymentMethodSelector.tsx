@@ -182,17 +182,17 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                 className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm ${
                   paymentMethod === 'CASH'
                     ? 'bg-emerald-500 text-white'
-                    : 'bg-white/[0.06] text-slate-400'
+                    : 'bg-[#10b981] text-slate-950 font-black'
                 }`}
               >
-                {paymentMethod === 'CASH' ? '✓ Seleccionado' : 'En Lavadero'}
+                {paymentMethod === 'CASH' ? '✓ 5% OFF' : '5% OFF'}
               </span>
             </div>
             <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-emerald-300 transition-colors">
-              Efectivo en Recepción
+              Efectivo o transferencia en taller
             </div>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              Abonás de forma presencial al entregar tu vehículo en el taller
+              Abonás de forma presencial o transferencia al entregar tu vehículo (5% de descuento)
             </p>
           </button>
         </div>

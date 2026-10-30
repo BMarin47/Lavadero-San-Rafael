@@ -373,10 +373,17 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   // Resumen del vehículo seleccionado (únicamente categoría)
   const vehicleSummaryDisplay = VEHICLE_CONFIG[vehicleType]?.label || 'Auto';
 
-  // Cálculo de Precio
+  // Tarifa base según categoría de vehículo
+  const baseVehiclePrice = VEHICLE_CONFIG[vehicleType]?.price || 22000;
+
+  // Cálculo de Precio ("TOTAL RESERVA") según el método de pago seleccionado
   const currentTotal = useMemo(() => {
-    return VEHICLE_CONFIG[vehicleType]?.price || 22000;
-  }, [vehicleType]);
+    // Descuento del 5% aplicado para pago en Efectivo en el local o Transferencia
+    if (paymentMethod === 'CASH') {
+      return Math.round(baseVehiclePrice * 0.95);
+    }
+    return baseVehiclePrice;
+  }, [baseVehiclePrice, paymentMethod]);
 
   // Manejador de Reserva y Redirección
   const handleSubmitBooking = async () => {
@@ -555,7 +562,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 appointmentDate: selectedDate,
                 startTime: selectedSlot.startTime,
                 endTime: selectedSlot.endTime,
-                serviceDescription: `${serviceDescription} (Pago: Efectivo en el local)`,
+                serviceDescription: `${serviceDescription} (Pago: Efectivo o transferencia en taller)`,
                 amount: currentTotal,
                 notes: notes.trim()
                   ? `${notes.trim()} (Pago en efectivo en el local)`
@@ -575,13 +582,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         // 2. Armar mensaje de WhatsApp y redirigir directamente
         const lines = [
           '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
-          'Quiero confirmar mi reserva de turno con *Pago en Efectivo en el local*:',
+          'Quiero confirmar mi reserva de turno con *Pago en Efectivo o Transferencia en taller*:',
           '',
           `\uD83D\uDCC5 *Fecha:* ${selectedDate}`,
           `\u23F0 *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
           `\uD83D\uDE97 *Vehículo:* ${vehicleSummaryDisplay}`,
           `\uD83E\uDDFC *Servicio:* ${serviceDescription}`,
-          `\uD83D\uDCB0 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo en el local)`,
+          `\uD83D\uDCB0 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia en taller - 5% OFF)`,
           `\uD83D\uDC64 *Cliente:* ${fullName.trim()}`,
           `\uD83D\uDCF1 *Teléfono:* ${fullUserPhone}`,
           `\uD83D\uDCE7 *Email:* ${effectiveEmail}`,
@@ -1547,37 +1554,65 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 <span className="text-[10px] text-slate-500">Seleccioná tu forma de abono</span>
               </div>
 
-              <div className="p-1 rounded-2xl bg-slate-950/80 border border-white/[0.08] grid grid-cols-2 gap-1.5 shadow-inner">
+              <div className="space-y-2">
                 {/* Mercado Pago */}
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setPaymentMethod('MERCADO_PAGO')}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`w-full p-3.5 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between cursor-pointer ${
                     paymentMethod === 'MERCADO_PAGO'
-                      ? 'bg-[#009EE3] text-white shadow-md shadow-[#009EE3]/30 scale-[1.01]'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'border-[#009EE3] bg-gradient-to-r from-[#009EE3]/20 via-[#009EE3]/10 to-slate-950/90 ring-1 ring-[#009EE3]/50 shadow-lg shadow-[#009EE3]/20'
+                      : 'border-white/[0.08] bg-slate-950/60 hover:border-[#009EE3]/40 hover:bg-slate-900/50'
                   }`}
                 >
-                  <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Mercado Pago</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#009EE3]/20 border border-[#009EE3]/40 flex items-center justify-center text-[#00c8ff] shrink-0">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-extrabold text-white">
+                        Mercado Pago Oficial
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Tarjetas de débito, crédito o dinero en cuenta
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-wider shadow-sm shrink-0 ${
+                      paymentMethod === 'MERCADO_PAGO'
+                        ? 'bg-[#009EE3] text-white'
+                        : 'bg-white/[0.06] text-slate-400'
+                    }`}
+                  >
+                    {paymentMethod === 'MERCADO_PAGO' ? '✓ Seleccionado' : 'Online'}
+                  </span>
                 </motion.button>
 
-                {/* Efectivo en el local */}
+                {/* Efectivo o transferencia en taller */}
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setPaymentMethod('CASH')}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`w-full p-3.5 sm:p-4 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between cursor-pointer ${
                     paymentMethod === 'CASH'
-                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30 scale-[1.01]'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/20 via-emerald-600/10 to-slate-950/90 ring-1 ring-emerald-500/60 shadow-lg shadow-emerald-500/20'
+                      : 'border-white/[0.08] bg-slate-950/60 hover:border-emerald-500/40 hover:bg-slate-900/50'
                   }`}
                 >
-                  <Banknote className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">Efectivo en el local</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl select-none leading-none">💵</span>
+                    <div className="text-sm sm:text-base font-extrabold text-white leading-tight text-left">
+                      <div>Efectivo o</div>
+                      <div>transferencia en taller</div>
+                    </div>
+                  </div>
+                  <span className="px-3.5 py-1.5 rounded-full font-black text-xs uppercase tracking-wider bg-[#10b981] text-slate-950 shadow-sm shrink-0">
+                    5% OFF
+                  </span>
                 </motion.button>
               </div>
             </div>
@@ -1595,12 +1630,24 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               {/* Línea Resumen de Reserva */}
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Total Reserva
-                  </span>
-                  <div className="text-xl sm:text-2xl font-black text-white leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Total Reserva
+                    </span>
+                    {paymentMethod === 'CASH' && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        5% OFF
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-white leading-tight flex items-baseline gap-1.5">
                     ${currentTotal.toLocaleString('es-AR')}{' '}
                     <span className="text-[10px] font-normal text-slate-400">ARS</span>
+                    {paymentMethod === 'CASH' && (
+                      <span className="text-xs line-through text-slate-500 font-semibold">
+                        ${baseVehiclePrice.toLocaleString('es-AR')}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1661,7 +1708,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 {paymentMethod === 'MERCADO_PAGO' ? (
                   <>🔒 Checkout Pro seguro. Guarda tu turno y te redirige a abonar online.</>
                 ) : (
-                  <>💵 Abonás en el local. Guarda tu turno, alerta por email y abre <strong>WhatsApp</strong>.</>
+                  <>💵 Abonás en taller (efectivo o transferencia) con <strong>5% de descuento</strong>. Guarda tu turno, alerta por email y abre <strong>WhatsApp</strong>.</>
                 )}
               </p>
             </div>
