@@ -60,6 +60,73 @@ export function normalizeVehicleType(vehicleType?: unknown): 'CAR' | 'SUV' | 'PI
   return 'CAR';
 }
 
+/**
+ * Convierte un texto de hora "HH:mm" a minutos desde la medianoche.
+ */
+export function timeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return 0;
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+}
+
+/**
+ * Extrae las horas de inicio y fin en minutos de un string de horario o rango.
+ * Soporta formatos comunes:
+ * - "09:00 a 11:00"
+ * - "09:00 a 12:00 hs"
+ * - "09:00 - 11:00"
+ * - "09:00" (si solo viene una hora, usa fallbackDurationMinutes, ej: 120 min)
+ */
+export function parseTimeInterval(
+  timeStr: string,
+  fallbackDurationMinutes: number = 120
+): { start: number; end: number } | null {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const matches = Array.from(timeStr.matchAll(/(\d{1,2}):(\d{2})/g));
+  if (matches.length === 0) return null;
+
+  const start = parseInt(matches[0][1], 10) * 60 + parseInt(matches[0][2], 10);
+  let end: number;
+
+  if (matches.length >= 2) {
+    end = parseInt(matches[1][1], 10) * 60 + parseInt(matches[1][2], 10);
+  } else {
+    end = start + fallbackDurationMinutes;
+  }
+
+  return { start, end };
+}
+
+/**
+ * Determina si dos cadenas de horarios se solapan en el tiempo (Time Overlap):
+ * Condición matemática estricta: startA < endB && endA > startB
+ *
+ * Ejemplos:
+ * - "09:00 a 11:00" y "09:00 a 12:00" -> true (se solapan)
+ * - "11:00 a 13:00" y "09:00 a 12:00" -> true (se solapan entre 11:00 y 12:00)
+ * - "09:00 a 11:00" y "11:00 a 13:00" -> false (son contiguos, no solapan)
+ * - "16:00 a 19:00" y "18:00 a 21:00" -> true (se solapan entre 18:00 y 19:00)
+ * - "16:00 a 18:00" y "16:00 a 19:00" -> true (se solapan)
+ */
+export function areTimeSlotsOverlapping(
+  slotA: string,
+  slotB: string,
+  fallbackDurationMinutes: number = 120
+): boolean {
+  const intervalA = parseTimeInterval(slotA, fallbackDurationMinutes);
+  const intervalB = parseTimeInterval(slotB, fallbackDurationMinutes);
+
+  if (!intervalA || !intervalB) return false;
+
+  return intervalA.start < intervalB.end && intervalA.end > intervalB.start;
+}
+
+// Aliases para máxima compatibilidad con distintas nomenclaturas
+export const checkTimeOverlap = areTimeSlotsOverlapping;
+export const isTimeOverlap = areTimeSlotsOverlapping;
+export const hasTimeOverlap = areTimeSlotsOverlapping;
+
 export class ScheduleService {
   /**
    * Obtiene los bloques de turnos disponibles para una fecha YYYY-MM-DD
@@ -111,15 +178,13 @@ export class ScheduleService {
     const startOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
     const endOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1, 3, 0, 0));
 
-    const slotBookedIds = new Map<string, Set<string>>();
-    const registerSlotBooking = (rawTime: string | null | undefined, bookingKey: string) => {
-      if (!rawTime) return;
-      const match = rawTime.match(/(\d{1,2}:\d{2})/);
-      const key = match ? match[1].padStart(5, '0') : rawTime.substring(0, 5);
-      if (!slotBookedIds.has(key)) {
-        slotBookedIds.set(key, new Set<string>());
+    // Registro unificado de reservas activas del día: Map<bookingKey, timeString>
+    const activeBookingSlots = new Map<string, string>();
+    const registerBooking = (bookingKey: string, rawTime: string | null | undefined) => {
+      if (!rawTime || !rawTime.trim()) return;
+      if (!activeBookingSlots.has(bookingKey)) {
+        activeBookingSlots.set(bookingKey, rawTime.trim());
       }
-      slotBookedIds.get(key)!.add(bookingKey);
     };
 
     try {
@@ -131,11 +196,30 @@ export class ScheduleService {
           },
           status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
         },
-        select: { id: true, startTime: true },
+        select: {
+          id: true,
+          startTime: true,
+          endTime: true,
+          vehicle: { select: { vehicleType: true } },
+        },
       });
 
       for (const app of activeAppointments) {
-        registerSlotBooking(app.startTime, app.id || `app_${app.startTime}`);
+        const id = app.id || `app_${app.startTime}_${app.endTime}`;
+        const timeStr = app.endTime
+          ? `${app.startTime} a ${app.endTime}`
+          : isPickupVehicle(app.vehicle?.vehicleType)
+          ? `${app.startTime} a ${app.startTime === '09:00' ? '12:00' : '19:00'}`
+          : `${app.startTime} a ${
+              app.startTime === '09:00'
+                ? '11:00'
+                : app.startTime === '11:00'
+                ? '13:00'
+                : app.startTime === '16:00'
+                ? '18:00'
+                : '21:00'
+            }`;
+        registerBooking(id, timeStr);
       }
     } catch (_) {}
 
@@ -154,7 +238,7 @@ export class ScheduleService {
       });
 
       for (const b of activeBookings) {
-        registerSlotBooking(b.time, b.id || `booking_${b.time}`);
+        registerBooking(b.id || `booking_${b.time}`, b.time);
       }
     } catch (_) {}
 
@@ -177,24 +261,39 @@ export class ScheduleService {
 
         if (Array.isArray(sbBookings)) {
           for (const b of sbBookings) {
-            registerSlotBooking(b.time, String(b.id || `sb_${b.time}`));
+            registerBooking(String(b.id || `sb_${b.time}`), b.time);
           }
         }
       }
     } catch (_) {}
 
-    // 5. Construir slots con cálculo de capacidad (1 único cupo por bloque horario)
+    // 5. Construir slots con cálculo de capacidad y solapamiento de horarios cruzados (Time Overlap)
+    // No busca coincidencia de texto exacto: itera sobre todas las reservas existentes del día
+    const existingBookings = Array.from(activeBookingSlots.values());
+
     const slots: SlotAvailability[] = allowedSlots.map((slot) => {
-      const rawBooked = slotBookedIds.get(slot.startTime)?.size || 0;
-      const booked = Math.min(MAX_CAPACITY_PER_SLOT, rawBooked);
-      const remaining = Math.max(0, MAX_CAPACITY_PER_SLOT - booked);
+      const slotRangeStr = `${slot.startTime} a ${slot.endTime}`;
+
+      // Contar reservas activas que se solapan en tiempo con este bloque horario
+      let overlappingCount = 0;
+      for (const bookedTime of existingBookings) {
+        if (areTimeSlotsOverlapping(slotRangeStr, bookedTime)) {
+          overlappingCount++;
+        }
+      }
+
+      // Si AL MENOS UNA reserva existente se solapa, el cupo restante debe ser 0 (ocupado/agotado)
+      const booked = Math.min(MAX_CAPACITY_PER_SLOT, overlappingCount);
+      const remaining = overlappingCount > 0 ? 0 : MAX_CAPACITY_PER_SLOT;
+      const isAvailable = remaining > 0;
+
       return {
         startTime: slot.startTime,
         endTime: slot.endTime,
         totalCapacity: MAX_CAPACITY_PER_SLOT,
         bookedCount: booked,
         remainingCapacity: remaining,
-        isAvailable: remaining > 0,
+        isAvailable,
       };
     });
 

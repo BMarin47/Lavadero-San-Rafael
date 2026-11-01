@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   SlotAvailability,
   PICKUP_SLOTS,
+  WEEKDAY_SLOTS,
   MAX_CAPACITY_PER_SLOT,
   isPickupVehicle,
   normalizeVehicleType,
+  areTimeSlotsOverlapping,
 } from '@/lib/services/schedule.service';
 import type { VehicleType } from '@/components/VehicleSelector';
 import { Clock, Calendar, AlertCircle } from 'lucide-react';
@@ -70,49 +72,69 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   // Determinar los horarios disponibles condicionalmente según el tipo de vehículo seleccionado:
   // - Si el vehículo es "Camioneta" (PICKUP), los únicos turnos disponibles son de 3 horas: "09:00 a 12:00" y "16:00 a 19:00".
   // - Si el vehículo es "Auto" (CAR) o "SUV", se mantiene exactamente el array original de horarios de 2 horas.
+  // En ambos casos, se asegura validación bidireccional de solapamiento cruzado (Time Overlap).
   const displayedSlots = React.useMemo<SlotAvailability[]>(() => {
     const isPickup = isPickupVehicle(vehicleType);
 
-    if (!isPickup) {
-      // Para autos o SUVs, devolver turnos regulares de 2 horas
-      return slots.filter(
+    if (isPickup) {
+      // Para camionetas:
+      // 1. Si la API ya trajo los turnos de 3 horas, utilizarlos directamente
+      const apiPickupSlots = slots.filter(
         (s) =>
-          !(
-            (s.startTime === '09:00' && s.endTime === '12:00') ||
-            (s.startTime === '16:00' && s.endTime === '19:00')
-          )
+          (s.startTime === '09:00' && s.endTime === '12:00') ||
+          (s.startTime === '16:00' && s.endTime === '19:00')
       );
-    }
 
-    // Para camionetas:
-    // 1. Si la API ya trajo los turnos de 3 horas, utilizarlos directamente
-    const apiPickupSlots = slots.filter(
-      (s) =>
-        (s.startTime === '09:00' && s.endTime === '12:00') ||
-        (s.startTime === '16:00' && s.endTime === '19:00')
-    );
+      if (apiPickupSlots.length > 0) {
+        return apiPickupSlots;
+      }
 
-    if (apiPickupSlots.length > 0) {
-      return apiPickupSlots;
-    }
-
-    // 2. Si todavía no llegaron de la API o la API trajo los de auto, proyectar de inmediato PICKUP_SLOTS
-    return PICKUP_SLOTS.map((pickupSlot) => {
-      const matched = slots.find((s) => s.startTime === pickupSlot.startTime);
-      if (matched) {
+      // 2. Si todavía no llegaron de la API o la API trajo los de auto, proyectar de inmediato PICKUP_SLOTS
+      // y verificar si algún turno ocupado en 'slots' se solapa con el turno de camioneta
+      return PICKUP_SLOTS.map((pickupSlot) => {
+        const pickupStr = `${pickupSlot.startTime} a ${pickupSlot.endTime}`;
+        const hasOverlapConflict = slots.some(
+          (s) => !s.isAvailable && areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, pickupStr)
+        );
         return {
-          ...matched,
           startTime: pickupSlot.startTime,
           endTime: pickupSlot.endTime,
+          totalCapacity: MAX_CAPACITY_PER_SLOT,
+          bookedCount: hasOverlapConflict ? 1 : 0,
+          remainingCapacity: hasOverlapConflict ? 0 : MAX_CAPACITY_PER_SLOT,
+          isAvailable: !hasOverlapConflict,
         };
-      }
+      });
+    }
+
+    // Para autos o SUVs:
+    // 1. Si la API trajo turnos regulares de auto, utilizarlos directamente
+    const regularSlots = slots.filter(
+      (s) =>
+        !(
+          (s.startTime === '09:00' && s.endTime === '12:00') ||
+          (s.startTime === '16:00' && s.endTime === '19:00')
+        )
+    );
+
+    if (regularSlots.length > 0) {
+      return regularSlots;
+    }
+
+    // 2. Si 'slots' contiene turnos de camioneta (por cambio de categoría reciente), proyectar WEEKDAY_SLOTS
+    // y verificar si algún turno de camioneta no disponible se solapa con el turno de auto
+    return WEEKDAY_SLOTS.map((autoSlot) => {
+      const autoStr = `${autoSlot.startTime} a ${autoSlot.endTime}`;
+      const hasOverlapConflict = slots.some(
+        (s) => !s.isAvailable && areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, autoStr)
+      );
       return {
-        startTime: pickupSlot.startTime,
-        endTime: pickupSlot.endTime,
+        startTime: autoSlot.startTime,
+        endTime: autoSlot.endTime,
         totalCapacity: MAX_CAPACITY_PER_SLOT,
-        bookedCount: 0,
-        remainingCapacity: MAX_CAPACITY_PER_SLOT,
-        isAvailable: true,
+        bookedCount: hasOverlapConflict ? 1 : 0,
+        remainingCapacity: hasOverlapConflict ? 0 : MAX_CAPACITY_PER_SLOT,
+        isAvailable: !hasOverlapConflict,
       };
     });
   }, [slots, vehicleType]);

@@ -4,6 +4,7 @@ import {
   MAX_CAPACITY_PER_SLOT,
   isPickupVehicle,
   normalizeVehicleType,
+  areTimeSlotsOverlapping,
 } from './schedule.service';
 import { MercadoPagoService } from './mercadopago.service';
 
@@ -214,20 +215,26 @@ export class BookingService {
         },
       });
 
-      // c. Doble chequeo de concurrencia dentro de la transacción (San Rafael UTC-3)
+      // c. Doble chequeo de concurrencia y solapamiento dentro de la transacción (San Rafael UTC-3)
       const parts = dto.appointmentDate.split('-').map(Number);
       const startOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
       const endOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1, 3, 0, 0));
 
-      const currentCount = await tx.appointment.count({
+      const activeAppointments = await tx.appointment.findMany({
         where: {
           appointmentDate: { gte: startOfDay, lte: endOfDay },
-          startTime: dto.startTime,
           status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
         },
+        select: { id: true, startTime: true, endTime: true },
       });
 
-      if (currentCount >= MAX_CAPACITY_PER_SLOT) {
+      const candidateStr = `${dto.startTime} a ${dto.endTime}`;
+      const hasConflict = activeAppointments.some((app) => {
+        const appStr = app.endTime ? `${app.startTime} a ${app.endTime}` : app.startTime;
+        return areTimeSlotsOverlapping(candidateStr, appStr);
+      });
+
+      if (hasConflict) {
         throw new Error('El turno acaba de ser tomado por otro cliente. Por favor seleccioná otro horario.');
       }
 

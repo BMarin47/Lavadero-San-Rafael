@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
-import { ScheduleService, normalizeVehicleType } from '@/lib/services/schedule.service';
+import { ScheduleService, normalizeVehicleType, areTimeSlotsOverlapping } from '@/lib/services/schedule.service';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       bookingTime.split(' ')[2] ||
       '11:00';
 
-    // Validar disponibilidad estricta (1 único cupo por bloque horario)
+    // Validar disponibilidad estricta (1 único cupo por bloque horario con solapamiento cruzado)
     if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate) && parsedStartTime) {
       const availability = await ScheduleService.getAvailability(
         bookingDate,
@@ -163,10 +163,15 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const slotMatch = availability.slots.find((s) => s.startTime === parsedStartTime);
+      const candidateStr = `${parsedStartTime} a ${parsedEndTime}`;
+      const slotMatch = availability.slots.find(
+        (s) =>
+          s.startTime === parsedStartTime ||
+          areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, candidateStr)
+      );
       if (slotMatch && !slotMatch.isAvailable) {
         return NextResponse.json(
-          { error: 'Lo sentimos, este horario ya fue reservado y se encuentra agotado. Por favor seleccioná otro turno disponible.' },
+          { error: 'Lo sentimos, este horario ya fue reservado o colisiona con otro turno agendado. Por favor seleccioná otro turno disponible.' },
           { status: 409 }
         );
       }
