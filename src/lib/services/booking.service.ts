@@ -160,7 +160,10 @@ export function generateWhatsAppCancellationUrl(params: {
 export class BookingService {
   static async createBooking(dto: CreateBookingDTO, appBaseUrl: string) {
     // 1. Validar disponibilidad del horario y que no sea feriado ni domingo
-    const availability = await ScheduleService.getAvailability(dto.appointmentDate);
+    const availability = await ScheduleService.getAvailability(
+      dto.appointmentDate,
+      dto.vehicleType
+    );
     if (!availability.isOpen) {
       throw new Error(availability.reasonClosed || 'Fecha no disponible para atención.');
     }

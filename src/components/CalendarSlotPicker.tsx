@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SlotAvailability } from '@/lib/services/schedule.service';
+import {
+  SlotAvailability,
+  PICKUP_SLOTS,
+  MAX_CAPACITY_PER_SLOT,
+} from '@/lib/services/schedule.service';
+import type { VehicleType } from '@/components/VehicleSelector';
 import { Clock, Calendar, AlertCircle } from 'lucide-react';
 
 interface CalendarSlotPickerProps {
@@ -12,6 +17,7 @@ interface CalendarSlotPickerProps {
   onSlotChange: (slot: { startTime: string; endTime: string } | null) => void;
   onSlotSelect?: (slot: { startTime: string; endTime: string }) => void;
   contactRef?: React.RefObject<HTMLDivElement | null>;
+  vehicleType?: VehicleType | string;
   compact?: boolean;
 }
 
@@ -50,6 +56,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   onSlotChange,
   onSlotSelect,
   contactRef,
+  vehicleType = 'CAR',
   compact = false,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -57,6 +64,38 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   const [isOpen, setIsOpen] = useState(true);
   const [reasonClosed, setReasonClosed] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotAvailability[]>([]);
+
+  // Determinar los horarios disponibles condicionalmente según el tipo de vehículo seleccionado:
+  // - Si el vehículo es "Camioneta" (PICKUP), los únicos turnos disponibles son de 3 horas: "09:00 a 12:00" y "16:00 a 19:00".
+  // - Si el vehículo es "Auto" (CAR) o "SUV", se mantiene exactamente el array original de horarios.
+  const displayedSlots = React.useMemo<SlotAvailability[]>(() => {
+    const isPickup =
+      vehicleType === 'PICKUP' ||
+      String(vehicleType || '').toUpperCase() === 'CAMIONETA';
+
+    if (!isPickup) {
+      return slots;
+    }
+
+    return PICKUP_SLOTS.map((pickupSlot) => {
+      const matched = slots.find((s) => s.startTime === pickupSlot.startTime);
+      if (matched) {
+        return {
+          ...matched,
+          startTime: pickupSlot.startTime,
+          endTime: pickupSlot.endTime,
+        };
+      }
+      return {
+        startTime: pickupSlot.startTime,
+        endTime: pickupSlot.endTime,
+        totalCapacity: MAX_CAPACITY_PER_SLOT,
+        bookedCount: 0,
+        remainingCapacity: MAX_CAPACITY_PER_SLOT,
+        isAvailable: true,
+      };
+    });
+  }, [slots, vehicleType]);
 
   // Generar los próximos 8 días a partir de hoy
   const nextDays = React.useMemo(() => {
@@ -91,7 +130,13 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     onSlotChange(null);
 
     try {
-      const res = await fetch(`/api/schedule/availability?date=${selectedDate}`);
+      const queryParams = new URLSearchParams({ date: selectedDate });
+      if (vehicleType) {
+        queryParams.set('vehicleType', String(vehicleType));
+      }
+      const res = await fetch(`/api/schedule/availability?${queryParams.toString()}`, {
+        cache: 'no-store',
+      });
       let data: any = null;
       try {
         data = await res.json();
@@ -123,27 +168,52 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, onSlotChange]);
+  }, [selectedDate, vehicleType, onSlotChange]);
 
   useEffect(() => {
     fetchAvailability();
   }, [fetchAvailability]);
 
-  // Si el turno seleccionado quedó en el pasado, deseleccionarlo
+  // Si el turno seleccionado quedó en el pasado o se agotó, deseleccionarlo
   useEffect(() => {
-    if (selectedSlot && isSlotPast(selectedSlot.startTime, selectedDate)) {
+    if (!selectedSlot) return;
+    if (isSlotPast(selectedSlot.startTime, selectedDate)) {
+      onSlotChange(null);
+      return;
+    }
+    const matched = displayedSlots.find((s) => s.startTime === selectedSlot.startTime);
+    if (matched && !matched.isAvailable) {
       onSlotChange(null);
     }
-  }, [selectedDate, selectedSlot, onSlotChange]);
+  }, [selectedDate, selectedSlot, displayedSlots, onSlotChange]);
 
-  // Forzar actualización periódica cada 30 segundos para reflejar turnos que van pasando
+  // Forzar actualización periódica cada 30 segundos para reflejar turnos que van pasando o agotándose en vivo
   const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       setTick((t) => t + 1);
+      if (selectedDate) {
+        try {
+          const queryParams = new URLSearchParams({ date: selectedDate });
+          if (vehicleType) {
+            queryParams.set('vehicleType', String(vehicleType));
+          }
+          const res = await fetch(`/api/schedule/availability?${queryParams.toString()}`, {
+            cache: 'no-store',
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.isOpen && Array.isArray(data.slots)) {
+              setSlots(data.slots);
+            }
+          }
+        } catch {
+          // Silencioso en refresco de fondo
+        }
+      }
     }, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [selectedDate, vehicleType]);
 
   if (compact) {
     return (
@@ -276,12 +346,12 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                     </span>
                     <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block" />
-                      Cupos en vivo
+                      Turnos en vivo
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
-                    {slots.map((slot) => {
+                    {displayedSlots.map((slot) => {
                       const isPast = isSlotPast(slot.startTime, selectedDate);
                       const isDisabled = !slot.isAvailable || isPast;
                       const isSelected =
@@ -321,7 +391,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                               {slot.startTime} a {slot.endTime}
                             </div>
                             <div className="text-[10px] text-slate-400 truncate">
-                              {isPast ? 'Transcurrido' : slot.isAvailable ? `${slot.remainingCapacity} cupos` : 'Lleno'}
+                              {isPast ? 'Transcurrido' : slot.isAvailable ? '1 cupo disponible' : 'Agotado'}
                             </div>
                           </div>
 
@@ -336,7 +406,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                                 : 'bg-emerald-500/20 text-emerald-400'
                             }`}
                           >
-                            {isSelected ? '✓' : isPast ? 'Off' : slot.isAvailable ? 'Disp.' : 'Lleno'}
+                            {isSelected ? '✓' : isPast ? 'Off' : slot.isAvailable ? 'Disp.' : 'Agotado'}
                           </span>
                         </motion.button>
                       );
@@ -509,7 +579,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {slots.map((slot) => {
+                  {displayedSlots.map((slot) => {
                     const isPast = isSlotPast(slot.startTime, selectedDate);
                     const isDisabled = !slot.isAvailable || isPast;
                     const isSelected =
@@ -555,10 +625,8 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                             {isPast
                               ? 'No disponible (horario ya transcurrido)'
                               : slot.isAvailable
-                              ? `${slot.remainingCapacity} ${
-                                  slot.remainingCapacity === 1 ? 'cupo disponible' : 'cupos disponibles'
-                                }`
-                              : 'Cupo completo'}
+                              ? '1 cupo disponible'
+                              : 'Agotado'}
                           </div>
                         </div>
 
@@ -579,7 +647,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                             ? 'No disponible'
                             : slot.isAvailable
                             ? 'Disponible'
-                            : 'Lleno'}
+                            : 'Agotado'}
                         </span>
                       </motion.button>
                     );

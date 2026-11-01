@@ -646,6 +646,10 @@ export async function DELETE(request: NextRequest) {
     await clientToUse.from('bookings').delete().eq('id', id);
     await clientToUse.from('turnos').delete().eq('id', id);
 
+    try {
+      await prisma.appointment.deleteMany({ where: { id } });
+    } catch (_) {}
+
     // 2. Fallback PostgreSQL
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {

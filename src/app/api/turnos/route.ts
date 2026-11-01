@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
+import { ScheduleService } from '@/lib/services/schedule.service';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';
@@ -140,6 +141,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const parsedStartTime =
+      body.startTime ||
+      bookingTime.match(/(\d{1,2}:\d{2})/)?.[1]?.padStart(5, '0') ||
+      bookingTime.split(' ')[0] ||
+      '09:00';
+    const parsedEndTime =
+      body.endTime ||
+      bookingTime.split(' ')[2] ||
+      '11:00';
+
+    // Validar disponibilidad estricta (1 único cupo por bloque horario)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(bookingDate) && parsedStartTime) {
+      const availability = await ScheduleService.getAvailability(
+        bookingDate,
+        body.categoria
+      );
+      if (!availability.isOpen) {
+        return NextResponse.json(
+          { error: availability.reasonClosed || 'El lavadero se encuentra cerrado en la fecha seleccionada.' },
+          { status: 400 }
+        );
+      }
+      const slotMatch = availability.slots.find((s) => s.startTime === parsedStartTime);
+      if (slotMatch && !slotMatch.isAvailable) {
+        return NextResponse.json(
+          { error: 'Lo sentimos, este horario ya fue reservado y se encuentra agotado. Por favor seleccioná otro turno disponible.' },
+          { status: 409 }
+        );
+      }
+    }
+
+    const sharedBookingId = crypto.randomUUID();
     let createdRecord: any = null;
     let usedSource = 'none';
 
@@ -174,16 +207,17 @@ export async function POST(request: Request) {
       const parts = bookingDate.split('-').map(Number);
       const appDate =
         parts.length === 3
-          ? new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0)
+          ? new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0))
           : new Date();
 
       const prismaAppointment = await prisma.appointment.create({
         data: {
+          id: sharedBookingId,
           userId: userRecord.id,
           vehicleId: vehicleRecord.id,
           appointmentDate: appDate,
-          startTime: body.startTime || bookingTime.split(' ')[0] || '09:00',
-          endTime: body.endTime || bookingTime.split(' ')[2] || '11:00',
+          startTime: parsedStartTime,
+          endTime: parsedEndTime,
           status: 'CONFIRMED',
           basePrice: numPrice,
           notes: notesText,
@@ -214,6 +248,7 @@ export async function POST(request: Request) {
       const { data: bookingSupabase, error: bookingErr } = await supabase
         .from('bookings')
         .insert({
+          id: sharedBookingId,
           user_id: effectiveUserId,
           vehicle_details: vehicleDetails,
           service_type: serviceType,
@@ -243,6 +278,7 @@ export async function POST(request: Request) {
         const { data: turnoSupabase, error: turnoErr } = await supabase
           .from('turnos')
           .insert({
+            id: sharedBookingId,
             user_id: effectiveUserId,
             nombre_cliente: clientName,
             vehiculo: vehicleDetails,
@@ -535,8 +571,15 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // 4. Si se canceló exitosamente, enviar alerta por email automática con Resend
+    // 4. Si se canceló exitosamente, sincronizar con Prisma y enviar alerta por email automática con Resend
     if (normalizedStatus === 'cancelado') {
+      try {
+        await prisma.appointment.updateMany({
+          where: { id },
+          data: { status: 'CANCELLED' },
+        });
+      } catch (_) {}
+
       try {
         const clientName =
           bookingToCancelData?.client_name ||
@@ -643,6 +686,10 @@ export async function DELETE(request: Request) {
     try {
       await supabase.from('bookings').delete().eq('id', id).eq('user_id', user.id);
       await supabase.from('turnos').delete().eq('id', id).eq('user_id', user.id);
+    } catch (_) {}
+
+    try {
+      await prisma.appointment.deleteMany({ where: { id } });
     } catch (_) {}
 
     const dbUrl = process.env.DATABASE_URL;

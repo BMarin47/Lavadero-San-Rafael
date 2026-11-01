@@ -1,5 +1,6 @@
 import { HolidayService } from './holiday.service';
 import { prisma } from '../prisma';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export interface SlotAvailability {
   startTime: string;
@@ -10,7 +11,7 @@ export interface SlotAvailability {
   isAvailable: boolean;
 }
 
-export const MAX_CAPACITY_PER_SLOT = 3;
+export const MAX_CAPACITY_PER_SLOT = 1;
 
 export const WEEKDAY_SLOTS = [
   { startTime: '09:00', endTime: '11:00' },
@@ -24,11 +25,19 @@ export const SATURDAY_SLOTS = [
   { startTime: '11:00', endTime: '13:00' },
 ];
 
+export const PICKUP_SLOTS = [
+  { startTime: '09:00', endTime: '12:00' },
+  { startTime: '16:00', endTime: '19:00' },
+];
+
 export class ScheduleService {
   /**
    * Obtiene los bloques de turnos disponibles para una fecha YYYY-MM-DD
    */
-  static async getAvailability(dateString: string): Promise<{
+  static async getAvailability(
+    dateString: string,
+    vehicleType?: string
+  ): Promise<{
     isOpen: boolean;
     reasonClosed?: string;
     slots: SlotAvailability[];
@@ -58,34 +67,98 @@ export class ScheduleService {
       };
     }
 
-    // 3. Obtener bloques según día (L-V o Sábado)
-    const allowedSlots = dayOfWeek === 6 ? SATURDAY_SLOTS : WEEKDAY_SLOTS;
+    // 3. Obtener bloques según tipo de vehículo y día (L-V o Sábado)
+    const isPickup =
+      vehicleType === 'PICKUP' ||
+      vehicleType?.toUpperCase() === 'CAMIONETA';
+
+    const allowedSlots = isPickup
+      ? PICKUP_SLOTS
+      : dayOfWeek === 6
+      ? SATURDAY_SLOTS
+      : WEEKDAY_SLOTS;
 
     // 4. Consultar turnos ya reservados en la base de datos
     // Rango normalizado para San Rafael (UTC-3) tolerante a marcas UTC y locales
     const startOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
     const endOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1, 3, 0, 0));
 
-    const activeAppointments = await prisma.appointment.findMany({
-      where: {
-        appointmentDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+    const slotBookedIds = new Map<string, Set<string>>();
+    const registerSlotBooking = (rawTime: string | null | undefined, bookingKey: string) => {
+      if (!rawTime) return;
+      const match = rawTime.match(/(\d{1,2}:\d{2})/);
+      const key = match ? match[1].padStart(5, '0') : rawTime.substring(0, 5);
+      if (!slotBookedIds.has(key)) {
+        slotBookedIds.set(key, new Set<string>());
+      }
+      slotBookedIds.get(key)!.add(bookingKey);
+    };
+
+    try {
+      const activeAppointments = await prisma.appointment.findMany({
+        where: {
+          appointmentDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+          status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
         },
-        status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
-      },
-      select: { startTime: true },
-    });
+        select: { id: true, startTime: true },
+      });
 
-    const slotCounts = new Map<string, number>();
-    for (const app of activeAppointments) {
-      const key = app.startTime.substring(0, 5);
-      slotCounts.set(key, (slotCounts.get(key) || 0) + 1);
-    }
+      for (const app of activeAppointments) {
+        registerSlotBooking(app.startTime, app.id || `app_${app.startTime}`);
+      }
+    } catch (_) {}
 
-    // 5. Construir slots con cálculo de capacidad
+    // Consultar también tabla bookings en Prisma / PostgreSQL para máxima consistencia
+    try {
+      const activeBookings = await prisma.booking.findMany({
+        where: {
+          date: dateString,
+          NOT: {
+            status: {
+              in: ['cancelado', 'cancelled', 'rechazado', 'CANCELLED', 'REJECTED'],
+            },
+          },
+        },
+        select: { id: true, time: true },
+      });
+
+      for (const b of activeBookings) {
+        registerSlotBooking(b.time, b.id || `booking_${b.time}`);
+      }
+    } catch (_) {}
+
+    // Consultar también Supabase Cloud si están configuradas las credenciales de servicio
+    try {
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const sbKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_SERVICE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (sbUrl && sbKey) {
+        const sb = createSupabaseClient(sbUrl, sbKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: sbBookings } = await sb
+          .from('bookings')
+          .select('id, time, status')
+          .eq('date', dateString)
+          .not('status', 'in', '("cancelado","cancelled","rechazado","CANCELLED","REJECTED")');
+
+        if (Array.isArray(sbBookings)) {
+          for (const b of sbBookings) {
+            registerSlotBooking(b.time, String(b.id || `sb_${b.time}`));
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 5. Construir slots con cálculo de capacidad (1 único cupo por bloque horario)
     const slots: SlotAvailability[] = allowedSlots.map((slot) => {
-      const booked = slotCounts.get(slot.startTime) || 0;
+      const rawBooked = slotBookedIds.get(slot.startTime)?.size || 0;
+      const booked = Math.min(MAX_CAPACITY_PER_SLOT, rawBooked);
       const remaining = Math.max(0, MAX_CAPACITY_PER_SLOT - booked);
       return {
         startTime: slot.startTime,

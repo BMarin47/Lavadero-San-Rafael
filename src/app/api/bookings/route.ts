@@ -8,6 +8,7 @@ import { EmailService } from '@/lib/services/email.service';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { createClient } from '@/utils/supabase/server';
 import { Pool } from 'pg';
+import { prisma } from '@/lib/prisma';
 
 
 export async function GET() {
@@ -237,8 +238,15 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // 4. Si se canceló exitosamente, enviar alerta por email automática con Resend
+    // 4. Si se canceló exitosamente, sincronizar con Prisma y enviar alerta por email automática con Resend
     if (normalizedStatus === 'cancelado') {
+      try {
+        await prisma.appointment.updateMany({
+          where: { id },
+          data: { status: 'CANCELLED' },
+        });
+      } catch (_) {}
+
       try {
         const clientName =
           bookingToCancelData?.client_name ||
@@ -371,6 +379,10 @@ export async function DELETE(request: NextRequest) {
     try {
       await supabase.from('bookings').delete().eq('id', id).eq('user_id', user.id);
       await supabase.from('turnos').delete().eq('id', id).eq('user_id', user.id);
+    } catch (_) {}
+
+    try {
+      await prisma.appointment.deleteMany({ where: { id } });
     } catch (_) {}
 
     // 2. Eliminar en PostgreSQL directo

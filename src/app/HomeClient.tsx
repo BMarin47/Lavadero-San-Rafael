@@ -156,6 +156,21 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     }
   }, [selectedSlot, openSection]);
 
+  // Si cambia el tipo de vehículo y el turno elegido no corresponde a la categoría, limpiarlo
+  useEffect(() => {
+    if (!selectedSlot) return;
+    const isPickup = vehicleType === 'PICKUP';
+    const isPickupSlot =
+      (selectedSlot.startTime === '09:00' && selectedSlot.endTime === '12:00') ||
+      (selectedSlot.startTime === '16:00' && selectedSlot.endTime === '19:00');
+
+    if (isPickup && !isPickupSlot) {
+      setSelectedSlot(null);
+    } else if (!isPickup && isPickupSlot) {
+      setSelectedSlot(null);
+    }
+  }, [vehicleType, selectedSlot]);
+
   // Campos de contacto (precompletados si hay sesión activa)
   const [fullName, setFullName] = useState(
     initialUser?.user_metadata?.full_name ||
@@ -472,6 +487,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             service_type: serviceDescription,
             date: selectedDate,
             time: `${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+            startTime: selectedSlot.startTime,
+            endTime: selectedSlot.endTime,
             status: 'confirmado',
             client_name: fullName.trim(),
             client_email: effectiveEmail,
@@ -489,6 +506,17 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         const turnoResult = await turnoRes.json().catch(() => ({}));
 
         if (!turnoRes.ok) {
+          if (turnoRes.status === 409) {
+            setSelectedSlot(null);
+            setOpenSection('datetime');
+            showToast(
+              'Turno Agotado',
+              turnoResult.error || 'Este horario acaba de ser reservado por otro cliente. Por favor seleccioná otro turno disponible.',
+              'warning'
+            );
+            setSubmitting(false);
+            return;
+          }
           dbError = turnoResult.error || 'Error al registrar el turno en la base de datos.';
         } else {
           turnoCreado = turnoResult.turno;
@@ -1267,6 +1295,9 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                       <VehicleSelector
                         selectedType={vehicleType}
                         onTypeChange={(type) => {
+                          if (type !== vehicleType) {
+                            setSelectedSlot(null);
+                          }
                           setVehicleType(type);
                           setTimeout(() => setOpenSection('datetime'), 200);
                         }}
@@ -1367,6 +1398,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                         onSlotChange={handleSlotSelect}
                         onSlotSelect={handleSlotSelect}
                         contactRef={step3Ref}
+                        vehicleType={vehicleType}
                         compact
                       />
                     </div>
