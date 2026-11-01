@@ -1,5 +1,10 @@
 import { prisma } from '../prisma';
-import { ScheduleService, MAX_CAPACITY_PER_SLOT } from './schedule.service';
+import {
+  ScheduleService,
+  MAX_CAPACITY_PER_SLOT,
+  isPickupVehicle,
+  normalizeVehicleType,
+} from './schedule.service';
 import { MercadoPagoService } from './mercadopago.service';
 
 export const BASE_PRICES: Record<string, number> = {
@@ -159,10 +164,12 @@ export function generateWhatsAppCancellationUrl(params: {
 
 export class BookingService {
   static async createBooking(dto: CreateBookingDTO, appBaseUrl: string) {
+    const normalizedVehicleType = normalizeVehicleType(dto.vehicleType);
+
     // 1. Validar disponibilidad del horario y que no sea feriado ni domingo
     const availability = await ScheduleService.getAvailability(
       dto.appointmentDate,
-      dto.vehicleType
+      normalizedVehicleType
     );
     if (!availability.isOpen) {
       throw new Error(availability.reasonClosed || 'Fecha no disponible para atención.');
@@ -226,8 +233,8 @@ export class BookingService {
 
       let isCoveredBySubscription = false;
       let subscriptionId: string | null = null;
-      let finalPrice = BASE_PRICES[dto.vehicleType] || 22000;
-      let serviceDescription = `Lavado Completo (${VEHICLE_TYPE_LABELS[dto.vehicleType] || dto.vehicleType})`;
+      let finalPrice = BASE_PRICES[normalizedVehicleType] || 22000;
+      let serviceDescription = `Lavado Completo (${VEHICLE_TYPE_LABELS[normalizedVehicleType] || normalizedVehicleType})`;
 
       // d. Manejo de Suscripciones
       if (dto.serviceMode === 'SUBSCRIPTION') {

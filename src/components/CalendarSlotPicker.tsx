@@ -6,6 +6,8 @@ import {
   SlotAvailability,
   PICKUP_SLOTS,
   MAX_CAPACITY_PER_SLOT,
+  isPickupVehicle,
+  normalizeVehicleType,
 } from '@/lib/services/schedule.service';
 import type { VehicleType } from '@/components/VehicleSelector';
 import { Clock, Calendar, AlertCircle } from 'lucide-react';
@@ -67,16 +69,34 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
   // Determinar los horarios disponibles condicionalmente según el tipo de vehículo seleccionado:
   // - Si el vehículo es "Camioneta" (PICKUP), los únicos turnos disponibles son de 3 horas: "09:00 a 12:00" y "16:00 a 19:00".
-  // - Si el vehículo es "Auto" (CAR) o "SUV", se mantiene exactamente el array original de horarios.
+  // - Si el vehículo es "Auto" (CAR) o "SUV", se mantiene exactamente el array original de horarios de 2 horas.
   const displayedSlots = React.useMemo<SlotAvailability[]>(() => {
-    const isPickup =
-      vehicleType === 'PICKUP' ||
-      String(vehicleType || '').toUpperCase() === 'CAMIONETA';
+    const isPickup = isPickupVehicle(vehicleType);
 
     if (!isPickup) {
-      return slots;
+      // Para autos o SUVs, devolver turnos regulares de 2 horas
+      return slots.filter(
+        (s) =>
+          !(
+            (s.startTime === '09:00' && s.endTime === '12:00') ||
+            (s.startTime === '16:00' && s.endTime === '19:00')
+          )
+      );
     }
 
+    // Para camionetas:
+    // 1. Si la API ya trajo los turnos de 3 horas, utilizarlos directamente
+    const apiPickupSlots = slots.filter(
+      (s) =>
+        (s.startTime === '09:00' && s.endTime === '12:00') ||
+        (s.startTime === '16:00' && s.endTime === '19:00')
+    );
+
+    if (apiPickupSlots.length > 0) {
+      return apiPickupSlots;
+    }
+
+    // 2. Si todavía no llegaron de la API o la API trajo los de auto, proyectar de inmediato PICKUP_SLOTS
     return PICKUP_SLOTS.map((pickupSlot) => {
       const matched = slots.find((s) => s.startTime === pickupSlot.startTime);
       if (matched) {
@@ -120,7 +140,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     return days;
   }, []);
 
-  // Consultar disponibilidad al cambiar de fecha
+  // Consultar disponibilidad al cambiar de fecha o categoría de vehículo
   const fetchAvailability = React.useCallback(async () => {
     if (!selectedDate) return;
 
@@ -130,10 +150,11 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     onSlotChange(null);
 
     try {
-      const queryParams = new URLSearchParams({ date: selectedDate });
-      if (vehicleType) {
-        queryParams.set('vehicleType', String(vehicleType));
-      }
+      const normalizedVehicle = normalizeVehicleType(vehicleType);
+      const queryParams = new URLSearchParams({
+        date: selectedDate,
+        vehicleType: normalizedVehicle,
+      });
       const res = await fetch(`/api/schedule/availability?${queryParams.toString()}`, {
         cache: 'no-store',
       });
@@ -194,10 +215,11 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       setTick((t) => t + 1);
       if (selectedDate) {
         try {
-          const queryParams = new URLSearchParams({ date: selectedDate });
-          if (vehicleType) {
-            queryParams.set('vehicleType', String(vehicleType));
-          }
+          const normalizedVehicle = normalizeVehicleType(vehicleType);
+          const queryParams = new URLSearchParams({
+            date: selectedDate,
+            vehicleType: normalizedVehicle,
+          });
           const res = await fetch(`/api/schedule/availability?${queryParams.toString()}`, {
             cache: 'no-store',
           });

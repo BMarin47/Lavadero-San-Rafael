@@ -7,7 +7,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
-    const vehicleTypeParam = searchParams.get('vehicleType') || undefined;
+    const vehicleTypeParam =
+      searchParams.get('vehicleType') ||
+      searchParams.get('vehicletype') ||
+      searchParams.get('vehicle_type') ||
+      searchParams.get('categoria') ||
+      searchParams.get('vehicle') ||
+      undefined;
 
     if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
       return NextResponse.json(

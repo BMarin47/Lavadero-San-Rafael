@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
-import { ScheduleService } from '@/lib/services/schedule.service';
+import { ScheduleService, normalizeVehicleType } from '@/lib/services/schedule.service';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';
@@ -195,10 +195,7 @@ export async function POST(request: Request) {
       const vehicleRecord = await prisma.vehicle.create({
         data: {
           userId: userRecord.id,
-          vehicleType:
-            body.categoria && ['CAR', 'SUV', 'PICKUP'].includes(body.categoria)
-              ? body.categoria
-              : 'CAR',
+          vehicleType: normalizeVehicleType(body.categoria),
           brand: body.brand || 'General',
           model: vehicleDetails || 'Vehículo',
         },

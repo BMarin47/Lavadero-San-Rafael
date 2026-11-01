@@ -14,6 +14,10 @@ import {
   VehicleType,
   VEHICLE_CONFIG,
 } from '@/components/VehicleSelector';
+import {
+  isPickupVehicle,
+  normalizeVehicleType,
+} from '@/lib/services/schedule.service';
 import type {
   ServiceMode,
   PlanCode,
@@ -159,7 +163,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   // Si cambia el tipo de vehículo y el turno elegido no corresponde a la categoría, limpiarlo
   useEffect(() => {
     if (!selectedSlot) return;
-    const isPickup = vehicleType === 'PICKUP';
+    const isPickup = isPickupVehicle(vehicleType);
     const isPickupSlot =
       (selectedSlot.startTime === '09:00' && selectedSlot.endTime === '12:00') ||
       (selectedSlot.startTime === '16:00' && selectedSlot.endTime === '19:00');
@@ -386,10 +390,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   );
 
   // Resumen del vehículo seleccionado (únicamente categoría)
-  const vehicleSummaryDisplay = VEHICLE_CONFIG[vehicleType]?.label || 'Auto';
+  const normalizedVehicle = normalizeVehicleType(vehicleType);
+  const vehicleSummaryDisplay = VEHICLE_CONFIG[normalizedVehicle]?.label || 'Auto';
 
   // Tarifa base según categoría de vehículo
-  const baseVehiclePrice = VEHICLE_CONFIG[vehicleType]?.price || 22000;
+  const baseVehiclePrice = VEHICLE_CONFIG[normalizedVehicle]?.price || 22000;
 
   // Cálculo de Precio ("TOTAL RESERVA") según el método de pago seleccionado
   const currentTotal = useMemo(() => {
@@ -1295,10 +1300,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                       <VehicleSelector
                         selectedType={vehicleType}
                         onTypeChange={(type) => {
-                          if (type !== vehicleType) {
+                          const normalized = normalizeVehicleType(type);
+                          if (normalized !== normalizeVehicleType(vehicleType)) {
                             setSelectedSlot(null);
                           }
-                          setVehicleType(type);
+                          setVehicleType(normalized);
                           setTimeout(() => setOpenSection('datetime'), 200);
                         }}
                         onAutoAdvance={() => {

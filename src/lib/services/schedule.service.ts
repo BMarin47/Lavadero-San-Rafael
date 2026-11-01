@@ -30,6 +30,36 @@ export const PICKUP_SLOTS = [
   { startTime: '16:00', endTime: '19:00' },
 ];
 
+/**
+ * Determina si el tipo de vehículo corresponde a Camioneta (PICKUP) admitiendo
+ * cualquiera de los identificadores habituales: 'PICKUP', 'camioneta', 'Camioneta', 'truck', etc.
+ */
+export function isPickupVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'pickup' ||
+    str === 'pick-up' ||
+    str === 'pick_up' ||
+    str === 'camioneta' ||
+    str === 'truck' ||
+    str.includes('pickup') ||
+    str.includes('camioneta') ||
+    str.includes('truck')
+  );
+}
+
+/**
+ * Normaliza cualquier variante de ID de vehículo a los tipos estándar ('CAR' | 'SUV' | 'PICKUP').
+ */
+export function normalizeVehicleType(vehicleType?: unknown): 'CAR' | 'SUV' | 'PICKUP' {
+  if (isPickupVehicle(vehicleType)) return 'PICKUP';
+  if (!vehicleType) return 'CAR';
+  const str = String(vehicleType).trim().toLowerCase();
+  if (str === 'suv' || str.includes('suv')) return 'SUV';
+  return 'CAR';
+}
+
 export class ScheduleService {
   /**
    * Obtiene los bloques de turnos disponibles para una fecha YYYY-MM-DD
@@ -68,12 +98,10 @@ export class ScheduleService {
     }
 
     // 3. Obtener bloques según tipo de vehículo y día (L-V o Sábado)
-    const isPickup =
-      vehicleType === 'PICKUP' ||
-      vehicleType?.toUpperCase() === 'CAMIONETA';
+    const isPickup = isPickupVehicle(vehicleType);
 
     const allowedSlots = isPickup
-      ? PICKUP_SLOTS
+      ? (dayOfWeek === 6 ? [{ startTime: '09:00', endTime: '12:00' }] : PICKUP_SLOTS)
       : dayOfWeek === 6
       ? SATURDAY_SLOTS
       : WEEKDAY_SLOTS;

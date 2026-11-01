@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Car, Truck, Check } from 'lucide-react';
+import { normalizeVehicleType } from '@/lib/services/schedule.service';
 
 export type VehicleType = 'CAR' | 'SUV' | 'PICKUP';
 
@@ -58,7 +59,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
               const cfg = VEHICLE_CONFIG[type];
-              const isSelected = selectedType === type;
+              const isSelected = normalizeVehicleType(selectedType) === type;
 
               return (
                 <motion.button
@@ -138,7 +139,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
             const cfg = VEHICLE_CONFIG[type];
-            const isSelected = selectedType === type;
+            const isSelected = normalizeVehicleType(selectedType) === type;
 
             return (
               <motion.button
