@@ -136,7 +136,8 @@ export async function POST(request: Request) {
     const notesText = body.indicaciones || body.notes ? String(body.indicaciones || body.notes).trim() : null;
     const bookingDate = String(body.date || body.appointmentDate || new Date().toISOString().split('T')[0]);
     const bookingTime = String(body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Por coordinar'));
-    const bookingStatus = String(body.status || body.estado || 'confirmado');
+    // Requerimiento: Todo turno nuevo solicitado ingresa directamente como CONFIRMADO
+    const bookingStatus = 'confirmado';
     const effectiveUserId = user?.id || body.user_id || body.userId || `anon_${Date.now()}`;
     const effectiveEmail = user?.email || body.client_email || body.userEmail || body.email || 'cliente@lavadero.com';
     const effectivePhone = body.client_phone || body.phone || '';

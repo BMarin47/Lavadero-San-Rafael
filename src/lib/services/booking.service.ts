@@ -335,14 +335,10 @@ export class BookingService {
         }
       }
 
-      // e. Crear Registro de Turno normalizado en UTC
+      // e. Crear Registro de Turno normalizado en UTC - Auto-confirmación inmediata
       const appointmentTargetDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
 
-      const appointmentStatus = isCoveredBySubscription && finalPrice === 0
-        ? 'CONFIRMED'
-        : dto.paymentMethod === 'CASH'
-        ? 'CONFIRMED'
-        : 'PENDING_PAYMENT';
+      const appointmentStatus = 'CONFIRMED';
 
       const appointment = await tx.appointment.create({
         data: {

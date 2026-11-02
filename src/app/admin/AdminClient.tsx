@@ -30,6 +30,8 @@ import {
   Phone,
   Mail,
   Smartphone,
+  Banknote,
+  FileText,
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
@@ -64,7 +66,8 @@ export default function AdminClient({ user }: { user: User }) {
   const supabase = createClient();
 
   // Estados de pestañas
-  const [activeTab, setActiveTab] = useState<'turnos' | 'push' | 'users'>('turnos');
+    const [activeTab, setActiveTab] = useState<'turnos' | 'ingresos' | 'push' | 'users'>('turnos');
+  const [revenuePeriodFilter, setRevenuePeriodFilter] = useState<'todos' | 'mes' | 'semana' | 'hoy'>('mes');
 
   // Estados para Turnos
   const [turnos, setTurnos] = useState<AdminTurno[]>([]);
@@ -340,20 +343,23 @@ export default function AdminClient({ user }: { user: User }) {
         t.vehiculo.toLowerCase().includes(q) ||
         t.id.toLowerCase().includes(q);
 
-      const isCancelled =
-        t.estado.toLowerCase() === 'cancelado' ||
-        t.estado.toLowerCase() === 'cancelled';
+      const statusLower = t.estado.toLowerCase();
+      const isCancelled = statusLower === 'cancelado' || statusLower === 'cancelled';
+      const isFinalizado = statusLower === 'finalizado' || statusLower === 'completado';
 
       let matchesStatus = true;
       if (statusFilter === 'todos' || statusFilter === 'activos') {
-        // En los turnos activos (vista principal), NO se muestran los cancelados
-        matchesStatus = !isCancelled;
+        // En los turnos activos (vista principal), solo turnos vigentes no cancelados ni finalizados
+        matchesStatus = !isCancelled && !isFinalizado;
+      } else if (statusFilter === 'historial') {
+        // Pestaña o filtro de Historial: turnos finalizados en el tiempo
+        matchesStatus = isFinalizado;
       } else if (statusFilter === 'cancelado') {
         matchesStatus = isCancelled;
       } else if (statusFilter === 'todos_registros') {
         matchesStatus = true;
       } else {
-        matchesStatus = t.estado.toLowerCase() === statusFilter.toLowerCase();
+        matchesStatus = statusLower === statusFilter.toLowerCase();
       }
 
       const matchesDate = !dateFilter || t.date === dateFilter;
@@ -365,21 +371,80 @@ export default function AdminClient({ user }: { user: User }) {
   // Métricas de Turnos
   const stats = useMemo(() => {
     const confirmados = turnos.filter(
-      (t) => t.estado === 'confirmado' || t.estado === 'confirmed'
+      (t) => t.estado.toLowerCase() === 'confirmado' || t.estado.toLowerCase() === 'confirmed'
+    ).length;
+    const finalizados = turnos.filter(
+      (t) => t.estado.toLowerCase() === 'finalizado' || t.estado.toLowerCase() === 'completado'
     ).length;
     const pendientes = turnos.filter(
-      (t) => t.estado === 'pendiente' || t.estado === 'pending'
+      (t) => t.estado.toLowerCase() === 'pendiente' || t.estado.toLowerCase() === 'pending'
     ).length;
     const cancelados = turnos.filter(
-      (t) => t.estado === 'cancelado' || t.estado === 'cancelled'
+      (t) => t.estado.toLowerCase() === 'cancelado' || t.estado.toLowerCase() === 'cancelled'
     ).length;
     const activos = confirmados + pendientes;
     const ingresos = turnos
-      .filter((t) => t.estado !== 'cancelado' && t.estado !== 'cancelled')
+      .filter((t) => t.estado.toLowerCase() !== 'cancelado' && t.estado.toLowerCase() !== 'cancelled')
       .reduce((sum, t) => sum + (Number(t.precio) || 0), 0);
 
-    return { total: activos, totalGeneral: turnos.length, confirmados, pendientes, cancelados, ingresos };
+    return { total: activos, totalGeneral: turnos.length, confirmados, finalizados, pendientes, cancelados, ingresos };
   }, [turnos]);
+
+  // Métricas avanzadas para el Módulo de Reporte de Ganancias (Unificación MP, Efectivo, Transferencia)
+  const revenueReport = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    // Inicio de mes (YYYY-MM-01)
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const firstDayOfMonth = `${y}-${m}-01`;
+
+    // Inicio de semana (Lunes de la semana actual)
+    const dayOfWeek = now.getDay() || 7;
+    const mondayDate = new Date(now);
+    mondayDate.setDate(now.getDate() - dayOfWeek + 1);
+    const mondayStr = mondayDate.toISOString().split('T')[0];
+
+    // Filtrar turnos no cancelados para el cálculo financiero unificado
+    const validTurnos = turnos.filter(
+      (t) => t.estado.toLowerCase() !== 'cancelado' && t.estado.toLowerCase() !== 'cancelled'
+    );
+
+    const filterByPeriod = (period: 'todos' | 'mes' | 'semana' | 'hoy') => {
+      return validTurnos.filter((t) => {
+        const d = t.date || (t.fecha_creacion ? t.fecha_creacion.split('T')[0] : '');
+        if (!d) return true;
+        if (period === 'hoy') return d === todayStr;
+        if (period === 'semana') return d >= mondayStr && d <= todayStr;
+        if (period === 'mes') return d >= firstDayOfMonth;
+        return true;
+      });
+    };
+
+    const turnosHoy = filterByPeriod('hoy');
+    const turnosSemana = filterByPeriod('semana');
+    const turnosMes = filterByPeriod('mes');
+    const turnosFiltrados = filterByPeriod(revenuePeriodFilter);
+
+    const totalHoy = turnosHoy.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
+    const totalSemana = turnosSemana.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
+    const totalMes = turnosMes.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
+    const totalFiltrado = turnosFiltrados.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
+    const totalHistorico = validTurnos.reduce((acc, t) => acc + (Number(t.precio) || 0), 0);
+
+    return {
+      period: revenuePeriodFilter,
+      turnosFiltrados,
+      totalFiltrado,
+      totalHoy,
+      totalSemana,
+      totalMes,
+      totalHistorico,
+      countFiltrados: turnosFiltrados.length,
+      ticketPromedio: turnosFiltrados.length > 0 ? Math.round(totalFiltrado / turnosFiltrados.length) : 0,
+    };
+  }, [turnos, revenuePeriodFilter]);
 
   // ==========================================
   // NOTIFICACIONES PUSH MANUALES
@@ -683,6 +748,18 @@ export default function AdminClient({ user }: { user: User }) {
               </button>
 
               <button
+                onClick={() => setActiveTab('ingresos')}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${
+                  activeTab === 'ingresos'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                <Banknote className="w-4 h-4" />
+                <span>Reporte de Ingresos (${revenueReport.totalMes.toLocaleString('es-AR')})</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('push')}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all cursor-pointer ${
                   activeTab === 'push'
@@ -726,9 +803,9 @@ export default function AdminClient({ user }: { user: User }) {
                 <p className="text-xl sm:text-2xl font-black text-emerald-300 mt-1">{stats.confirmados}</p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-900/50 border border-amber-500/20 backdrop-blur-md">
-                <span className="text-[10px] font-extrabold uppercase text-amber-400 block">Pendientes</span>
-                <p className="text-xl sm:text-2xl font-black text-amber-300 mt-1">{stats.pendientes}</p>
+              <div className="p-4 rounded-2xl bg-slate-900/50 border border-sky-500/20 backdrop-blur-md">
+                <span className="text-[10px] font-extrabold uppercase text-sky-400 block">Historial / Finalizados</span>
+                <p className="text-xl sm:text-2xl font-black text-sky-300 mt-1">{stats.finalizados}</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-900/50 border border-rose-500/20 backdrop-blur-md">
@@ -764,11 +841,11 @@ export default function AdminClient({ user }: { user: User }) {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="px-3 py-2 rounded-xl bg-slate-950/60 border border-white/[0.08] text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="todos">Turnos Activos (Confirmados y Pendientes)</option>
+                  <option value="todos">Turnos Activos (Solo Vigentes)</option>
                   <option value="confirmado">Solo Confirmados</option>
-                  <option value="pendiente">Solo Pendientes</option>
-                  <option value="cancelado">Cancelados (Historial)</option>
-                  <option value="todos_registros">Todos los Registros (Inc. Cancelados)</option>
+                  <option value="historial">Historial (Turnos Pasados / Finalizados)</option>
+                  <option value="cancelado">Cancelados</option>
+                  <option value="todos_registros">Todos los Registros (Histórico Completo)</option>
                 </select>
 
                 {/* Filtro de Fecha */}
@@ -824,9 +901,11 @@ export default function AdminClient({ user }: { user: User }) {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredTurnos.map((t) => {
-                  const isConfirmado = t.estado === 'confirmado' || t.estado === 'confirmed' || t.estado === 'completado';
-                  const isCancelado = t.estado === 'cancelado' || t.estado === 'cancelled';
-                  const isPendiente = !isConfirmado && !isCancelado;
+                  const statusLower = t.estado.toLowerCase();
+                  const isFinalizado = statusLower === 'finalizado' || statusLower === 'completado';
+                  const isConfirmado = (statusLower === 'confirmado' || statusLower === 'confirmed') && !isFinalizado;
+                  const isCancelado = statusLower === 'cancelado' || statusLower === 'cancelled';
+                  const isPendiente = !isConfirmado && !isCancelado && !isFinalizado;
 
                   // Número para WhatsApp
                   const rawPhone = (t.client_phone || '').replace(/\D/g, '');
@@ -856,13 +935,16 @@ export default function AdminClient({ user }: { user: User }) {
                         {/* Badge de Estado */}
                         <span
                           className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border inline-flex items-center gap-1 ${
-                            isConfirmado
+                            isFinalizado
+                              ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                              : isConfirmado
                               ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                               : isCancelado
                               ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
                               : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                           }`}
                         >
+                          {isFinalizado && <CheckCircle2 className="w-3 h-3 text-sky-400" />}
                           {isConfirmado && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                           {isCancelado && <XCircle className="w-3 h-3 text-rose-400" />}
                           {isPendiente && <Clock className="w-3 h-3 text-amber-400" />}
@@ -978,6 +1060,194 @@ export default function AdminClient({ user }: { user: User }) {
                 })}
               </div>
             )}
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* PESTAÑA: REPORTE DE INGRESOS Y CONTROL FINANCIERO              */}
+        {/* ============================================================== */}
+        {activeTab === 'ingresos' && (
+          <section className="space-y-6">
+            {/* Header del módulo financiero */}
+            <div className="p-6 rounded-3xl bg-slate-900/60 border border-emerald-500/20 backdrop-blur-md relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-extrabold uppercase tracking-wider mb-2">
+                    <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Control Financiero en Tiempo Real</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                    Reporte Unificado de Ingresos
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                    Suma consolidada de reservas y servicios completados (Mercado Pago, Efectivo y Transferencias).
+                  </p>
+                </div>
+
+                {/* Filtros rápidos de período */}
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/[0.08] backdrop-blur-md">
+                  <button
+                    onClick={() => setRevenuePeriodFilter('hoy')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      revenuePeriodFilter === 'hoy'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Hoy
+                  </button>
+                  <button
+                    onClick={() => setRevenuePeriodFilter('semana')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      revenuePeriodFilter === 'semana'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Esta Semana
+                  </button>
+                  <button
+                    onClick={() => setRevenuePeriodFilter('mes')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      revenuePeriodFilter === 'mes'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Este Mes
+                  </button>
+                  <button
+                    onClick={() => setRevenuePeriodFilter('todos')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      revenuePeriodFilter === 'todos'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Histórico
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tarjetas resumen de ingresos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900/50 border border-emerald-500/25">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  {revenuePeriodFilter === 'hoy'
+                    ? 'Total de Hoy'
+                    : revenuePeriodFilter === 'semana'
+                    ? 'Total Esta Semana'
+                    : revenuePeriodFilter === 'mes'
+                    ? 'Total Este Mes'
+                    : 'Total Histórico'}
+                </span>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-2">
+                  ${revenueReport.totalFiltrado.toLocaleString('es-AR')}
+                </p>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  {revenueReport.countFiltrados} servicios registrados en este período
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900/50 border border-cyan-500/20">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Ticket Promedio
+                </span>
+                <p className="text-2xl sm:text-3xl font-black text-cyan-300 mt-2">
+                  ${revenueReport.ticketPromedio.toLocaleString('es-AR')}
+                </p>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Promedio por vehículo atendido
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900/50 border border-white/[0.08]">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Facturación del Mes
+                </span>
+                <p className="text-2xl sm:text-3xl font-black text-white mt-2">
+                  ${revenueReport.totalMes.toLocaleString('es-AR')}
+                </p>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Mes calendario en curso
+                </span>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900/50 border border-white/[0.08]">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Total Histórico Acumulado
+                </span>
+                <p className="text-2xl sm:text-3xl font-black text-slate-200 mt-2">
+                  ${revenueReport.totalHistorico.toLocaleString('es-AR')}
+                </p>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Desde el inicio de actividades
+                </span>
+              </div>
+            </div>
+
+            {/* Tabla de desglose de transacciones */}
+            <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/[0.08] backdrop-blur-md space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span>Detalle de Servicios Contabilizados ({revenueReport.turnosFiltrados.length})</span>
+                </h4>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                  Total: ${revenueReport.totalFiltrado.toLocaleString('es-AR')}
+                </span>
+              </div>
+
+              {revenueReport.turnosFiltrados.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  No se registraron cobros en el período seleccionado.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/[0.08] text-slate-400 uppercase text-[10px]">
+                        <th className="pb-3 font-extrabold">Fecha y Hora</th>
+                        <th className="pb-3 font-extrabold">Cliente</th>
+                        <th className="pb-3 font-extrabold">Vehículo y Categoría</th>
+                        <th className="pb-3 font-extrabold">Estado</th>
+                        <th className="pb-3 font-extrabold text-right">Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {revenueReport.turnosFiltrados.map((t) => (
+                        <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 font-mono text-slate-300">
+                            {t.date} • {t.time}
+                          </td>
+                          <td className="py-3 font-bold text-white">
+                            {t.nombre_cliente}
+                            {t.client_phone && (
+                              <span className="block text-[10px] text-slate-400 font-normal">
+                                {t.client_phone}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 text-slate-300">
+                            <span className="font-bold text-white block">{t.vehiculo}</span>
+                            <span className="text-[10px] text-cyan-400">{t.categoria}</span>
+                          </td>
+                          <td className="py-3">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                              {t.estado}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right font-black text-emerald-400 text-sm">
+                            ${Number(t.precio || 0).toLocaleString('es-AR')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
         )}
 

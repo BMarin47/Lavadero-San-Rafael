@@ -107,22 +107,60 @@ export async function GET() {
       }
     }
 
-    // Normalizar datos para la interfaz de administración
-    const normalizedTurnos = allBookings.map((b) => ({
-      id: b.id,
-      user_id: b.user_id,
-      nombre_cliente: b.client_name || b.nombre_cliente || 'Cliente',
-      client_email: b.client_email || null,
-      client_phone: b.client_phone || b.phone || null,
-      vehiculo: b.vehicle_details || b.vehiculo || 'Vehículo',
-      categoria: b.service_type || b.categoria || 'General',
-      precio: Number(b.price || b.precio || 0),
-      indicaciones: b.notes || b.indicaciones || null,
-      estado: b.status || b.estado || 'confirmado',
-      date: b.date || (b.created_at ? b.created_at.split('T')[0] : ''),
-      time: b.time || 'Por coordinar',
-      fecha_creacion: b.created_at || b.fecha_creacion || new Date().toISOString(),
-    }));
+    // Función auxiliar para determinar si un turno ya expiró en base a su fecha y hora de finalización
+    const isPastTurno = (dateStr?: string, timeStr?: string) => {
+      if (!dateStr || !timeStr) return false;
+      const cleanDate = dateStr.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return false;
+
+      // Extraer hora de fin o calcular por defecto
+      let endH = 20;
+      let endM = 0;
+      const matches = Array.from(timeStr.matchAll(/(\d{1,2}):(\d{2})/g));
+      if (matches.length >= 2) {
+        endH = parseInt(matches[1][1], 10);
+        endM = parseInt(matches[1][2], 10);
+      } else if (matches.length === 1) {
+        endH = parseInt(matches[0][1], 10) + 2;
+        endM = parseInt(matches[0][2], 10);
+      }
+
+      const [y, m, d] = cleanDate.split('-').map(Number);
+      // Turno en hora de Argentina (UTC-3)
+      const turnoEndUtc = new Date(Date.UTC(y, m - 1, d, endH + 3, endM, 0));
+      return turnoEndUtc.getTime() <= Date.now();
+    };
+
+    // Normalizar datos para la interfaz de administración con auto-finalización de turnos pasados
+    const normalizedTurnos = allBookings.map((b) => {
+      const rawDate = b.date || (b.created_at ? b.created_at.split('T')[0] : '');
+      const rawTime = b.time || 'Por coordinar';
+      const rawStatus = (b.status || b.estado || 'confirmado').toLowerCase().trim();
+
+      let finalStatus = rawStatus;
+      // Si el turno no está cancelado pero su horario ya transcurrió, se marca como finalizado
+      if (rawStatus !== 'cancelado' && rawStatus !== 'cancelled') {
+        if (isPastTurno(rawDate, rawTime)) {
+          finalStatus = 'finalizado';
+        }
+      }
+
+      return {
+        id: b.id,
+        user_id: b.user_id,
+        nombre_cliente: b.client_name || b.nombre_cliente || 'Cliente',
+        client_email: b.client_email || null,
+        client_phone: b.client_phone || b.phone || null,
+        vehiculo: b.vehicle_details || b.vehiculo || 'Vehículo',
+        categoria: b.service_type || b.categoria || 'General',
+        precio: Number(b.price || b.precio || 0),
+        indicaciones: b.notes || b.indicaciones || null,
+        estado: finalStatus,
+        date: rawDate,
+        time: rawTime,
+        fecha_creacion: b.created_at || b.fecha_creacion || new Date().toISOString(),
+      };
+    });
 
     return NextResponse.json({
       success: true,
