@@ -603,7 +603,7 @@ export default function AdminClient({ user }: { user: User }) {
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block leading-none">
-                  AquaShine
+                  Lavadero San Rafael
                 </span>
                 <span className="text-sm font-black text-white tracking-tight">
                   San Rafael <span className="text-cyan-400">• Admin</span>
@@ -938,7 +938,7 @@ export default function AdminClient({ user }: { user: User }) {
                           {isCancelado && cleanPhone && (
                             <a
                               href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                                `Hola ${t.nombre_cliente}, te contactamos de AquaShine San Rafael para informarte que tu turno de ${t.vehiculo} para el día ${t.date} a las ${t.time} ha sido CANCELADO. Podés consultar por este medio o ingresar a https://lavadero-san-rafael.vercel.app/ para reprogramar.`
+                                `Hola ${t.nombre_cliente}, te contactamos de Lavadero San Rafael para informarte que tu turno de ${t.vehiculo} para el día ${t.date} a las ${t.time} ha sido CANCELADO. Podés consultar por este medio o ingresar a https://lavadero-san-rafael.vercel.app/ para reprogramar.`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -953,7 +953,7 @@ export default function AdminClient({ user }: { user: User }) {
                           {!isCancelado && cleanPhone && (
                             <a
                               href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                                `Hola ${t.nombre_cliente}, te escribo desde la administración de AquaShine San Rafael sobre tu turno de ${t.vehiculo} del día ${t.date} a las ${t.time}.`
+                                `Hola ${t.nombre_cliente}, te escribo desde la administración de Lavadero San Rafael sobre tu turno de ${t.vehiculo} del día ${t.date} a las ${t.time}.`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -1017,7 +1017,7 @@ export default function AdminClient({ user }: { user: User }) {
                       onClick={() =>
                         setTemplate(
                           '🎉 ¡Promo Especial Fin de Semana!',
-                          'Lavado completo con 20% OFF y cera protectora de regalo en AquaShine San Rafael.',
+                          'Lavado completo con 20% OFF y cera protectora de regalo en Lavadero San Rafael.',
                           '/dashboard'
                         )
                       }
@@ -1063,7 +1063,7 @@ export default function AdminClient({ user }: { user: User }) {
                     </label>
                     <input
                       type="text"
-                      placeholder="Ej: 🎉 ¡Promo Especial en AquaShine!"
+                      placeholder="Ej: 🎉 ¡Promo Especial en Lavadero San Rafael!"
                       value={pushTitle}
                       onChange={(e) => setPushTitle(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-white/[0.08] text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
@@ -1137,7 +1137,7 @@ export default function AdminClient({ user }: { user: User }) {
                       <div className="w-4 h-4 rounded bg-cyan-500/30 flex items-center justify-center">
                         <Sparkles className="w-2.5 h-2.5 text-cyan-300" />
                       </div>
-                      <span className="font-bold text-slate-200">AquaShine San Rafael</span>
+                      <span className="font-bold text-slate-200">Lavadero San Rafael</span>
                     </div>
                     <span>ahora</span>
                   </div>

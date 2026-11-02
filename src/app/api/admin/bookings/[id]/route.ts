@@ -317,7 +317,7 @@ export async function PATCH(
                 ⚠️ Aviso de Cancelación
               </div>
               <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
-                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+                Lavadero <span style="color: #22d3ee;">San Rafael</span>
               </h1>
               <p style="margin: 0; font-size: 13px; color: #94a3b8;">
                 Estética Vehicular & Detailing Profesional

@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 const vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
 const vapidPrivateKey = (process.env.VAPID_PRIVATE_KEY || '').trim();
 const vapidSubject = (
-  process.env.VAPID_SUBJECT || 'mailto:bruno.marin.soporte@gmail.com'
+  process.env.VAPID_SUBJECT || 'mailto:' + (process.env.NOTIFICATION_EMAIL || 'bruno.marin.soporte@gmail.com')
 ).trim();
 
 if (vapidPublicKey && vapidPrivateKey) {

@@ -12,7 +12,7 @@ export const config = {
      * - _next/static (archivos estáticos)
      * - _next/image (imágenes optimizadas)
      * - auth/callback (el intercambio PKCE debe ejecutarse directo en el Route Handler sin interferencia del middleware)
-     * - qr (página pública de acceso directo al código QR del lavadero)
+     * - qr (código QR público)
      * - sw.js, manifest.json, favicon.ico, imágenes y recursos estáticos
      */
     '/((?!_next/static|_next/image|auth/callback|qr(?:/|$)|sw\\.js|manifest\\.json|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',

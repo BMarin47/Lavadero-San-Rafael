@@ -86,7 +86,7 @@ export function PWAInstallBanner() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h4 className="text-xs sm:text-sm font-black text-white truncate">
-              Instalá la App de AquaShine
+              Instalá la App de Lavadero San Rafael
             </h4>
             <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
               PWA

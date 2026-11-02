@@ -3,25 +3,16 @@ import {
   ScheduleService,
   normalizeVehicleType,
   areTimeSlotsOverlapping,
-  VehicleCategoryType,
 } from './schedule.service';
 import { MercadoPagoService } from './mercadopago.service';
+import {
+  BASE_PRICES,
+  VEHICLE_TYPE_LABELS,
+  BRAND_CONFIG,
+  VehicleCategoryType,
+} from '@/lib/config';
 
-export const BASE_PRICES: Record<string, number> = {
-  CAR: 23500,
-  SUV: 28000,
-  PICKUP: 33500,
-  LARGE_PICKUP: 39500,
-  UTILITY: 46500,
-};
-
-export const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  CAR: 'Auto',
-  SUV: 'SUV',
-  PICKUP: 'Camioneta',
-  LARGE_PICKUP: 'Camioneta Grande',
-  UTILITY: 'Trafic / Utilitario',
-};
+export { BASE_PRICES, VEHICLE_TYPE_LABELS };
 
 /**
  * Resuelve el nombre legible en español de cualquier código o descripción de vehículo.
@@ -32,8 +23,9 @@ export function resolveVehicleDisplayName(
 ): string {
   if (vehicleTypeOrLabel) {
     const trimmed = vehicleTypeOrLabel.trim();
-    if (VEHICLE_TYPE_LABELS[trimmed]) {
-      const label = VEHICLE_TYPE_LABELS[trimmed];
+    const typeMap = VEHICLE_TYPE_LABELS as Record<string, string>;
+    if (typeMap[trimmed]) {
+      const label = typeMap[trimmed];
       if (vehicleModel && vehicleModel.trim() && vehicleModel.trim().toLowerCase() !== label.toLowerCase()) {
         return `${label} - ${vehicleModel.trim()}`;
       }
@@ -46,7 +38,7 @@ export function resolveVehicleDisplayName(
         trimmed.toLowerCase()
       )
     ) {
-      const label = VEHICLE_TYPE_LABELS[normalized] || trimmed;
+      const label = typeMap[normalized] || trimmed;
       if (vehicleModel && vehicleModel.trim() && vehicleModel.trim().toLowerCase() !== label.toLowerCase()) {
         return `${label} - ${vehicleModel.trim()}`;
       }
@@ -59,7 +51,7 @@ export function resolveVehicleDisplayName(
 
 // Número de atención del lavadero (Configurable por variable de entorno o fallback)
 export const DEFAULT_LAVADERO_PHONE =
-  process.env.NEXT_PUBLIC_LAVADERO_WHATSAPP || '+54 9 260 465-4255';
+  process.env.NEXT_PUBLIC_LAVADERO_WHATSAPP || BRAND_CONFIG.whatsappDisplay;
 
 /**
  * Sanitiza cualquier formato de número telefónico (ej: '+54 9 2604 61-4537', '2604 61-4537', '0260-4614537')
@@ -129,7 +121,7 @@ export function generateWhatsAppBookingUrl(params: {
   deliveryAddress?: string;
 }): string {
   // Destino estático al número oficial del lavadero
-  const cleanPhone = '5492604654255';
+  const cleanPhone = BRAND_CONFIG.whatsappNumber;
 
   const paymentText =
     params.paymentMethod === 'MERCADO_PAGO'
@@ -142,7 +134,7 @@ export function generateWhatsAppBookingUrl(params: {
   );
 
   const lines = [
-    '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
+    `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
     'Acabo de confirmar una reserva a través de la Web App:',
     '',
     `\uD83D\uDCC5 *Fecha:* ${params.appointmentDate}`,
@@ -181,7 +173,7 @@ export function generateWhatsAppCancellationUrl(params: {
   const vehicleDisplay = resolveVehicleDisplayName(params.vehicle);
 
   const lines = [
-    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *AquaShine San Rafael* \uD83D\uDE97\u2728`,
+    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *${BRAND_CONFIG.name}* \uD83D\uDE97\u2728`,
     '',
     'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
     '',
@@ -196,7 +188,7 @@ export function generateWhatsAppCancellationUrl(params: {
 
   lines.push(
     '',
-    'Si deseas reprogramar tu lavado para otra fecha u horario disponible, podés hacerlo ingresando a nuestra plataforma web: https://lavadero-san-rafael.vercel.app/',
+    `Si deseas reprogramar tu lavado para otra fecha u horario disponible, podés hacerlo ingresando a nuestra plataforma web: ${BRAND_CONFIG.siteUrl}/`,
     'O responder directamente a este mensaje para coordinar con nuestro equipo de atención.',
     '',
     '¡Disculpas por las molestias y muchas gracias!'

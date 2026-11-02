@@ -1,10 +1,12 @@
+import { BRAND_CONFIG } from '@/lib/config';
+
 /**
- * Configuración y utilidades de Superadministrador para AquaShine San Rafael.
+ * Configuración y utilidades de Superadministrador para Lavadero San Rafael.
  * Garantiza privilegios totales de administración al correo autorizado.
  */
 
 export const SUPERADMIN_EMAILS = [
-  'bruno.marin.soporte@gmail.com',
+  ...BRAND_CONFIG.superAdminEmails,
 ];
 
 /**
@@ -14,7 +16,10 @@ export function isSuperAdmin(email?: string | null): boolean {
   if (!email) return false;
   const normalized = email.toLowerCase().trim();
   const envAdmin = process.env.ADMIN_EMAIL?.toLowerCase().trim();
-  return SUPERADMIN_EMAILS.includes(normalized) || (!!envAdmin && normalized === envAdmin);
+  return (
+    SUPERADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === normalized) ||
+    (!!envAdmin && normalized === envAdmin)
+  );
 }
 
 /**

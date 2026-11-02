@@ -114,7 +114,7 @@ function RegisterForm() {
           <span>Registro en 1 Solo Clic</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-          AquaShine <span className="text-cyan-400">San Rafael</span>
+          Lavadero <span className="text-cyan-400">San Rafael</span>
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xs mx-auto">
           Creá tu cuenta de forma instantánea con Google. Sin formularios largos ni contraseñas difíciles.

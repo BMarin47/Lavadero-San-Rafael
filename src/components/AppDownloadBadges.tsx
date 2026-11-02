@@ -36,7 +36,7 @@ export const AppDownloadBadges: React.FC<AppDownloadBadgesProps> = ({
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4 text-cyan-400" />
             <span className="text-xs font-bold text-white tracking-tight">
-              AquaShine Móvil
+              Lavadero San Rafael Móvil
             </span>
           </div>
           <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider text-cyan-400">

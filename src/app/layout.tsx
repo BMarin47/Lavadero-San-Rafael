@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { PWAInstallBanner } from '@/components/PWAInstallBanner';
+import { BRAND_CONFIG } from '@/lib/config';
 
 export const metadata: Metadata = {
-  title: 'AquaShine San Rafael - Detailing de Alta Gama & Lavadero Artesanal',
+  title: `${BRAND_CONFIG.name} - Detailing de Alta Gama & Lavadero Artesanal`,
   description:
     'Reserva online tu turno de detailing y lavado artesanal en San Rafael, Mendoza. Planes mensuales y turnos individuales con atención exclusiva.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'AquaShine',
+    title: BRAND_CONFIG.name,
   },
   icons: {
     icon: [

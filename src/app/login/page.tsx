@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { GoogleIcon } from '@/components/GoogleIcon';
+import { BRAND_CONFIG } from '@/lib/config';
 
 
 function LoginForm() {
@@ -129,7 +130,7 @@ function LoginForm() {
           <span>Acceso Rápido y Amigable</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-          AquaShine <span className="text-cyan-400">San Rafael</span>
+          Lavadero <span className="text-cyan-400">San Rafael</span>
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xs mx-auto">
           Iniciá sesión en 1 solo clic con tu cuenta de Google. Sin contraseñas que recordar ni formularios complicados.

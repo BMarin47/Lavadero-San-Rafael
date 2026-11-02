@@ -4,49 +4,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Car, CarFront, Truck, Bus, Check, Clock } from 'lucide-react';
 import { normalizeVehicleType } from '@/lib/services/schedule.service';
+import {
+  VEHICLE_CONFIG,
+  VehicleCategoryType as VehicleType,
+} from '@/lib/config';
 
-export type VehicleType =
-  | 'CAR'
-  | 'SUV'
-  | 'PICKUP'
-  | 'LARGE_PICKUP'
-  | 'UTILITY';
-
-export const VEHICLE_CONFIG: Record<
-  VehicleType,
-  { label: string; sublabel: string; price: number; durationHours: number }
-> = {
-  CAR: {
-    label: 'Auto',
-    sublabel: 'Hatchback / Sedán',
-    price: 23500,
-    durationHours: 2,
-  },
-  SUV: {
-    label: 'SUV',
-    sublabel: 'Cross / Monovolumen',
-    price: 28000,
-    durationHours: 2,
-  },
-  PICKUP: {
-    label: 'Camioneta',
-    sublabel: 'Pick-up Estándar',
-    price: 33500,
-    durationHours: 3,
-  },
-  LARGE_PICKUP: {
-    label: 'Camioneta Grande',
-    sublabel: 'RAM / F-150 / Full-Size',
-    price: 39500,
-    durationHours: 4,
-  },
-  UTILITY: {
-    label: 'Trafic / Utilitario',
-    sublabel: 'Furgón / Combi / Van',
-    price: 46500,
-    durationHours: 4,
-  },
-};
+export type { VehicleType };
+export { VEHICLE_CONFIG };
 
 export interface VehicleSelectorProps {
   selectedType: VehicleType;

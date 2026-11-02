@@ -3,6 +3,7 @@ import { EmailService } from '@/lib/services/email.service';
 import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
 import { ScheduleService, normalizeVehicleType, areTimeSlotsOverlapping } from '@/lib/services/schedule.service';
 import { VehicleCategorySchema } from '@/lib/validations/booking.schema';
+import { BRAND_CONFIG, calculateBookingPrice } from '@/lib/config';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';

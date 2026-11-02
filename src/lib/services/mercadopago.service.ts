@@ -1,4 +1,5 @@
 import { MercadoPagoConfig, Preference, PreApproval } from 'mercadopago';
+import { BRAND_CONFIG } from '@/lib/config';
 
 function getMpClient(): MercadoPagoConfig | null {
   const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
@@ -59,7 +60,7 @@ export class MercadoPagoService {
         },
         auto_return: 'approved',
         external_reference: params.appointmentId,
-        statement_descriptor: 'AQUASHINE RAFAEL', // Max 16 caracteres
+        statement_descriptor: BRAND_CONFIG.statementDescriptor, // Max 16 caracteres
       };
 
       // Mercado Pago rechaza notification_url si es http://localhost
@@ -114,7 +115,7 @@ export class MercadoPagoService {
 
       const result = await preapproval.create({
         body: {
-          reason: `Suscripción Mensual - ${params.planName} (Lavadero San Rafael)`,
+          reason: `Suscripción Mensual - ${params.planName} (${BRAND_CONFIG.name})`,
           auto_recurring: {
             frequency: 1,
             frequency_type: 'months',

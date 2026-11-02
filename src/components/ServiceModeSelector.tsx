@@ -1,80 +1,18 @@
 'use client';
 
 import React from 'react';
-import { VehicleType, VEHICLE_CONFIG } from './VehicleSelector';
 import { Sparkles, Check, Truck } from 'lucide-react';
+import {
+  VEHICLE_CONFIG,
+  VehicleCategoryType as VehicleType,
+  PlanCode,
+  ServiceMode,
+  PlanDetail,
+  PLANS_CATALOG,
+} from '@/lib/config';
 
-export type ServiceMode = 'INDIVIDUAL' | 'SUBSCRIPTION';
-export type PlanCode = 'PLATA' | 'ORO' | 'PLATINO';
-
-interface PlanDetail {
-  code: PlanCode;
-  name: string;
-  washes: number;
-  prices: Record<VehicleType, { price: number; orig: number }>;
-  features: string[];
-  badge?: string;
-  isPopular?: boolean;
-}
-
-export const PLANS_CATALOG: PlanDetail[] = [
-  {
-    code: 'PLATA',
-    name: 'Plan Plata',
-    washes: 2,
-    prices: {
-      CAR: { price: 39500, orig: 47000 },
-      SUV: { price: 47000, orig: 56000 },
-      PICKUP: { price: 56500, orig: 67000 },
-      LARGE_PICKUP: { price: 67000, orig: 79000 },
-      UTILITY: { price: 79000, orig: 93000 },
-    },
-    features: [
-      '2 lavados completos al mes',
-      'Cera rápida protectora hidrofóbica',
-      'Aspirado completo y desinfección',
-    ],
-  },
-  {
-    code: 'ORO',
-    name: 'Plan Oro',
-    washes: 3,
-    prices: {
-      CAR: { price: 57500, orig: 70500 },
-      SUV: { price: 69000, orig: 84000 },
-      PICKUP: { price: 83000, orig: 100500 },
-      LARGE_PICKUP: { price: 98500, orig: 118500 },
-      UTILITY: { price: 116500, orig: 139500 },
-    },
-    features: [
-      '3 lavados completos al mes',
-      'Cera de alta durabilidad + sellado',
-      'Hidratación de plásticos int/ext',
-      'Retiro y entrega a domicilio bonificado',
-    ],
-    badge: 'Más Elegido',
-    isPopular: true,
-  },
-  {
-    code: 'PLATINO',
-    name: 'Plan Platino VIP',
-    washes: 4,
-    prices: {
-      CAR: { price: 76500, orig: 94000 },
-      SUV: { price: 91500, orig: 112000 },
-      PICKUP: { price: 110500, orig: 134000 },
-      LARGE_PICKUP: { price: 130500, orig: 158000 },
-      UTILITY: { price: 154500, orig: 186000 },
-    },
-    features: [
-      '4 lavados completos al mes',
-      'Todos los beneficios del Plan Oro',
-      '1 limpieza profunda de tapizados por ciclo',
-      'Atención prioritaria y delivery incluido',
-    ],
-    badge: 'Detallado VIP',
-  },
-];
+export type { ServiceMode, PlanCode, PlanDetail };
+export { PLANS_CATALOG };
 
 interface ServiceModeSelectorProps {
   vehicleType: VehicleType;

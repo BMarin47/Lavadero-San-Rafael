@@ -111,7 +111,10 @@ export async function updateSession(request: NextRequest) {
 
   // Protección específica para /admin: Solo Superadministrador
   if (pathname.startsWith('/admin')) {
-    const adminEmails = ['bruno.marin.soporte@gmail.com'];
+    const adminEmails = [
+      'bruno.marin.soporte@gmail.com',
+      process.env.ADMIN_EMAIL?.toLowerCase().trim() || '',
+    ].filter(Boolean);
     const userEmail = user?.email?.toLowerCase().trim() || '';
     if (!adminEmails.includes(userEmail)) {
       const url = request.nextUrl.clone();

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { BASE_PRICES, resolveVehicleDisplayName } from '@/lib/services/booking.service';
+import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
 import { normalizeVehicleType } from '@/lib/services/schedule.service';
-
-const PLANS_PRICES: Record<string, Record<string, number>> = {
-  PLATA: { CAR: 39500, SUV: 47000, PICKUP: 56500, LARGE_PICKUP: 67000, UTILITY: 79000 },
-  ORO: { CAR: 57500, SUV: 69000, PICKUP: 83000, LARGE_PICKUP: 98500, UTILITY: 116500 },
-  PLATINO: { CAR: 76500, SUV: 91500, PICKUP: 110500, LARGE_PICKUP: 130500, UTILITY: 154500 },
-};
+import {
+  BASE_PRICES,
+  PLANS_PRICES,
+  VEHICLE_CHECKOUT_TITLES,
+  BRAND_CONFIG,
+} from '@/lib/config';
 
 export async function POST(request: Request) {
   try {
@@ -32,9 +32,16 @@ export async function POST(request: Request) {
     const catUpper = normalizeVehicleType(String(categoria));
     let verifiedPrice: number;
 
-    if (planCode && PLANS_PRICES[String(planCode).toUpperCase()]) {
-      const planPrices = PLANS_PRICES[String(planCode).toUpperCase()];
-      verifiedPrice = planPrices[catUpper] || planPrices['CAR'] || 39500;
+    const normalizedPlan = planCode ? String(planCode).toUpperCase() : null;
+    if (
+      normalizedPlan &&
+      (normalizedPlan === 'PLATA' ||
+        normalizedPlan === 'ORO' ||
+        normalizedPlan === 'PLATINO') &&
+      PLANS_PRICES[normalizedPlan]
+    ) {
+      const planPrices = PLANS_PRICES[normalizedPlan];
+      verifiedPrice = planPrices[catUpper] || planPrices.CAR || 39500;
     } else if (BASE_PRICES[catUpper]) {
       verifiedPrice = BASE_PRICES[catUpper];
     } else {
@@ -67,24 +74,21 @@ export async function POST(request: Request) {
     const host =
       request.headers.get('x-forwarded-host') ||
       request.headers.get('host') ||
-      'lavadero-san-rafael.vercel.app';
+      BRAND_CONFIG.domain;
     const protocol =
       request.headers.get('x-forwarded-proto') ||
       (host.includes('localhost') ? 'http' : 'https');
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      BRAND_CONFIG.siteUrl ||
+      `${protocol}://${host}`;
 
-    const categoryMap: Record<string, string> = {
-      CAR: 'Auto (Hatchback / Sedán)',
-      SUV: 'SUV / Monovolumen',
-      PICKUP: 'Camioneta (Amarok / Hilux / Ranger)',
-      LARGE_PICKUP: 'Camioneta Grande (RAM / F-150 / Full-Size)',
-      UTILITY: 'Trafic / Utilitario (Furgón / Combi / Van)',
-    };
-    const categoryTitle = categoryMap[catUpper] || resolveVehicleDisplayName(categoria);
+    const categoryTitle =
+      VEHICLE_CHECKOUT_TITLES[catUpper] || resolveVehicleDisplayName(categoria);
     const vehicleDisplay = vehiculo ? resolveVehicleDisplayName(vehiculo) : '';
     const itemTitle = vehicleDisplay
-      ? `Reserva Lavadero - ${vehicleDisplay} (${categoryTitle})`
-      : `Reserva Lavadero - ${categoryTitle}`;
+      ? `Reserva ${BRAND_CONFIG.name} - ${vehicleDisplay} (${categoryTitle})`
+      : `Reserva ${BRAND_CONFIG.name} - ${categoryTitle}`;
 
     const preferenceBody: any = {
       items: [

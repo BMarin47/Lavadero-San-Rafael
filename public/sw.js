@@ -87,7 +87,7 @@ self.addEventListener('push', (event) => {
     try {
       data = event.data.json();
     } catch (e) {
-      data = { title: 'AquaShine San Rafael', body: event.data.text() };
+      data = { title: 'Lavadero San Rafael', body: event.data.text() };
     }
   }
 

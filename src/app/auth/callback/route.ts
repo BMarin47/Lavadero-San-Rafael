@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { BRAND_CONFIG } from '@/lib/config';
 
-const PRODUCTION_SITE_URL = 'https://lavadero-san-rafael.vercel.app';
+const PRODUCTION_SITE_URL = BRAND_CONFIG.siteUrl;
 
 function getBaseUrl(request: NextRequest): string {
   // 1. Entorno local de desarrollo explícito (npm run dev)

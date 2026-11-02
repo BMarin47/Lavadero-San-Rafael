@@ -15,8 +15,9 @@ import {
   CalendarCheck,
   MapPin,
 } from 'lucide-react';
+import { BRAND_CONFIG } from '@/lib/config';
 
-const TARGET_BOOKING_URL = 'https://lavadero-san-rafael.vercel.app/';
+const TARGET_BOOKING_URL = `${BRAND_CONFIG.siteUrl}/`;
 
 export default function QRPage() {
   const [copied, setCopied] = useState(false);
@@ -153,11 +154,11 @@ export default function QRPage() {
           {/* URL explícita al pie del cartel */}
           <div className="mt-5 pt-4 border-t border-white/[0.06] w-full flex flex-col items-center gap-1 print:border-slate-200">
             <span className="text-[11px] font-mono font-bold text-cyan-300 tracking-tight print:text-slate-900">
-              lavadero-san-rafael.vercel.app
+              {BRAND_CONFIG.domain}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 print:text-slate-600">
               <MapPin className="w-3 h-3 text-cyan-400 print:text-slate-800" />
-              San Rafael, Mendoza
+              {BRAND_CONFIG.fullLocation}
             </span>
           </div>
         </section>

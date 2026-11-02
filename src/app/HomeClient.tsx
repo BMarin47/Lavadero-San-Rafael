@@ -14,6 +14,7 @@ import {
   VehicleType,
   VEHICLE_CONFIG,
 } from '@/components/VehicleSelector';
+import { BRAND_CONFIG, calculateBookingPrice } from '@/lib/config';
 import {
   getAllowedSlotsForVehicle,
   normalizeVehicleType,
@@ -251,7 +252,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       const origin =
         typeof window !== 'undefined' && window.location.origin
           ? window.location.origin
-          : 'https://lavadero-san-rafael.vercel.app';
+          : BRAND_CONFIG.siteUrl;
 
       const callbackUrl =
         redirectTarget && redirectTarget !== '/'
@@ -397,12 +398,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
   // Cálculo de Precio ("TOTAL RESERVA") según el método de pago seleccionado
   const currentTotal = useMemo(() => {
-    // Descuento del 5% aplicado para pago en Efectivo en el local o Transferencia
-    if (paymentMethod === 'CASH') {
-      return Math.round(baseVehiclePrice * 0.95);
-    }
-    return baseVehiclePrice;
-  }, [baseVehiclePrice, paymentMethod]);
+    return calculateBookingPrice(normalizedVehicle, paymentMethod);
+  }, [normalizedVehicle, paymentMethod]);
 
   // Manejador de Reserva y Redirección
   const handleSubmitBooking = async () => {
@@ -478,7 +475,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         return;
       }
 
-      const staticLavaderoPhone = '5492604654255';
+      const staticLavaderoPhone = BRAND_CONFIG.whatsappNumber;
       const serviceDescription =
         serviceMode === 'INDIVIDUAL'
           ? 'Lavado Completo Individual'
@@ -630,7 +627,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
         // 2. Armar mensaje de WhatsApp y redirigir directamente
         const lines = [
-          '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
+          `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
           'Quiero confirmar mi reserva de turno con *Pago en Efectivo o Transferencia en taller*:',
           '',
           `\uD83D\uDCC5 *Fecha:* ${selectedDate}`,
@@ -770,7 +767,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             </div>
             <div>
               <span className="font-black text-base sm:text-lg tracking-tight text-white block leading-none">
-                AquaShine San Rafael
+                Lavadero San Rafael
               </span>
               <span className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase mt-0.5 block">
                 Detailing & Lavadero
@@ -994,7 +991,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
             <span className="text-xs sm:text-sm font-black tracking-tight text-white">
-              AquaShine <span className="text-cyan-400">San Rafael</span>
+              Lavadero <span className="text-cyan-400">San Rafael</span>
             </span>
           </div>
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -1046,7 +1043,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </div>
 
               <h1 className="text-3xl sm:text-5xl font-black whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-cyan-400 drop-shadow-sm">
-                AquaShine San Rafael
+                Lavadero San Rafael
               </h1>
 
               <p className="text-xs sm:text-base text-slate-300 max-w-md mx-auto font-normal leading-relaxed">
@@ -1065,7 +1062,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
                   <ShieldCheck className="w-3 h-3 text-sky-400" />
-                  Garantía AquaShine
+                  Garantía Lavadero San Rafael
                 </span>
               </div>
             </header>
@@ -1142,7 +1139,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             <div className="text-center space-y-0.5 pb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 flex items-center justify-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                PWA Móvil • AquaShine San Rafael
+                PWA Móvil • Lavadero San Rafael
               </span>
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
                 Reserva de Turno
@@ -1773,7 +1770,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         <footer className="pt-6 mt-6 border-t border-white/[0.08] text-center space-y-2">
           <div className="max-w-xl mx-auto space-y-2">
             <h4 className="text-sm font-black text-white tracking-tight">
-              AquaShine San Rafael • Detailing & Lavadero
+              Lavadero San Rafael • Detailing & Lavadero
             </h4>
             <p className="text-xs text-slate-400">
               San Rafael, Mendoza, Argentina • Contacto: +54 9 260 465-4255
@@ -1784,7 +1781,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           </div>
 
           <p className="text-[11px] text-slate-600">
-            © {new Date().getFullYear()} AquaShine San Rafael. Todos los derechos reservados.
+            © {new Date().getFullYear()} Lavadero San Rafael. Todos los derechos reservados.
           </p>
         </footer>
 
@@ -1792,7 +1789,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
       {/* Botón Flotante de WhatsApp para Contacto Inmediato */}
       <a
-        href="https://wa.me/5492604654255?text=Hola%20AquaShine%20San%20Rafael,%20quisiera%20hacer%20una%20consulta%20sobre%20los%20turnos."
+        href="https://wa.me/5492604654255?text=Hola%20Lavadero%20San%20Rafael,%20quisiera%20hacer%20una%20consulta%20sobre%20los%20turnos."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-2xl shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all duration-300 group cursor-pointer"

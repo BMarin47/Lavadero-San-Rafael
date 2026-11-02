@@ -349,7 +349,7 @@ export default function DashboardClient({ user }: { user: User }) {
           <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
             <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400" />
             <span className="text-sm font-black tracking-tight text-white group-hover:text-cyan-400 transition-colors">
-              AquaShine <span className="text-cyan-400">San Rafael</span>
+              Lavadero <span className="text-cyan-400">San Rafael</span>
             </span>
           </Link>
 
@@ -404,7 +404,7 @@ export default function DashboardClient({ user }: { user: User }) {
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black text-white">
-                  Tenés acceso de control total a AquaShine San Rafael
+                  Tenés acceso de control total a Lavadero San Rafael
                 </h3>
                 <p className="text-xs text-slate-300">
                   Podés ver todos los turnos de los clientes, reprogramarlos, redactar notificaciones push masivas y gestionar usuarios.
@@ -530,7 +530,7 @@ export default function DashboardClient({ user }: { user: User }) {
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Consulta y gestiona el estado en vivo de tus turnos solicitados en AquaShine San Rafael
+                Consulta y gestiona el estado en vivo de tus turnos solicitados en Lavadero San Rafael
               </p>
             </div>
           </div>
@@ -698,7 +698,7 @@ export default function DashboardClient({ user }: { user: User }) {
 
                       <a
                         href={`https://wa.me/5492604654255?text=${encodeURIComponent(
-                          `¡Hola AquaShine San Rafael! Consulto por mi turno de ${t.vehiculo} (ID: ${t.id.slice(0, 8)}) [Estado: ${t.estado}]`
+                          `¡Hola Lavadero San Rafael! Consulto por mi turno de ${t.vehiculo} (ID: ${t.id.slice(0, 8)}) [Estado: ${t.estado}]`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -753,7 +753,7 @@ export default function DashboardClient({ user }: { user: User }) {
             </div>
           </div>
           <a
-            href="https://wa.me/5492604654255?text=Hola%20AquaShine%20San%20Rafael,%20tengo%20una%20consulta%20sobre%20mi%20cuenta"
+            href="https://wa.me/5492604654255?text=Hola%20Lavadero%20San%20Rafael,%20tengo%20una%20consulta%20sobre%20mi%20cuenta"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all shrink-0 cursor-pointer"
@@ -800,7 +800,7 @@ export default function DashboardClient({ user }: { user: User }) {
 
       {/* PIE DE PÁGINA */}
       <footer className="border-t border-white/[0.08] py-8 text-center text-xs text-slate-500 space-y-1 mt-auto">
-        <p className="font-semibold text-slate-400">AquaShine San Rafael • Detailing Artesanal</p>
+        <p className="font-semibold text-slate-400">Lavadero San Rafael • Detailing Artesanal</p>
         <p className="text-[11px]">San Rafael, Mendoza, Argentina</p>
       </footer>
     </main>

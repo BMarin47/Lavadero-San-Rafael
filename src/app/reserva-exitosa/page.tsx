@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fireSuccessConfetti } from '@/lib/confetti';
 import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
+import { BRAND_CONFIG } from '@/lib/config';
 import {
   CheckCircle2,
   Calendar,
@@ -103,9 +104,9 @@ function ReservaExitosaContent() {
   }, [booking]);
 
   // Construir mensaje de WhatsApp con los datos del turno
-  const staticLavaderoPhone = '5492604654255';
+  const staticLavaderoPhone = BRAND_CONFIG.whatsappNumber;
   const lines = [
-    '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
+    `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
     'Acabo de abonar mi reserva en Mercado Pago y confirmo mi turno:',
     '',
   ];
@@ -181,14 +182,14 @@ function ReservaExitosaContent() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center font-black text-slate-950 text-base shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
-              AS
+              {BRAND_CONFIG.initials}
             </div>
             <div>
               <span className="font-extrabold text-base tracking-tight text-white group-hover:text-cyan-400 transition-colors">
-                AquaShine
+                {BRAND_CONFIG.name}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 ml-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                San Rafael
+                {BRAND_CONFIG.city}
               </span>
             </div>
           </Link>
@@ -381,7 +382,7 @@ function ReservaExitosaContent() {
       </main>
 
       <footer className="relative z-10 border-t border-white/[0.06] py-6 text-center text-xs text-slate-500">
-        Lavadero AquaShine San Rafael • Sistema Automatizado de Turnos y Pagos
+        {BRAND_CONFIG.name} • Sistema Automatizado de Turnos y Pagos
       </footer>
     </div>
   );

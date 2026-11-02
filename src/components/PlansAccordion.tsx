@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { VehicleType, VEHICLE_CONFIG } from './VehicleSelector';
 import { PLANS_CATALOG, PlanCode } from './ServiceModeSelector';
+import { BRAND_CONFIG } from '@/lib/config';
 
 interface PlansAccordionProps {
   initialVehicleType?: VehicleType;
@@ -183,8 +184,8 @@ export function PlansAccordion({
                   {/* ACCIÓN POR PLAN */}
                   <div className="pt-4 mt-auto">
                     <a
-                      href={`https://wa.me/5492604654255?text=${encodeURIComponent(
-                        `Hola AquaShine San Rafael, me interesa suscribirme al ${plan.name} para mi ${VEHICLE_CONFIG[selectedVehicle].label} ($${pricing.price.toLocaleString('es-AR')} mensual). ¿Cómo procedemos?`
+                      href={`https://wa.me/${BRAND_CONFIG.whatsappNumber}?text=${encodeURIComponent(
+                        `Hola ${BRAND_CONFIG.name}, me interesa suscribirme al ${plan.name} para mi ${VEHICLE_CONFIG[selectedVehicle].label} ($${pricing.price.toLocaleString('es-AR')} mensual). ¿Cómo procedemos?`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

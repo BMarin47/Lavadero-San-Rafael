@@ -1,6 +1,13 @@
 import { HolidayService } from './holiday.service';
 import { prisma } from '../prisma';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {
+  VEHICLE_CATEGORIES_CONFIG,
+  calculateEndTimeFromMinutes,
+} from '@/lib/config';
+import type { VehicleCategoryType } from '@/lib/config';
+
+export type { VehicleCategoryType };
 
 export interface SlotAvailability {
   startTime: string;
@@ -13,34 +20,39 @@ export interface SlotAvailability {
 
 export const MAX_CAPACITY_PER_SLOT = 1;
 
-export const WEEKDAY_SLOTS = [
-  { startTime: '09:00', endTime: '11:00' },
-  { startTime: '11:00', endTime: '13:00' },
-  { startTime: '16:00', endTime: '18:00' },
-  { startTime: '18:00', endTime: '20:00' },
-];
+/**
+ * Genera dinámicamente bloques horarios calculando la hora de fin mediante:
+ * inicio (en minutos) + duracion_en_minutos
+ */
+export function buildSlotsFromStartTimes(
+  startTimes: readonly string[],
+  durationMinutes: number
+): { startTime: string; endTime: string }[] {
+  return startTimes.map((startTime) => ({
+    startTime,
+    endTime: calculateEndTimeFromMinutes(startTime, durationMinutes),
+  }));
+}
 
-export const SATURDAY_SLOTS = [
-  { startTime: '09:00', endTime: '11:00' },
-  { startTime: '11:00', endTime: '13:00' },
-];
+export const WEEKDAY_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.CAR.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.CAR.durationMinutes
+);
 
-export const PICKUP_SLOTS = [
-  { startTime: '09:00', endTime: '12:00' },
-  { startTime: '16:00', endTime: '19:00' },
-];
+export const SATURDAY_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.CAR.saturdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.CAR.durationMinutes
+);
 
-export const LARGE_VEHICLE_SLOTS = [
-  { startTime: '09:00', endTime: '13:00' },
-  { startTime: '16:00', endTime: '20:00' },
-];
+export const PICKUP_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.PICKUP.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.PICKUP.durationMinutes
+);
 
-export type VehicleCategoryType =
-  | 'CAR'
-  | 'SUV'
-  | 'PICKUP'
-  | 'LARGE_PICKUP'
-  | 'UTILITY';
+export const LARGE_VEHICLE_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.LARGE_PICKUP.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.LARGE_PICKUP.durationMinutes
+);
 
 /**
  * Determina si el vehículo corresponde a "Trafic / Utilitario" (UTILITY - 4 hs).
@@ -134,6 +146,14 @@ export function normalizeVehicleType(vehicleType?: unknown): VehicleCategoryType
 }
 
 /**
+ * Devuelve la duración estimada de lavado en minutos según el tipo de vehículo.
+ */
+export function getVehicleDurationMinutes(vehicleType?: unknown): number {
+  const normalized = normalizeVehicleType(vehicleType);
+  return VEHICLE_CATEGORIES_CONFIG[normalized]?.durationMinutes ?? 120;
+}
+
+/**
  * Devuelve la duración estimada de lavado en horas según el tipo de vehículo:
  * - Auto (CAR) / SUV: 2 horas
  * - Camioneta (PICKUP): 3 horas
@@ -141,26 +161,21 @@ export function normalizeVehicleType(vehicleType?: unknown): VehicleCategoryType
  */
 export function getVehicleDurationHours(vehicleType?: unknown): number {
   const normalized = normalizeVehicleType(vehicleType);
-  if (normalized === 'LARGE_PICKUP' || normalized === 'UTILITY') return 4;
-  if (normalized === 'PICKUP') return 3;
-  return 2;
+  return VEHICLE_CATEGORIES_CONFIG[normalized]?.durationHours ?? 2;
 }
 
 /**
- * Calcula la hora de finalización exacta sumando las horas correspondientes a la categoría del vehículo.
+ * Calcula la hora de finalización exacta dinámicamente sumando los minutos correspondientes a la categoría del vehículo.
+ * Ejemplo: "18:00" con 120 min -> "20:00".
  */
 export function calculateSlotEndTime(startTime: string, vehicleType?: unknown): string {
-  const durationHours = getVehicleDurationHours(vehicleType);
-  const match = startTime.match(/(\d{1,2}):(\d{2})/);
-  if (!match) return startTime;
-  const startH = parseInt(match[1], 10);
-  const startM = match[2];
-  const endH = String(startH + durationHours).padStart(2, '0');
-  return `${endH}:${startM}`;
+  const durationMinutes = getVehicleDurationMinutes(vehicleType);
+  return calculateEndTimeFromMinutes(startTime, durationMinutes);
 }
 
 /**
- * Obtiene los bloques horarios correspondientes al tipo de vehículo y día de la semana.
+ * Obtiene los bloques horarios correspondientes al tipo de vehículo y día de la semana
+ * calculados matemáticamente a partir de las horas de inicio y la duración del servicio en minutos.
  */
 export function getAllowedSlotsForVehicle(
   vehicleType?: unknown,
@@ -168,20 +183,10 @@ export function getAllowedSlotsForVehicle(
 ): { startTime: string; endTime: string }[] {
   const normalized = normalizeVehicleType(vehicleType);
   const isSaturday = dayOfWeek === 6;
+  const config = VEHICLE_CATEGORIES_CONFIG[normalized];
+  const startTimes = isSaturday ? config.saturdayStartTimes : config.weekdayStartTimes;
 
-  if (normalized === 'LARGE_PICKUP' || normalized === 'UTILITY') {
-    return isSaturday
-      ? [{ startTime: '09:00', endTime: '13:00' }]
-      : LARGE_VEHICLE_SLOTS;
-  }
-
-  if (normalized === 'PICKUP') {
-    return isSaturday
-      ? [{ startTime: '09:00', endTime: '12:00' }]
-      : PICKUP_SLOTS;
-  }
-
-  return isSaturday ? SATURDAY_SLOTS : WEEKDAY_SLOTS;
+  return buildSlotsFromStartTimes(startTimes, config.durationMinutes);
 }
 
 /**

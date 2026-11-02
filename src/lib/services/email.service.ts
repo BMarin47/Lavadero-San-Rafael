@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { sanitizeWhatsAppPhone, resolveVehicleDisplayName } from './booking.service';
+import { BRAND_CONFIG, VEHICLE_EMAIL_TITLES, VehicleCategoryType } from '@/lib/config';
 import { normalizeVehicleType } from './schedule.service';
 
 export interface CancellationEmailParams {
@@ -49,7 +50,7 @@ export interface BookingConfirmationEmailParams {
 export const ADMIN_CONFIRMATION_EMAIL =
   process.env.NOTIFICATION_EMAIL?.trim() ||
   process.env.ADMIN_EMAIL?.trim() ||
-  'bruno.marin.soporte@gmail.com';
+  BRAND_CONFIG.notificationEmail;
 
 /**
  * Clasifica cualquier error de envío de correo (Resend API / SMTP / Red / Credenciales)
@@ -298,7 +299,7 @@ export class EmailService {
                 🔔 Alerta de Nueva Reserva (Admin)
               </div>
               <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
-                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+                Lavadero <span style="color: #22d3ee;">San Rafael</span>
               </h1>
               <p style="margin: 0; font-size: 13px; color: #94a3b8;">
                 Se ha generado una nueva solicitud de turno a través de la Web App
@@ -393,7 +394,7 @@ export class EmailService {
                 <tr>
                   <td align="center">
                     <a href="https://wa.me/${cleanCustomerDigits}?text=${encodeURIComponent(
-                      `Hola ${clientName}, nos comunicamos desde AquaShine San Rafael para coordinar tu turno de ${vehicleText} el día ${params.appointmentDate}.`
+                      `Hola ${clientName}, nos comunicamos desde Lavadero San Rafael para coordinar tu turno de ${vehicleText} el día ${params.appointmentDate}.`
                     )}" target="_blank" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
                       💬 Abrir WhatsApp con ${clientName}
                     </a>
@@ -409,7 +410,7 @@ export class EmailService {
           <tr>
             <td style="padding: 16px 30px; background-color: #080c14; border-top: 1px solid #1e293b; text-align: center;">
               <p style="margin: 0; font-size: 11px; color: #475569;">
-                Sistema de Notificaciones Automáticas • AquaShine San Rafael
+                Sistema de Notificaciones Automáticas • Lavadero San Rafael
               </p>
             </td>
           </tr>
@@ -587,7 +588,7 @@ export class EmailService {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aviso de Turno Cancelado - AquaShine San Rafael</title>
+  <title>Aviso de Turno Cancelado - Lavadero San Rafael</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #06090f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #06090f; padding: 30px 15px;">
@@ -602,7 +603,7 @@ export class EmailService {
                 ⚠️ Alerta de Turno Cancelado (Admin)
               </div>
               <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
-                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+                Lavadero <span style="color: #22d3ee;">San Rafael</span>
               </h1>
               <p style="margin: 0; font-size: 13px; color: #94a3b8;">
                 Un turno programado ha sido cancelado con más de 24 horas de anticipación
@@ -679,7 +680,7 @@ export class EmailService {
                 <tr>
                   <td align="center">
                     <a href="https://wa.me/${cleanCustomerDigits}?text=${encodeURIComponent(
-                      `Hola ${clientName}, nos comunicamos desde AquaShine San Rafael sobre la cancelación de tu turno del día ${date} a las ${time}.`
+                      `Hola ${clientName}, nos comunicamos desde Lavadero San Rafael sobre la cancelación de tu turno del día ${date} a las ${time}.`
                     )}" target="_blank" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
                       💬 Abrir WhatsApp con ${clientName}
                     </a>
@@ -702,7 +703,7 @@ export class EmailService {
           <tr>
             <td style="padding: 16px 30px; background-color: #080c14; border-top: 1px solid #1e293b; text-align: center;">
               <p style="margin: 0; font-size: 11px; color: #475569;">
-                Sistema de Notificaciones Automáticas • AquaShine San Rafael
+                Sistema de Notificaciones Automáticas • Lavadero San Rafael
               </p>
             </td>
           </tr>
@@ -778,7 +779,7 @@ export class EmailService {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Cancelación de Turno Confirmada - AquaShine San Rafael</title>
+  <title>Cancelación de Turno Confirmada - Lavadero San Rafael</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #06090f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #06090f; padding: 30px 15px;">
@@ -788,7 +789,7 @@ export class EmailService {
           <tr>
             <td style="padding: 30px; text-align: center; background: linear-gradient(180deg, rgba(6, 182, 212, 0.18) 0%, rgba(13, 19, 31, 0) 100%);">
               <h1 style="margin: 0 0 6px; font-size: 22px; font-weight: 900; color: #ffffff;">
-                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+                Lavadero <span style="color: #22d3ee;">San Rafael</span>
               </h1>
               <p style="margin: 0; font-size: 13px; color: #94a3b8;">
                 Confirmación de Cancelación de Turno
@@ -811,7 +812,7 @@ export class EmailService {
           <tr>
             <td style="padding: 16px 30px; background-color: #080c14; border-top: 1px solid #1e293b; text-align: center;">
               <p style="margin: 0; font-size: 11px; color: #475569;">
-                AquaShine San Rafael • Cuidamos cada detalle de tu vehículo
+                Lavadero San Rafael • Cuidamos cada detalle de tu vehículo
               </p>
             </td>
           </tr>
@@ -826,7 +827,7 @@ export class EmailService {
         clientResult = await this.sendWithRateLimitRetry(resend, {
           from: fromEmail,
           to: [clientEmail],
-          subject: `Cancelación de Turno Confirmada - AquaShine San Rafael (${date})`,
+          subject: `Cancelación de Turno Confirmada - Lavadero San Rafael (${date})`,
           html: clientHtml,
         });
 
@@ -901,7 +902,7 @@ export class EmailService {
                 ⚠️ Aviso de Cancelación
               </div>
               <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
-                AquaShine <span style="color: #22d3ee;">San Rafael</span>
+                Lavadero <span style="color: #22d3ee;">San Rafael</span>
               </h1>
               <p style="margin: 0; font-size: 13px; color: #94a3b8;">
                 Estética Vehicular & Detailing Profesional

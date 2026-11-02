@@ -4,7 +4,7 @@ import { isSuperAdmin } from '@/lib/auth/admin';
 import AdminClient from './AdminClient';
 
 export const metadata = {
-  title: 'Panel de Superadministrador | AquaShine San Rafael',
+  title: 'Panel de Superadministrador | Lavadero San Rafael',
   description: 'Panel exclusivo de control para gestión de turnos, notificaciones push y usuarios.',
 };
 
