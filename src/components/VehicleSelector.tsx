@@ -19,31 +19,31 @@ export const VEHICLE_CONFIG: Record<
   CAR: {
     label: 'Auto',
     sublabel: 'Hatchback / Sedán',
-    price: 22000,
+    price: 23500,
     durationHours: 2,
   },
   SUV: {
     label: 'SUV',
     sublabel: 'Cross / Monovolumen',
-    price: 26500,
+    price: 28000,
     durationHours: 2,
   },
   PICKUP: {
     label: 'Camioneta',
     sublabel: 'Pick-up Estándar',
-    price: 32000,
+    price: 33500,
     durationHours: 3,
   },
   LARGE_PICKUP: {
     label: 'Camioneta Grande',
     sublabel: 'RAM / F-150 / Full-Size',
-    price: 38000,
+    price: 39500,
     durationHours: 4,
   },
   UTILITY: {
     label: 'Trafic / Utilitario',
     sublabel: 'Furgón / Combi / Van',
-    price: 45000,
+    price: 46500,
     durationHours: 4,
   },
 };

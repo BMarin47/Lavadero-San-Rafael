@@ -40,7 +40,7 @@ async function verify() {
     vehicleModel: 'Tracker',
     serviceDescription: 'Lavado Completo (SUV)',
     paymentMethod: 'MERCADO_PAGO',
-    amount: 26500,
+    amount: 28000,
     userName: 'Gonzalo Silva',
     userPhone: '+54 9 2604 99-8811',
   });
@@ -81,8 +81,8 @@ async function verify() {
     throw new Error('Fallo: El whatsAppUrl devuelto por BookingService debe dirigirse al teléfono dinámico del cliente (5492604998811)');
   }
 
-  if (bookingSUV.appointment.basePrice !== 26500) {
-    throw new Error('Fallo: Tarifa de SUV debe ser $26.500');
+  if (bookingSUV.appointment.basePrice !== 28000) {
+    throw new Error('Fallo: Tarifa de SUV debe ser $28.000');
   }
 
   console.log('=== TODAS LAS VALIDACIONES DE SANITIZACIÓN Y CASOS DE PRUEBA PASARON CON ÉXITO ===');

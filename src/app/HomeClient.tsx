@@ -393,7 +393,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   const vehicleSummaryDisplay = VEHICLE_CONFIG[normalizedVehicle]?.label || 'Auto';
 
   // Tarifa base según categoría de vehículo
-  const baseVehiclePrice = VEHICLE_CONFIG[normalizedVehicle]?.price || 22000;
+  const baseVehiclePrice = VEHICLE_CONFIG[normalizedVehicle]?.price || 23500;
 
   // Cálculo de Precio ("TOTAL RESERVA") según el método de pago seleccionado
   const currentTotal = useMemo(() => {

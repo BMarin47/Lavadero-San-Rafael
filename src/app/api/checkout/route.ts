@@ -4,9 +4,9 @@ import { BASE_PRICES, resolveVehicleDisplayName } from '@/lib/services/booking.s
 import { normalizeVehicleType } from '@/lib/services/schedule.service';
 
 const PLANS_PRICES: Record<string, Record<string, number>> = {
-  PLATA: { CAR: 38000, SUV: 45500, PICKUP: 55000, LARGE_PICKUP: 65500, UTILITY: 77500 },
-  ORO: { CAR: 56000, SUV: 67500, PICKUP: 81500, LARGE_PICKUP: 97000, UTILITY: 115000 },
-  PLATINO: { CAR: 75000, SUV: 90000, PICKUP: 109000, LARGE_PICKUP: 129000, UTILITY: 153000 },
+  PLATA: { CAR: 39500, SUV: 47000, PICKUP: 56500, LARGE_PICKUP: 67000, UTILITY: 79000 },
+  ORO: { CAR: 57500, SUV: 69000, PICKUP: 83000, LARGE_PICKUP: 98500, UTILITY: 116500 },
+  PLATINO: { CAR: 76500, SUV: 91500, PICKUP: 110500, LARGE_PICKUP: 130500, UTILITY: 154500 },
 };
 
 export async function POST(request: Request) {
@@ -34,11 +34,11 @@ export async function POST(request: Request) {
 
     if (planCode && PLANS_PRICES[String(planCode).toUpperCase()]) {
       const planPrices = PLANS_PRICES[String(planCode).toUpperCase()];
-      verifiedPrice = planPrices[catUpper] || planPrices['CAR'] || 38000;
+      verifiedPrice = planPrices[catUpper] || planPrices['CAR'] || 39500;
     } else if (BASE_PRICES[catUpper]) {
       verifiedPrice = BASE_PRICES[catUpper];
     } else {
-      verifiedPrice = BASE_PRICES.CAR || 22000;
+      verifiedPrice = BASE_PRICES.CAR || 23500;
     }
 
     const token =

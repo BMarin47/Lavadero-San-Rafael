@@ -9,12 +9,12 @@ async function main() {
   await prisma.subscriptionPlan.deleteMany();
 
   const plans = [
-    // --- AUTOS (Base $22.000) ---
+    // --- AUTOS (Base $23.500) ---
     {
       code: 'PLATA',
       name: 'Plan Plata',
       vehicleType: 'CAR',
-      monthlyPrice: 38000,
+      monthlyPrice: 39500,
       washesPerMonth: 2,
       includesQuickWax: true,
       includesPlasticHydration: false,
@@ -26,7 +26,7 @@ async function main() {
       code: 'ORO',
       name: 'Plan Oro',
       vehicleType: 'CAR',
-      monthlyPrice: 56000,
+      monthlyPrice: 57500,
       washesPerMonth: 3,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -38,7 +38,7 @@ async function main() {
       code: 'PLATINO',
       name: 'Plan Platino',
       vehicleType: 'CAR',
-      monthlyPrice: 75000,
+      monthlyPrice: 76500,
       washesPerMonth: 4,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -47,12 +47,12 @@ async function main() {
       benefitsDescription: '4 lavados completos al mes. Beneficios Oro + 1 limpieza profunda de tapizados + retiro y entrega a domicilio.',
     },
 
-    // --- SUV (Base $26.500) ---
+    // --- SUV (Base $28.000) ---
     {
       code: 'PLATA',
       name: 'Plan Plata',
       vehicleType: 'SUV',
-      monthlyPrice: 45500,
+      monthlyPrice: 47000,
       washesPerMonth: 2,
       includesQuickWax: true,
       includesPlasticHydration: false,
@@ -64,7 +64,7 @@ async function main() {
       code: 'ORO',
       name: 'Plan Oro',
       vehicleType: 'SUV',
-      monthlyPrice: 67500,
+      monthlyPrice: 69000,
       washesPerMonth: 3,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -76,7 +76,7 @@ async function main() {
       code: 'PLATINO',
       name: 'Plan Platino',
       vehicleType: 'SUV',
-      monthlyPrice: 90000,
+      monthlyPrice: 91500,
       washesPerMonth: 4,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -85,12 +85,12 @@ async function main() {
       benefitsDescription: '4 lavados completos al mes para SUV. Beneficios Oro + tapizados + retiro y entrega.',
     },
 
-    // --- CAMIONETAS / PICKUP (Base $32.000) ---
+    // --- CAMIONETAS / PICKUP (Base $33.500) ---
     {
       code: 'PLATA',
       name: 'Plan Plata',
       vehicleType: 'PICKUP',
-      monthlyPrice: 55000,
+      monthlyPrice: 56500,
       washesPerMonth: 2,
       includesQuickWax: true,
       includesPlasticHydration: false,
@@ -102,7 +102,7 @@ async function main() {
       code: 'ORO',
       name: 'Plan Oro',
       vehicleType: 'PICKUP',
-      monthlyPrice: 81500,
+      monthlyPrice: 83000,
       washesPerMonth: 3,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -114,7 +114,7 @@ async function main() {
       code: 'PLATINO',
       name: 'Plan Platino',
       vehicleType: 'PICKUP',
-      monthlyPrice: 109000,
+      monthlyPrice: 110500,
       washesPerMonth: 4,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -123,12 +123,12 @@ async function main() {
       benefitsDescription: '4 lavados completos al mes para Camionetas. Beneficios Oro + tapizados + retiro y entrega.',
     },
 
-    // --- CAMIONETA GRANDE / LARGE_PICKUP (Base $38.000) ---
+    // --- CAMIONETA GRANDE / LARGE_PICKUP (Base $39.500) ---
     {
       code: 'PLATA',
       name: 'Plan Plata',
       vehicleType: 'LARGE_PICKUP',
-      monthlyPrice: 65500,
+      monthlyPrice: 67000,
       washesPerMonth: 2,
       includesQuickWax: true,
       includesPlasticHydration: false,
@@ -140,7 +140,7 @@ async function main() {
       code: 'ORO',
       name: 'Plan Oro',
       vehicleType: 'LARGE_PICKUP',
-      monthlyPrice: 97000,
+      monthlyPrice: 98500,
       washesPerMonth: 3,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -152,7 +152,7 @@ async function main() {
       code: 'PLATINO',
       name: 'Plan Platino',
       vehicleType: 'LARGE_PICKUP',
-      monthlyPrice: 129000,
+      monthlyPrice: 130500,
       washesPerMonth: 4,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -161,12 +161,12 @@ async function main() {
       benefitsDescription: '4 lavados completos al mes para Camioneta Grande. Beneficios Oro + tapizados + retiro y entrega.',
     },
 
-    // --- TRAFIC / UTILITARIO / UTILITY (Base $45.000) ---
+    // --- TRAFIC / UTILITARIO / UTILITY (Base $46.500) ---
     {
       code: 'PLATA',
       name: 'Plan Plata',
       vehicleType: 'UTILITY',
-      monthlyPrice: 77500,
+      monthlyPrice: 79000,
       washesPerMonth: 2,
       includesQuickWax: true,
       includesPlasticHydration: false,
@@ -178,7 +178,7 @@ async function main() {
       code: 'ORO',
       name: 'Plan Oro',
       vehicleType: 'UTILITY',
-      monthlyPrice: 115000,
+      monthlyPrice: 116500,
       washesPerMonth: 3,
       includesQuickWax: true,
       includesPlasticHydration: true,
@@ -190,7 +190,7 @@ async function main() {
       code: 'PLATINO',
       name: 'Plan Platino',
       vehicleType: 'UTILITY',
-      monthlyPrice: 153000,
+      monthlyPrice: 154500,
       washesPerMonth: 4,
       includesQuickWax: true,
       includesPlasticHydration: true,

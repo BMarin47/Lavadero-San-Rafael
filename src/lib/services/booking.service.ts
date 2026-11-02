@@ -8,11 +8,11 @@ import {
 import { MercadoPagoService } from './mercadopago.service';
 
 export const BASE_PRICES: Record<string, number> = {
-  CAR: 22000,
-  SUV: 26500,
-  PICKUP: 32000,
-  LARGE_PICKUP: 38000,
-  UTILITY: 45000,
+  CAR: 23500,
+  SUV: 28000,
+  PICKUP: 33500,
+  LARGE_PICKUP: 39500,
+  UTILITY: 46500,
 };
 
 export const VEHICLE_TYPE_LABELS: Record<string, string> = {
@@ -284,7 +284,7 @@ export class BookingService {
 
       let isCoveredBySubscription = false;
       let subscriptionId: string | null = null;
-      let finalPrice = BASE_PRICES[normalizedVehicleType] || 22000;
+      let finalPrice = BASE_PRICES[normalizedVehicleType] || 23500;
       let serviceDescription = `Lavado Completo (${VEHICLE_TYPE_LABELS[normalizedVehicleType] || normalizedVehicleType})`;
 
       // d. Manejo de Suscripciones
