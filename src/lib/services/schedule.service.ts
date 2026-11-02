@@ -17,7 +17,7 @@ export const WEEKDAY_SLOTS = [
   { startTime: '09:00', endTime: '11:00' },
   { startTime: '11:00', endTime: '13:00' },
   { startTime: '16:00', endTime: '18:00' },
-  { startTime: '18:00', endTime: '21:00' },
+  { startTime: '18:00', endTime: '20:00' },
 ];
 
 export const SATURDAY_SLOTS = [
@@ -147,6 +147,19 @@ export function getVehicleDurationHours(vehicleType?: unknown): number {
 }
 
 /**
+ * Calcula la hora de finalización exacta sumando las horas correspondientes a la categoría del vehículo.
+ */
+export function calculateSlotEndTime(startTime: string, vehicleType?: unknown): string {
+  const durationHours = getVehicleDurationHours(vehicleType);
+  const match = startTime.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return startTime;
+  const startH = parseInt(match[1], 10);
+  const startM = match[2];
+  const endH = String(startH + durationHours).padStart(2, '0');
+  return `${endH}:${startM}`;
+}
+
+/**
  * Obtiene los bloques horarios correspondientes al tipo de vehículo y día de la semana.
  */
 export function getAllowedSlotsForVehicle(
@@ -217,7 +230,7 @@ export function parseTimeInterval(
  * Ejemplos:
  * - "09:00 a 11:00" y "09:00 a 12:00" -> true (se solapan)
  * - "09:00 a 13:00" y "11:00 a 13:00" -> true (se solapan)
- * - "16:00 a 20:00" y "18:00 a 21:00" -> true (se solapan)
+ * - "16:00 a 20:00" y "18:00 a 20:00" -> true (se solapan)
  * - "09:00 a 11:00" y "11:00 a 13:00" -> false (son contiguos, no solapan)
  */
 export function areTimeSlotsOverlapping(
@@ -311,21 +324,8 @@ export class ScheduleService {
 
       for (const app of activeAppointments) {
         const id = app.id || `app_${app.startTime}_${app.endTime}`;
-        const timeStr = app.endTime
-          ? `${app.startTime} a ${app.endTime}`
-          : isLargeVehicle(app.vehicle?.vehicleType)
-          ? `${app.startTime} a ${app.startTime === '09:00' ? '13:00' : '20:00'}`
-          : isPickupVehicle(app.vehicle?.vehicleType)
-          ? `${app.startTime} a ${app.startTime === '09:00' ? '12:00' : '19:00'}`
-          : `${app.startTime} a ${
-              app.startTime === '09:00'
-                ? '11:00'
-                : app.startTime === '11:00'
-                ? '13:00'
-                : app.startTime === '16:00'
-                ? '18:00'
-                : '21:00'
-            }`;
+        const computedEndTime = app.endTime || calculateSlotEndTime(app.startTime, app.vehicle?.vehicleType);
+        const timeStr = `${app.startTime} a ${computedEndTime}`;
         registerBooking(id, timeStr);
       }
     } catch (_) {}

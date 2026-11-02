@@ -1779,7 +1779,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               San Rafael, Mendoza, Argentina • Contacto: +54 9 260 465-4255
             </p>
             <p className="text-[11px] text-slate-500">
-              Horarios: Lunes a Viernes de 09:00 a 13:00 y 16:00 a 21:00 hs • Sábados de 09:00 a 13:00 hs • Domingos cerrado
+              Horarios: Lunes a Viernes de 09:00 a 13:00 y 16:00 a 20:00 hs • Sábados de 09:00 a 13:00 hs • Domingos cerrado
             </p>
           </div>
 
