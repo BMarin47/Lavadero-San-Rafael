@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
-import { BASE_PRICES } from '@/lib/services/booking.service';
+import { BASE_PRICES, resolveVehicleDisplayName } from '@/lib/services/booking.service';
+import { normalizeVehicleType } from '@/lib/services/schedule.service';
 
 const PLANS_PRICES: Record<string, Record<string, number>> = {
-  PLATA: { CAR: 38000, SUV: 45500, PICKUP: 55000 },
-  ORO: { CAR: 56000, SUV: 67500, PICKUP: 81500 },
-  PLATINO: { CAR: 75000, SUV: 90000, PICKUP: 109000 },
+  PLATA: { CAR: 38000, SUV: 45500, PICKUP: 55000, LARGE_PICKUP: 65500, UTILITY: 77500 },
+  ORO: { CAR: 56000, SUV: 67500, PICKUP: 81500, LARGE_PICKUP: 97000, UTILITY: 115000 },
+  PLATINO: { CAR: 75000, SUV: 90000, PICKUP: 109000, LARGE_PICKUP: 129000, UTILITY: 153000 },
 };
 
 export async function POST(request: Request) {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     // Cálculo y blindaje de precio en el SERVIDOR (Protección contra manipulación)
-    const catUpper = String(categoria).toUpperCase();
+    const catUpper = normalizeVehicleType(String(categoria));
     let verifiedPrice: number;
 
     if (planCode && PLANS_PRICES[String(planCode).toUpperCase()]) {
@@ -75,11 +76,14 @@ export async function POST(request: Request) {
     const categoryMap: Record<string, string> = {
       CAR: 'Auto (Hatchback / Sedán)',
       SUV: 'SUV / Monovolumen',
-      PICKUP: 'Camioneta / Utilitario',
+      PICKUP: 'Camioneta (Amarok / Hilux / Ranger)',
+      LARGE_PICKUP: 'Camioneta Grande (RAM / F-150 / Full-Size)',
+      UTILITY: 'Trafic / Utilitario (Furgón / Combi / Van)',
     };
-    const categoryTitle = categoryMap[categoria] || categoria || 'Vehículo';
-    const itemTitle = vehiculo
-      ? `Reserva Lavadero - ${vehiculo} (${categoryTitle})`
+    const categoryTitle = categoryMap[catUpper] || resolveVehicleDisplayName(categoria);
+    const vehicleDisplay = vehiculo ? resolveVehicleDisplayName(vehiculo) : '';
+    const itemTitle = vehicleDisplay
+      ? `Reserva Lavadero - ${vehicleDisplay} (${categoryTitle})`
       : `Reserva Lavadero - ${categoryTitle}`;
 
     const preferenceBody: any = {

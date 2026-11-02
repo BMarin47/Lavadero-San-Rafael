@@ -1,10 +1,9 @@
 import { prisma } from '../prisma';
 import {
   ScheduleService,
-  MAX_CAPACITY_PER_SLOT,
-  isPickupVehicle,
   normalizeVehicleType,
   areTimeSlotsOverlapping,
+  VehicleCategoryType,
 } from './schedule.service';
 import { MercadoPagoService } from './mercadopago.service';
 
@@ -12,13 +11,51 @@ export const BASE_PRICES: Record<string, number> = {
   CAR: 22000,
   SUV: 26500,
   PICKUP: 32000,
+  LARGE_PICKUP: 38000,
+  UTILITY: 45000,
 };
 
 export const VEHICLE_TYPE_LABELS: Record<string, string> = {
   CAR: 'Auto',
   SUV: 'SUV',
   PICKUP: 'Camioneta',
+  LARGE_PICKUP: 'Camioneta Grande',
+  UTILITY: 'Trafic / Utilitario',
 };
+
+/**
+ * Resuelve el nombre legible en español de cualquier código o descripción de vehículo.
+ */
+export function resolveVehicleDisplayName(
+  vehicleTypeOrLabel?: string | null,
+  vehicleModel?: string | null
+): string {
+  if (vehicleTypeOrLabel) {
+    const trimmed = vehicleTypeOrLabel.trim();
+    if (VEHICLE_TYPE_LABELS[trimmed]) {
+      const label = VEHICLE_TYPE_LABELS[trimmed];
+      if (vehicleModel && vehicleModel.trim() && vehicleModel.trim().toLowerCase() !== label.toLowerCase()) {
+        return `${label} - ${vehicleModel.trim()}`;
+      }
+      return label;
+    }
+    const normalized = normalizeVehicleType(trimmed);
+    // Si pasaron un código en minúscula como 'large_pickup' o 'utility'
+    if (
+      ['car', 'suv', 'pickup', 'large_pickup', 'utility'].includes(
+        trimmed.toLowerCase()
+      )
+    ) {
+      const label = VEHICLE_TYPE_LABELS[normalized] || trimmed;
+      if (vehicleModel && vehicleModel.trim() && vehicleModel.trim().toLowerCase() !== label.toLowerCase()) {
+        return `${label} - ${vehicleModel.trim()}`;
+      }
+      return label;
+    }
+    return trimmed;
+  }
+  return vehicleModel?.trim() || 'Vehículo';
+}
 
 // Número de atención del lavadero (Configurable por variable de entorno o fallback)
 export const DEFAULT_LAVADERO_PHONE =
@@ -58,12 +95,12 @@ export interface CreateBookingDTO {
   userEmail: string;
   userFullName: string;
   userPhone: string;
-  vehicleType: 'CAR' | 'SUV' | 'PICKUP';
+  vehicleType: VehicleCategoryType;
   vehicleBrand: string;
   vehicleModel: string;
   appointmentDate: string; // YYYY-MM-DD
   startTime: string;       // "09:00"
-  endTime: string;         // "11:00"
+  endTime: string;         // "11:00" | "12:00" | "13:00" | "19:00" | "20:00"
   serviceMode: 'INDIVIDUAL' | 'SUBSCRIPTION';
   subscriptionPlanCode?: 'PLATA' | 'ORO' | 'PLATINO';
   paymentMethod: 'MERCADO_PAGO' | 'CASH';
@@ -99,13 +136,18 @@ export function generateWhatsAppBookingUrl(params: {
       ? 'Mercado Pago (Online)'
       : 'Efectivo en el lavadero (Presencial)';
 
+  const vehicleDisplay = resolveVehicleDisplayName(
+    params.vehicleType,
+    params.vehicleModel
+  );
+
   const lines = [
     '¡Hola AquaShine San Rafael! \uD83D\uDC4B',
     'Acabo de confirmar una reserva a través de la Web App:',
     '',
     `\uD83D\uDCC5 *Fecha:* ${params.appointmentDate}`,
     `\u23F0 *Horario:* ${params.startTime} a ${params.endTime} hs`,
-    `\uD83D\uDE97 *Vehículo:* ${VEHICLE_TYPE_LABELS[params.vehicleType] || params.vehicleType} - ${params.vehicleModel}`,
+    `\uD83D\uDE97 *Vehículo:* ${vehicleDisplay}`,
     `\uD83E\uDDFC *Servicio:* ${params.serviceDescription}`,
     `\uD83D\uDCB0 *Método de Pago:* ${paymentText} ($${params.amount.toLocaleString('es-AR')})`,
     `\uD83D\uDC64 *Cliente:* ${params.userName} (${params.userPhone})`,
@@ -136,12 +178,14 @@ export function generateWhatsAppCancellationUrl(params: {
   const cleanPhone = sanitizeWhatsAppPhone(params.clientPhone || '');
   if (!cleanPhone) return '';
 
+  const vehicleDisplay = resolveVehicleDisplayName(params.vehicle);
+
   const lines = [
     `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *AquaShine San Rafael* \uD83D\uDE97\u2728`,
     '',
     'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
     '',
-    `\uD83D\uDE97 *Vehículo:* ${params.vehicle || 'Vehículo'}`,
+    `\uD83D\uDE97 *Vehículo:* ${vehicleDisplay}`,
     `\uD83D\uDCC5 *Fecha:* ${params.date || '-'}`,
     `\u23F0 *Horario:* ${params.time || '-'}`,
   ];
@@ -209,7 +253,7 @@ export class BookingService {
       const vehicle = await tx.vehicle.create({
         data: {
           userId: user.id,
-          vehicleType: dto.vehicleType,
+          vehicleType: normalizedVehicleType,
           brand: dto.vehicleBrand,
           model: dto.vehicleModel,
         },
@@ -269,7 +313,7 @@ export class BookingService {
             where: {
               code_vehicleType: {
                 code: dto.subscriptionPlanCode,
-                vehicleType: dto.vehicleType,
+                vehicleType: normalizedVehicleType,
               },
             },
           });
@@ -376,7 +420,7 @@ export class BookingService {
         appointmentDate: dto.appointmentDate,
         startTime: dto.startTime,
         endTime: dto.endTime,
-        vehicleType: dto.vehicleType,
+        vehicleType: normalizedVehicleType,
         vehicleModel: dto.vehicleModel,
         serviceDescription,
         paymentMethod: dto.paymentMethod,

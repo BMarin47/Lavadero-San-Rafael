@@ -2,18 +2,50 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Car, Truck, Check } from 'lucide-react';
+import { Car, CarFront, Truck, Bus, Check, Clock } from 'lucide-react';
 import { normalizeVehicleType } from '@/lib/services/schedule.service';
 
-export type VehicleType = 'CAR' | 'SUV' | 'PICKUP';
+export type VehicleType =
+  | 'CAR'
+  | 'SUV'
+  | 'PICKUP'
+  | 'LARGE_PICKUP'
+  | 'UTILITY';
 
 export const VEHICLE_CONFIG: Record<
   VehicleType,
-  { label: string; sublabel: string; price: number }
+  { label: string; sublabel: string; price: number; durationHours: number }
 > = {
-  CAR: { label: 'Auto', sublabel: 'Hatchback / Sedán', price: 22000 },
-  SUV: { label: 'SUV', sublabel: 'Cross / Utilitario', price: 26500 },
-  PICKUP: { label: 'Camioneta', sublabel: 'Pick-up / Utilitario', price: 32000 },
+  CAR: {
+    label: 'Auto',
+    sublabel: 'Hatchback / Sedán',
+    price: 22000,
+    durationHours: 2,
+  },
+  SUV: {
+    label: 'SUV',
+    sublabel: 'Cross / Monovolumen',
+    price: 26500,
+    durationHours: 2,
+  },
+  PICKUP: {
+    label: 'Camioneta',
+    sublabel: 'Pick-up Estándar',
+    price: 32000,
+    durationHours: 3,
+  },
+  LARGE_PICKUP: {
+    label: 'Camioneta Grande',
+    sublabel: 'RAM / F-150 / Full-Size',
+    price: 38000,
+    durationHours: 4,
+  },
+  UTILITY: {
+    label: 'Trafic / Utilitario',
+    sublabel: 'Furgón / Combi / Van',
+    price: 45000,
+    durationHours: 4,
+  },
 };
 
 export interface VehicleSelectorProps {
@@ -31,6 +63,24 @@ export interface VehicleSelectorProps {
   onAutoAdvance?: () => void;
 }
 
+const renderVehicleIcon = (type: VehicleType, compact: boolean) => {
+  const sizeClass = compact ? 'w-4 h-4' : 'w-5 h-5';
+  switch (type) {
+    case 'CAR':
+      return <Car className={`${sizeClass} stroke-[2.2]`} />;
+    case 'SUV':
+      return <CarFront className={`${sizeClass} stroke-[2.3]`} />;
+    case 'PICKUP':
+      return <Truck className={`${sizeClass} stroke-[2.2]`} />;
+    case 'LARGE_PICKUP':
+      return <Truck className={`${sizeClass} stroke-[2.6] scale-110`} />;
+    case 'UTILITY':
+      return <Bus className={`${sizeClass} stroke-[2.2]`} />;
+    default:
+      return <Car className={sizeClass} />;
+  }
+};
+
 export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   selectedType,
   onTypeChange,
@@ -44,31 +94,38 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   };
 
+  const vehicleTypes = Object.keys(VEHICLE_CONFIG) as VehicleType[];
+
   if (compact) {
     return (
       <div className="space-y-3">
-        {/* Selector de Categoría (3 columnas en 1 fila) */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Categoría
+              Categoría y Tamaño
             </span>
-            <span className="text-[10px] text-cyan-400 font-semibold">Tarifa base</span>
+            <span className="text-[10px] text-cyan-400 font-semibold">
+              Tarifa base • Tiempo est.
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {vehicleTypes.map((type, idx) => {
               const cfg = VEHICLE_CONFIG[type];
               const isSelected = normalizeVehicleType(selectedType) === type;
+              const isLastOdd =
+                vehicleTypes.length % 2 === 1 && idx === vehicleTypes.length - 1;
 
               return (
                 <motion.button
                   key={type}
                   type="button"
-                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => handleCategoryClick(type)}
-                  className={`py-2 px-1.5 rounded-xl border text-center transition-colors duration-200 relative flex flex-col items-center justify-center cursor-pointer ${
+                  className={`py-2.5 px-2 rounded-xl border text-center transition-colors duration-200 relative flex flex-col items-center justify-center cursor-pointer ${
+                    isLastOdd ? 'col-span-2 sm:col-span-1' : ''
+                  } ${
                     isSelected
                       ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 to-blue-600/15 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-500/20'
                       : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
@@ -81,19 +138,26 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                         : { scale: 1, rotate: 0 }
                     }
                     transition={{ duration: 0.35, ease: 'easeOut' }}
-                    className={`p-1 rounded-lg mb-0.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`}
+                    className={`p-1 rounded-lg mb-0.5 ${
+                      isSelected ? 'text-cyan-400' : 'text-slate-400'
+                    }`}
                   >
-                    {type === 'CAR' ? (
-                      <Car className="w-4 h-4" />
-                    ) : type === 'SUV' ? (
-                      <Car className="w-4 h-4 stroke-[2.5]" />
-                    ) : (
-                      <Truck className="w-4 h-4" />
-                    )}
+                    {renderVehicleIcon(type, true)}
                   </motion.div>
-                  <div className="text-xs font-bold leading-tight text-white">{cfg.label}</div>
-                  <div className="text-[11px] font-black text-cyan-400 mt-0.5">
-                    ${cfg.price.toLocaleString('es-AR')}
+                  <div className="text-xs font-bold leading-tight text-white">
+                    {cfg.label}
+                  </div>
+                  <div className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                    {cfg.sublabel}
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5 mt-1">
+                    <span className="text-[11px] font-black text-cyan-400">
+                      ${cfg.price.toLocaleString('es-AR')}
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08] inline-flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                      {cfg.durationHours} hs
+                    </span>
                   </div>
                 </motion.button>
               );
@@ -117,7 +181,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               <span>Selección de Vehículo</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Elegí la categoría de tu vehículo para el servicio
+              Elegí la categoría y porte de tu vehículo para el servicio
             </p>
           </div>
         </div>
@@ -126,18 +190,20 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         </span>
       </div>
 
-      {/* Selector de Categoría (3 Grandes Tarjetas) */}
+      {/* Selector de Categoría (5 Tarjetas) */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
             Categoría del Vehículo
           </label>
-          <span className="text-[11px] text-slate-400 font-medium">Tarifa base sugerida</span>
+          <span className="text-[11px] text-slate-400 font-medium">
+            Tarifa base y tiempo estimado
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          {(Object.keys(VEHICLE_CONFIG) as VehicleType[]).map((type) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {vehicleTypes.map((type) => {
             const cfg = VEHICLE_CONFIG[type];
             const isSelected = normalizeVehicleType(selectedType) === type;
 
@@ -148,7 +214,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 whileHover={{ scale: 1.025, y: -2 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => handleCategoryClick(type)}
-                className={`p-5 rounded-2xl border text-left transition-colors duration-300 relative group flex flex-col justify-between min-h-[125px] cursor-pointer ${
+                className={`p-5 rounded-2xl border text-left transition-colors duration-300 relative group flex flex-col justify-between min-h-[135px] cursor-pointer ${
                   isSelected
                     ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/90 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20'
                     : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white'
@@ -168,24 +234,24 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                         : 'bg-white/[0.05] text-slate-300 group-hover:text-cyan-300 group-hover:bg-cyan-500/10'
                     }`}
                   >
-                    {type === 'CAR' ? (
-                      <Car className="w-5 h-5 stroke-[2.2]" />
-                    ) : type === 'SUV' ? (
-                      <Car className="w-5 h-5 stroke-[2.5]" />
-                    ) : (
-                      <Truck className="w-5 h-5 stroke-[2.2]" />
-                    )}
+                    {renderVehicleIcon(type, false)}
                   </motion.div>
-                  {isSelected && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                      className="w-6 h-6 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-md shadow-cyan-400/40"
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </motion.span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/[0.08] inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-cyan-400" />
+                      {cfg.durationHours} hs
+                    </span>
+                    {isSelected && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                        className="w-6 h-6 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-md shadow-cyan-400/40"
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </motion.span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-4">

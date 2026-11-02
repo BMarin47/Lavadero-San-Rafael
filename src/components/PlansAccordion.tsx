@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   ChevronDown,
@@ -27,10 +27,16 @@ export function PlansAccordion({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>(initialVehicleType);
 
+  useEffect(() => {
+    setSelectedVehicle(initialVehicleType);
+  }, [initialVehicleType]);
+
   const vehicleOptions: { type: VehicleType; label: string }[] = [
     { type: 'CAR', label: 'Auto' },
     { type: 'SUV', label: 'SUV' },
     { type: 'PICKUP', label: 'Camioneta' },
+    { type: 'LARGE_PICKUP', label: 'Camioneta Grande' },
+    { type: 'UTILITY', label: 'Trafic / Utilitario' },
   ];
 
   return (
@@ -86,13 +92,13 @@ export function PlansAccordion({
               <Car className="w-3.5 h-3.5 text-cyan-400" />
               Precios calculados para:
             </span>
-            <div className="inline-flex p-1 rounded-xl bg-slate-900/80 border border-white/[0.08] gap-1">
+            <div className="flex flex-wrap p-1 rounded-xl bg-slate-900/80 border border-white/[0.08] gap-1">
               {vehicleOptions.map((opt) => (
                 <button
                   key={opt.type}
                   type="button"
                   onClick={() => setSelectedVehicle(opt.type)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     selectedVehicle === opt.type
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -107,7 +113,7 @@ export function PlansAccordion({
           {/* GRID DE LOS 3 PLANES (PLATA, ORO, PLATINO) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
             {PLANS_CATALOG.map((plan) => {
-              const pricing = plan.prices[selectedVehicle];
+              const pricing = plan.prices[selectedVehicle] || plan.prices.CAR;
               const isPopular = plan.isPopular;
 
               return (

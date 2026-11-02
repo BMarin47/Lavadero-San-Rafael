@@ -1,4 +1,4 @@
-import { sanitizeWhatsAppPhone } from './booking.service';
+import { sanitizeWhatsAppPhone, resolveVehicleDisplayName } from './booking.service';
 
 export interface WhatsAppReminderParams {
   phone: string;
@@ -48,7 +48,7 @@ export function build24hReminderMessage(params: {
 }): string {
   const name = (params.clientName || 'Cliente').trim();
   const time = (params.time || 'tu horario programado').trim();
-  const vehicle = (params.vehicle || 'vehículo').trim();
+  const vehicle = resolveVehicleDisplayName(params.vehicle || 'vehículo');
 
   const lines = [
     `¡Hola ${name}! ${EMOJI_WAVE} Te recordamos que mañana a las ${time} hs tenés un turno en Lavadero San Rafael para tu ${vehicle}. ¡Te esperamos! ${EMOJI_CAR}${EMOJI_SPARKLES}`,

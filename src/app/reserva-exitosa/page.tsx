@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fireSuccessConfetti } from '@/lib/confetti';
+import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
 import {
   CheckCircle2,
   Calendar,
@@ -110,9 +111,10 @@ function ReservaExitosaContent() {
   ];
 
   if (booking) {
+    const displayVehicle = resolveVehicleDisplayName(booking.vehicleSummary || booking.vehicleType);
     lines.push(`\uD83D\uDCC5 *Fecha:* ${booking.appointmentDate}`);
     lines.push(`\u23F0 *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
-    lines.push(`\uD83D\uDE97 *Vehículo:* ${booking.vehicleSummary}`);
+    lines.push(`\uD83D\uDE97 *Vehículo:* ${displayVehicle}`);
     lines.push(`\uD83E\uDDFC *Servicio:* ${booking.serviceDescription}`);
     lines.push(
       `\uD83D\uDCB0 *Total Pagado:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
@@ -272,7 +274,7 @@ function ReservaExitosaContent() {
                 <div>
                   <div className="text-xs text-slate-400 font-semibold">Vehículo y Servicio</div>
                   <div className="font-extrabold text-white mt-0.5">
-                    {booking.vehicleSummary}
+                    {resolveVehicleDisplayName(booking.vehicleSummary || booking.vehicleType)}
                   </div>
                   <div className="text-xs text-slate-300">{booking.serviceDescription}</div>
                 </div>

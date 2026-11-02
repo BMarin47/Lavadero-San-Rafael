@@ -30,12 +30,82 @@ export const PICKUP_SLOTS = [
   { startTime: '16:00', endTime: '19:00' },
 ];
 
+export const LARGE_VEHICLE_SLOTS = [
+  { startTime: '09:00', endTime: '13:00' },
+  { startTime: '16:00', endTime: '20:00' },
+];
+
+export type VehicleCategoryType =
+  | 'CAR'
+  | 'SUV'
+  | 'PICKUP'
+  | 'LARGE_PICKUP'
+  | 'UTILITY';
+
 /**
- * Determina si el tipo de vehículo corresponde a Camioneta (PICKUP) admitiendo
- * cualquiera de los identificadores habituales: 'PICKUP', 'camioneta', 'Camioneta', 'truck', etc.
+ * Determina si el vehículo corresponde a "Trafic / Utilitario" (UTILITY - 4 hs).
+ */
+export function isUtilityVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'utility' ||
+    str === 'trafic' ||
+    str === 'traffic' ||
+    str === 'utilitario' ||
+    str === 'trafic / utilitario' ||
+    str === 'trafic/utilitario' ||
+    str === 'furgon' ||
+    str === 'furgón' ||
+    str === 'combi' ||
+    str === 'van' ||
+    str.includes('trafic') ||
+    str.includes('traffic') ||
+    str.includes('utilitario') ||
+    str.includes('utility') ||
+    str.includes('furgon') ||
+    str.includes('furgón')
+  );
+}
+
+/**
+ * Determina si el vehículo corresponde a "Camioneta Grande" (LARGE_PICKUP - 4 hs).
+ */
+export function isLargePickupVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'large_pickup' ||
+    str === 'large-pickup' ||
+    str === 'largepickup' ||
+    str === 'camioneta grande' ||
+    str === 'camioneta_grande' ||
+    str === 'camioneta-grande' ||
+    str.includes('large_pickup') ||
+    str.includes('large-pickup') ||
+    str.includes('camioneta grande') ||
+    str.includes('camioneta_grande')
+  );
+}
+
+/**
+ * Determina si el vehículo pertenece a las categorías de gran porte (4 horas de lavado):
+ * "Camioneta Grande" (LARGE_PICKUP) o "Trafic / Utilitario" (UTILITY).
+ */
+export function isLargeVehicle(vehicleType?: unknown): boolean {
+  return isLargePickupVehicle(vehicleType) || isUtilityVehicle(vehicleType);
+}
+
+/**
+ * Determina si el tipo de vehículo corresponde a Camioneta estándar (PICKUP - 3 hs) admitiendo
+ * cualquiera de los identificadores habituales: 'PICKUP', 'camioneta', 'Camioneta', 'truck', etc.,
+ * excluyendo "Camioneta Grande" y "Trafic / Utilitario".
  */
 export function isPickupVehicle(vehicleType?: unknown): boolean {
   if (!vehicleType) return false;
+  if (isLargePickupVehicle(vehicleType) || isUtilityVehicle(vehicleType)) {
+    return false;
+  }
   const str = String(vehicleType).trim().toLowerCase();
   return (
     str === 'pickup' ||
@@ -50,14 +120,55 @@ export function isPickupVehicle(vehicleType?: unknown): boolean {
 }
 
 /**
- * Normaliza cualquier variante de ID de vehículo a los tipos estándar ('CAR' | 'SUV' | 'PICKUP').
+ * Normaliza cualquier variante de ID o nombre de vehículo a los tipos estándar:
+ * ('CAR' | 'SUV' | 'PICKUP' | 'LARGE_PICKUP' | 'UTILITY').
  */
-export function normalizeVehicleType(vehicleType?: unknown): 'CAR' | 'SUV' | 'PICKUP' {
+export function normalizeVehicleType(vehicleType?: unknown): VehicleCategoryType {
+  if (isUtilityVehicle(vehicleType)) return 'UTILITY';
+  if (isLargePickupVehicle(vehicleType)) return 'LARGE_PICKUP';
   if (isPickupVehicle(vehicleType)) return 'PICKUP';
   if (!vehicleType) return 'CAR';
   const str = String(vehicleType).trim().toLowerCase();
   if (str === 'suv' || str.includes('suv')) return 'SUV';
   return 'CAR';
+}
+
+/**
+ * Devuelve la duración estimada de lavado en horas según el tipo de vehículo:
+ * - Auto (CAR) / SUV: 2 horas
+ * - Camioneta (PICKUP): 3 horas
+ * - Camioneta Grande (LARGE_PICKUP) / Trafic / Utilitario (UTILITY): 4 horas
+ */
+export function getVehicleDurationHours(vehicleType?: unknown): number {
+  const normalized = normalizeVehicleType(vehicleType);
+  if (normalized === 'LARGE_PICKUP' || normalized === 'UTILITY') return 4;
+  if (normalized === 'PICKUP') return 3;
+  return 2;
+}
+
+/**
+ * Obtiene los bloques horarios correspondientes al tipo de vehículo y día de la semana.
+ */
+export function getAllowedSlotsForVehicle(
+  vehicleType?: unknown,
+  dayOfWeek?: number
+): { startTime: string; endTime: string }[] {
+  const normalized = normalizeVehicleType(vehicleType);
+  const isSaturday = dayOfWeek === 6;
+
+  if (normalized === 'LARGE_PICKUP' || normalized === 'UTILITY') {
+    return isSaturday
+      ? [{ startTime: '09:00', endTime: '13:00' }]
+      : LARGE_VEHICLE_SLOTS;
+  }
+
+  if (normalized === 'PICKUP') {
+    return isSaturday
+      ? [{ startTime: '09:00', endTime: '12:00' }]
+      : PICKUP_SLOTS;
+  }
+
+  return isSaturday ? SATURDAY_SLOTS : WEEKDAY_SLOTS;
 }
 
 /**
@@ -75,6 +186,7 @@ export function timeToMinutes(timeStr: string): number {
  * Soporta formatos comunes:
  * - "09:00 a 11:00"
  * - "09:00 a 12:00 hs"
+ * - "09:00 a 13:00 hs"
  * - "09:00 - 11:00"
  * - "09:00" (si solo viene una hora, usa fallbackDurationMinutes, ej: 120 min)
  */
@@ -104,10 +216,9 @@ export function parseTimeInterval(
  *
  * Ejemplos:
  * - "09:00 a 11:00" y "09:00 a 12:00" -> true (se solapan)
- * - "11:00 a 13:00" y "09:00 a 12:00" -> true (se solapan entre 11:00 y 12:00)
+ * - "09:00 a 13:00" y "11:00 a 13:00" -> true (se solapan)
+ * - "16:00 a 20:00" y "18:00 a 21:00" -> true (se solapan)
  * - "09:00 a 11:00" y "11:00 a 13:00" -> false (son contiguos, no solapan)
- * - "16:00 a 19:00" y "18:00 a 21:00" -> true (se solapan entre 18:00 y 19:00)
- * - "16:00 a 18:00" y "16:00 a 19:00" -> true (se solapan)
  */
 export function areTimeSlotsOverlapping(
   slotA: string,
@@ -165,13 +276,7 @@ export class ScheduleService {
     }
 
     // 3. Obtener bloques según tipo de vehículo y día (L-V o Sábado)
-    const isPickup = isPickupVehicle(vehicleType);
-
-    const allowedSlots = isPickup
-      ? (dayOfWeek === 6 ? [{ startTime: '09:00', endTime: '12:00' }] : PICKUP_SLOTS)
-      : dayOfWeek === 6
-      ? SATURDAY_SLOTS
-      : WEEKDAY_SLOTS;
+    const allowedSlots = getAllowedSlotsForVehicle(vehicleType, dayOfWeek);
 
     // 4. Consultar turnos ya reservados en la base de datos
     // Rango normalizado para San Rafael (UTC-3) tolerante a marcas UTC y locales
@@ -208,6 +313,8 @@ export class ScheduleService {
         const id = app.id || `app_${app.startTime}_${app.endTime}`;
         const timeStr = app.endTime
           ? `${app.startTime} a ${app.endTime}`
+          : isLargeVehicle(app.vehicle?.vehicleType)
+          ? `${app.startTime} a ${app.startTime === '09:00' ? '13:00' : '20:00'}`
           : isPickupVehicle(app.vehicle?.vehicleType)
           ? `${app.startTime} a ${app.startTime === '09:00' ? '12:00' : '19:00'}`
           : `${app.startTime} a ${

@@ -4,12 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SlotAvailability,
-  PICKUP_SLOTS,
-  WEEKDAY_SLOTS,
   MAX_CAPACITY_PER_SLOT,
-  isPickupVehicle,
   normalizeVehicleType,
   areTimeSlotsOverlapping,
+  getAllowedSlotsForVehicle,
+  getVehicleDurationHours,
 } from '@/lib/services/schedule.service';
 import type { VehicleType } from '@/components/VehicleSelector';
 import { Clock, Calendar, AlertCircle } from 'lucide-react';
@@ -69,75 +68,53 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   const [reasonClosed, setReasonClosed] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotAvailability[]>([]);
 
+  const durationHours = getVehicleDurationHours(vehicleType);
+
   // Determinar los horarios disponibles condicionalmente según el tipo de vehículo seleccionado:
-  // - Si el vehículo es "Camioneta" (PICKUP), los únicos turnos disponibles son de 3 horas: "09:00 a 12:00" y "16:00 a 19:00".
-  // - Si el vehículo es "Auto" (CAR) o "SUV", se mantiene exactamente el array original de horarios de 2 horas.
-  // En ambos casos, se asegura validación bidireccional de solapamiento cruzado (Time Overlap).
+  // - "Auto" (CAR) / "SUV": turnos de 2 horas
+  // - "Camioneta" (PICKUP): turnos de 3 horas ("09:00 a 12:00" y "16:00 a 19:00")
+  // - "Camioneta Grande" (LARGE_PICKUP) / "Trafic / Utilitario" (UTILITY): turnos de 4 horas ("09:00 a 13:00" y "16:00 a 20:00")
+  // En todos los casos se asegura validación bidireccional de solapamiento cruzado (Time Overlap).
   const displayedSlots = React.useMemo<SlotAvailability[]>(() => {
-    const isPickup = isPickupVehicle(vehicleType);
-
-    if (isPickup) {
-      // Para camionetas:
-      // 1. Si la API ya trajo los turnos de 3 horas, utilizarlos directamente
-      const apiPickupSlots = slots.filter(
-        (s) =>
-          (s.startTime === '09:00' && s.endTime === '12:00') ||
-          (s.startTime === '16:00' && s.endTime === '19:00')
-      );
-
-      if (apiPickupSlots.length > 0) {
-        return apiPickupSlots;
-      }
-
-      // 2. Si todavía no llegaron de la API o la API trajo los de auto, proyectar de inmediato PICKUP_SLOTS
-      // y verificar si algún turno ocupado en 'slots' se solapa con el turno de camioneta
-      return PICKUP_SLOTS.map((pickupSlot) => {
-        const pickupStr = `${pickupSlot.startTime} a ${pickupSlot.endTime}`;
-        const hasOverlapConflict = slots.some(
-          (s) => !s.isAvailable && areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, pickupStr)
-        );
-        return {
-          startTime: pickupSlot.startTime,
-          endTime: pickupSlot.endTime,
-          totalCapacity: MAX_CAPACITY_PER_SLOT,
-          bookedCount: hasOverlapConflict ? 1 : 0,
-          remainingCapacity: hasOverlapConflict ? 0 : MAX_CAPACITY_PER_SLOT,
-          isAvailable: !hasOverlapConflict,
-        };
-      });
+    let dayOfWeek: number | undefined = undefined;
+    if (selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+      const parts = selectedDate.split('-').map(Number);
+      const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+      dayOfWeek = dateObj.getUTCDay();
     }
 
-    // Para autos o SUVs:
-    // 1. Si la API trajo turnos regulares de auto, utilizarlos directamente
-    const regularSlots = slots.filter(
-      (s) =>
-        !(
-          (s.startTime === '09:00' && s.endTime === '12:00') ||
-          (s.startTime === '16:00' && s.endTime === '19:00')
-        )
+    const expectedSlots = getAllowedSlotsForVehicle(vehicleType, dayOfWeek);
+
+    // 1. Si la API ya trajo los turnos que corresponden a esta categoría, usarlos directamente
+    const apiMatchingSlots = slots.filter((s) =>
+      expectedSlots.some(
+        (exp) => exp.startTime === s.startTime && exp.endTime === s.endTime
+      )
     );
 
-    if (regularSlots.length > 0) {
-      return regularSlots;
+    if (apiMatchingSlots.length === expectedSlots.length && apiMatchingSlots.length > 0) {
+      return apiMatchingSlots;
     }
 
-    // 2. Si 'slots' contiene turnos de camioneta (por cambio de categoría reciente), proyectar WEEKDAY_SLOTS
-    // y verificar si algún turno de camioneta no disponible se solapa con el turno de auto
-    return WEEKDAY_SLOTS.map((autoSlot) => {
-      const autoStr = `${autoSlot.startTime} a ${autoSlot.endTime}`;
+    // 2. Si todavía no llegaron de la API o hubo un cambio de categoría inmediato,
+    // proyectar los bloques correspondientes y validar solapamiento cruzado con 'slots'
+    return expectedSlots.map((targetSlot) => {
+      const targetStr = `${targetSlot.startTime} a ${targetSlot.endTime}`;
       const hasOverlapConflict = slots.some(
-        (s) => !s.isAvailable && areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, autoStr)
+        (s) =>
+          !s.isAvailable &&
+          areTimeSlotsOverlapping(`${s.startTime} a ${s.endTime}`, targetStr)
       );
       return {
-        startTime: autoSlot.startTime,
-        endTime: autoSlot.endTime,
+        startTime: targetSlot.startTime,
+        endTime: targetSlot.endTime,
         totalCapacity: MAX_CAPACITY_PER_SLOT,
         bookedCount: hasOverlapConflict ? 1 : 0,
         remainingCapacity: hasOverlapConflict ? 0 : MAX_CAPACITY_PER_SLOT,
         isAvailable: !hasOverlapConflict,
       };
     });
-  }, [slots, vehicleType]);
+  }, [slots, vehicleType, selectedDate]);
 
   // Generar los próximos 8 días a partir de hoy
   const nextDays = React.useMemo(() => {
@@ -202,8 +179,6 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       } else {
         setIsOpen(true);
         setSlots(data?.slots || []);
-        // No auto-seleccionar turno aquí: el usuario debe hacer clic en su horario preferido
-        // para disparar el auto-avance fluido al Paso 3.
       }
     } catch (err: any) {
       setFetchError('No fue posible conectar con el servicio de disponibilidad. Por favor, reintentá.');
@@ -224,8 +199,10 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       onSlotChange(null);
       return;
     }
-    const matched = displayedSlots.find((s) => s.startTime === selectedSlot.startTime);
-    if (matched && !matched.isAvailable) {
+    const matched = displayedSlots.find(
+      (s) => s.startTime === selectedSlot.startTime && s.endTime === selectedSlot.endTime
+    );
+    if (!matched || !matched.isAvailable) {
       onSlotChange(null);
     }
   }, [selectedDate, selectedSlot, displayedSlots, onSlotChange]);
@@ -386,7 +363,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                       <Clock className="w-3 h-3 text-cyan-400" />
-                      <span>Horarios Disponibles</span>
+                      <span>Horarios Disponibles ({durationHours} hs)</span>
                     </span>
                     <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block" />
@@ -435,7 +412,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                               {slot.startTime} a {slot.endTime}
                             </div>
                             <div className="text-[10px] text-slate-400 truncate">
-                              {isPast ? 'Transcurrido' : slot.isAvailable ? '1 cupo disponible' : 'Agotado'}
+                              {isPast ? 'Transcurrido' : slot.isAvailable ? `1 cupo (${durationHours} hs)` : 'Agotado'}
                             </div>
                           </div>
 
@@ -478,7 +455,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
               Fecha y Horario de Atención
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Seleccioná el día y bloque horario para tu reserva
+              Seleccioná el día y bloque horario para tu reserva (duración est. {durationHours} hs)
             </p>
           </div>
         </div>
@@ -617,7 +594,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
-                    Turnos Disponibles
+                    Turnos Disponibles ({durationHours} horas)
                   </label>
                   <span className="text-[11px] text-slate-400 font-medium">Actualización automática</span>
                 </div>
@@ -669,7 +646,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                             {isPast
                               ? 'No disponible (horario ya transcurrido)'
                               : slot.isAvailable
-                              ? '1 cupo disponible'
+                              ? `1 cupo disponible (${durationHours} hs)`
                               : 'Agotado'}
                           </div>
                         </div>

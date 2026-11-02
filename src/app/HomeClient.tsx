@@ -15,9 +15,10 @@ import {
   VEHICLE_CONFIG,
 } from '@/components/VehicleSelector';
 import {
-  isPickupVehicle,
+  getAllowedSlotsForVehicle,
   normalizeVehicleType,
 } from '@/lib/services/schedule.service';
+import { BookingFormValidationSchema } from '@/lib/validations/booking.schema';
 import type {
   ServiceMode,
   PlanCode,
@@ -163,14 +164,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
   // Si cambia el tipo de vehículo y el turno elegido no corresponde a la categoría, limpiarlo
   useEffect(() => {
     if (!selectedSlot) return;
-    const isPickup = isPickupVehicle(vehicleType);
-    const isPickupSlot =
-      (selectedSlot.startTime === '09:00' && selectedSlot.endTime === '12:00') ||
-      (selectedSlot.startTime === '16:00' && selectedSlot.endTime === '19:00');
+    const allowedSlots = getAllowedSlotsForVehicle(vehicleType);
+    const isSlotValidForCategory = allowedSlots.some(
+      (s) => s.startTime === selectedSlot.startTime && s.endTime === selectedSlot.endTime
+    );
 
-    if (isPickup && !isPickupSlot) {
-      setSelectedSlot(null);
-    } else if (!isPickup && isPickupSlot) {
+    if (!isSlotValidForCategory) {
       setSelectedSlot(null);
     }
   }, [vehicleType, selectedSlot]);
@@ -222,7 +221,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       const saved = localStorage.getItem('lavadero_draft_booking');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
+        if (parsed.vehicleType) setVehicleType(normalizeVehicleType(parsed.vehicleType));
         if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
         if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot);
         if (parsed.phone && !phone) setPhone(parsed.phone);
@@ -430,6 +429,23 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
     if (!phone.trim() || rawPhoneDigits.length < 6) {
       setOpenSection('contact');
       showToast('WhatsApp requerido', 'Por favor ingresá un número de WhatsApp celular válido.', 'warning');
+      return;
+    }
+
+    const validationResult = BookingFormValidationSchema.safeParse({
+      vehicleType,
+      selectedDate,
+      selectedSlot,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: (user?.email || userEmail || 'cliente@lavadero.com').trim(),
+      notes: notes.trim(),
+      paymentMethod,
+    });
+
+    if (!validationResult.success) {
+      const firstIssue = validationResult.error.issues[0];
+      showToast('Datos inválidos', firstIssue?.message || 'Por favor revisá los datos ingresados.', 'warning');
       return;
     }
 

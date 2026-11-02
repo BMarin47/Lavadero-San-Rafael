@@ -26,6 +26,8 @@ export const PLANS_CATALOG: PlanDetail[] = [
       CAR: { price: 38000, orig: 44000 },
       SUV: { price: 45500, orig: 53000 },
       PICKUP: { price: 55000, orig: 64000 },
+      LARGE_PICKUP: { price: 65500, orig: 76000 },
+      UTILITY: { price: 77500, orig: 90000 },
     },
     features: [
       '2 lavados completos al mes',
@@ -41,6 +43,8 @@ export const PLANS_CATALOG: PlanDetail[] = [
       CAR: { price: 56000, orig: 66000 },
       SUV: { price: 67500, orig: 79500 },
       PICKUP: { price: 81500, orig: 96000 },
+      LARGE_PICKUP: { price: 97000, orig: 114000 },
+      UTILITY: { price: 115000, orig: 135000 },
     },
     features: [
       '3 lavados completos al mes',
@@ -59,6 +63,8 @@ export const PLANS_CATALOG: PlanDetail[] = [
       CAR: { price: 75000, orig: 88000 },
       SUV: { price: 90000, orig: 106000 },
       PICKUP: { price: 109000, orig: 128000 },
+      LARGE_PICKUP: { price: 129000, orig: 152000 },
+      UTILITY: { price: 153000, orig: 180000 },
     },
     features: [
       '4 lavados completos al mes',
@@ -93,7 +99,7 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
   deliveryAddress,
   onDeliveryAddressChange,
 }) => {
-  const currentVeh = VEHICLE_CONFIG[vehicleType];
+  const currentVeh = VEHICLE_CONFIG[vehicleType] || VEHICLE_CONFIG.CAR;
 
   return (
     <div className="luxury-glass rounded-3xl p-6 sm:p-8 space-y-7 transition-all duration-300">
@@ -141,11 +147,13 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
           }`}
         >
           <span>Suscripción Mensual</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border transition-colors ${
-            mode === 'SUBSCRIPTION'
-              ? 'bg-slate-950/30 text-slate-950 border-slate-950/20'
-              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-          }`}>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black border transition-colors ${
+              mode === 'SUBSCRIPTION'
+                ? 'bg-slate-950/30 text-slate-950 border-slate-950/20'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+            }`}
+          >
             -15% OFF
           </span>
         </button>
@@ -157,7 +165,7 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.07] pb-5">
             <div>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-black uppercase tracking-wider mb-2">
-                Tratamiento Detailing
+                Tratamiento Detailing ({currentVeh.durationHours} hs est.)
               </span>
               <h3 className="font-black text-lg sm:text-xl text-white">
                 Lavado Completo ({currentVeh.label})
@@ -220,7 +228,7 @@ export const ServiceModeSelector: React.FC<ServiceModeSelectorProps> = ({
           <div className="space-y-3.5">
             {PLANS_CATALOG.map((plan) => {
               const isSelected = selectedPlan === plan.code;
-              const pricing = plan.prices[vehicleType];
+              const pricing = plan.prices[vehicleType] || plan.prices.CAR;
 
               return (
                 <label

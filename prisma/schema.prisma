@@ -25,7 +25,7 @@ model Vehicle {
   id            String             @id @default(uuid())
   userId        String
   user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicleType   String             // "CAR", "SUV", "PICKUP"
+  vehicleType   String             // "CAR", "SUV", "PICKUP", "LARGE_PICKUP", "UTILITY"
   brand         String
   model         String
   color         String?
@@ -38,7 +38,7 @@ model SubscriptionPlan {
   id                            String             @id @default(uuid())
   code                          String             // "PLATA", "ORO", "PLATINO"
   name                          String
-  vehicleType                   String             // "CAR", "SUV", "PICKUP"
+  vehicleType                   String             // "CAR", "SUV", "PICKUP", "LARGE_PICKUP", "UTILITY"
   monthlyPrice                  Float
   washesPerMonth                Int
   includesQuickWax              Boolean            @default(false)

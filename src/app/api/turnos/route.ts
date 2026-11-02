@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
+import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
 import { ScheduleService, normalizeVehicleType, areTimeSlotsOverlapping } from '@/lib/services/schedule.service';
+import { VehicleCategorySchema } from '@/lib/validations/booking.schema';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { Pool } from 'pg';
@@ -123,8 +125,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const clientName = String(body.nombre_cliente || body.client_name || '').trim();
-    const vehicleDetails = String(body.vehiculo || body.vehicle_details || '').trim();
-    const serviceType = String(body.categoria || body.service_type || '').trim();
+    const normalizedCategory = VehicleCategorySchema.catch('CAR').parse(
+      body.categoria || body.vehicleType || body.vehiculo || 'CAR'
+    );
+    const rawVehicleDetails = String(body.vehiculo || body.vehicle_details || '').trim();
+    const vehicleDetails = resolveVehicleDisplayName(rawVehicleDetails || normalizedCategory);
+    const serviceType = String(body.categoria ? (body.service_type || 'Lavado Completo Individual') : (body.service_type || body.categoria || '')).trim();
     const numPrice = Number(body.precio ?? body.price ?? 0);
     const notesText = body.indicaciones || body.notes ? String(body.indicaciones || body.notes).trim() : null;
     const bookingDate = String(body.date || body.appointmentDate || new Date().toISOString().split('T')[0]);
@@ -401,7 +407,7 @@ export async function POST(request: Request) {
           userFullName: clientName,
           userEmail: effectiveEmail,
           userPhone: effectivePhone,
-          vehicleType: body.categoria || 'CAR',
+          vehicleType: normalizedCategory,
           vehicleSummary: vehicleDetails,
           appointmentDate: bookingDate,
           startTime: bookingTime,

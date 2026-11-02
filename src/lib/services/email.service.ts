@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
-import { sanitizeWhatsAppPhone } from './booking.service';
+import { sanitizeWhatsAppPhone, resolveVehicleDisplayName } from './booking.service';
+import { normalizeVehicleType } from './schedule.service';
 
 export interface CancellationEmailParams {
   bookingId: string;
@@ -221,18 +222,24 @@ export class EmailService {
     const clientName = params.userFullName?.trim() || 'Cliente';
     const clientEmail = (params.userEmail || 'No proporcionado').trim();
     const clientPhone = (params.userPhone || 'No proporcionado').trim();
-    const vehicleText =
+    const rawVehicleText =
       params.vehicleSummary?.trim() ||
       `${params.vehicleBrand || ''} ${params.vehicleModel || ''}`.trim() ||
+      params.vehicleType ||
       'Vehículo';
+    const vehicleText = resolveVehicleDisplayName(rawVehicleText);
 
     const categoryMap: Record<string, string> = {
-      CAR: 'Auto (Hatchback / Sedán)',
-      SUV: 'SUV / Monovolumen',
-      PICKUP: 'Camioneta / Utilitario',
+      CAR: 'Auto (Hatchback / Sedán • 2 hs)',
+      SUV: 'SUV (Cross / Monovolumen • 2 hs)',
+      PICKUP: 'Camioneta (Pick-up Estándar • 3 hs)',
+      LARGE_PICKUP: 'Camioneta Grande (RAM / F-150 / Full-Size • 4 hs)',
+      UTILITY: 'Trafic / Utilitario (Furgón / Combi / Van • 4 hs)',
     };
+    const normalizedCat = params.vehicleType ? normalizeVehicleType(params.vehicleType) : undefined;
     const categoryLabel =
       (params.vehicleType && categoryMap[params.vehicleType]) ||
+      (normalizedCat && categoryMap[normalizedCat]) ||
       params.vehicleType ||
       'Auto';
 
@@ -557,8 +564,8 @@ export class EmailService {
     const clientName = params.clientName?.trim() || 'Cliente';
     const clientEmail = params.clientEmail?.trim() || '';
     const clientPhone = params.clientPhone?.trim() || 'No proporcionado';
-    const vehicle = params.vehicle?.trim() || 'Vehículo';
-    const category = params.category?.trim() || 'General';
+    const vehicle = resolveVehicleDisplayName(params.vehicle?.trim() || 'Vehículo');
+    const category = resolveVehicleDisplayName(params.category?.trim() || 'General');
     const service = params.service?.trim() || 'Lavado Completo';
     const date = params.date?.trim() || 'Por coordinar';
     const time = params.time?.trim() || 'Por coordinar';
@@ -869,7 +876,7 @@ export class EmailService {
       const resend = new Resend(apiKey);
       const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'Lavadero San Rafael <onboarding@resend.dev>';
       const clientName = params.clientName?.trim() || 'Estimado/a cliente';
-      const vehicle = params.vehicle?.trim() || 'Vehículo';
+      const vehicle = resolveVehicleDisplayName(params.vehicle?.trim() || 'Vehículo');
       const date = params.date?.trim() || 'Fecha programada';
       const time = params.time?.trim() || 'Horario programado';
       const service = params.service?.trim() || 'Lavado Detailing';
