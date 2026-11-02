@@ -4,10 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function updateSession(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // 1. NUNCA interceptar ni mutar cookies en /auth/callback dentro del middleware.
+  // 1. NUNCA interceptar ni mutar cookies en /auth/callback ni en la página pública /qr dentro del middleware.
   // La ruta /auth/callback necesita leer intacta la cookie PKCE (sb-*-auth-token-code-verifier)
   // y realizar el exchangeCodeForSession sin interferencia previa.
-  if (pathname.startsWith('/auth/callback')) {
+  if (pathname.startsWith('/auth/callback') || pathname === '/qr' || pathname.startsWith('/qr/')) {
     return NextResponse.next({
       request,
     });
