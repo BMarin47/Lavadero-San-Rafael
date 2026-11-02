@@ -80,10 +80,10 @@ export default function QRPage() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-extrabold uppercase tracking-widest mb-1.5 print:bg-slate-100 print:text-slate-800 print:border-slate-300">
                 <Sparkles className="w-3 h-3" />
-                <span>Lavadero San Rafael</span>
+                <span>Turnos Online</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white print:text-slate-950">
-                AquaShine San Rafael
+                Lavadero San Rafael
               </h1>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 print:text-slate-600">
                 Detailing &amp; Lavado Vehicular
