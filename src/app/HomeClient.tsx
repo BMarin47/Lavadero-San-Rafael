@@ -480,6 +480,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         serviceMode === 'INDIVIDUAL'
           ? 'Lavado Completo Individual'
           : `Suscripción Mensual ${selectedPlan}`;
+      const serviceDescriptionWithPayment =
+        paymentMethod === 'CASH'
+          ? `${serviceDescription} (Pago: Efectivo o transferencia)`
+          : serviceDescription;
 
       // Formateo de notas e indicaciones con fecha y franja horaria
       const indicacionesTexto = notes.trim()
@@ -502,7 +506,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           body: JSON.stringify({
             user_id: activeUser.id,
             vehicle_details: vehicleSummaryDisplay,
-            service_type: serviceDescription,
+            service_type: serviceDescriptionWithPayment,
             date: selectedDate,
             time: `${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
             startTime: selectedSlot.startTime,
@@ -518,6 +522,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             categoria: vehicleType,
             precio: currentTotal,
             indicaciones: indicacionesTexto,
+            paymentMethod,
           }),
         });
 
@@ -608,11 +613,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 appointmentDate: selectedDate,
                 startTime: selectedSlot.startTime,
                 endTime: selectedSlot.endTime,
-                serviceDescription: `${serviceDescription} (Pago: Efectivo o transferencia en taller)`,
+                serviceDescription: `${serviceDescription} (Pago: Efectivo o transferencia)`,
+                paymentMethod: 'CASH',
                 amount: currentTotal,
                 notes: notes.trim()
-                  ? `${notes.trim()} (Pago en efectivo en el local)`
-                  : 'Pago en efectivo en el local',
+                  ? `${notes.trim()} (Pago: Efectivo o transferencia)`
+                  : 'Pago: Efectivo o transferencia',
               }),
             });
 
@@ -627,27 +633,26 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
 
         // 2. Armar mensaje de WhatsApp y redirigir directamente
         const lines = [
-          `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
-          'Quiero confirmar mi reserva de turno con *Pago en Efectivo o Transferencia en taller*:',
+          '¡Hola Lavadero San Rafael! 👋',
+          'Quiero confirmar mi reserva de turno con *Pago en Efectivo o transferencia*:',
           '',
-          `\uD83D\uDCC5 *Fecha:* ${selectedDate}`,
-          `\u23F0 *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-          `\uD83D\uDE97 *Vehículo:* ${vehicleSummaryDisplay}`,
-          `\uD83E\uDDFC *Servicio:* ${serviceDescription}`,
-          `\uD83D\uDCB0 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia en taller - 5% OFF)`,
-          `\uD83D\uDC64 *Cliente:* ${fullName.trim()}`,
-          `\uD83D\uDCF1 *Teléfono:* ${fullUserPhone}`,
-          `\uD83D\uDCE7 *Email:* ${effectiveEmail}`,
+          `📅 *Fecha:* ${selectedDate}`,
+          `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+          `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
+          `🧼 *Servicio:* ${serviceDescription}`,
+          `💰 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia - 5% OFF)`,
+          `👤 *Cliente:* ${fullName.trim()}`,
+          `📱 *Teléfono:* ${fullUserPhone}`,
+          `📧 *Email:* ${effectiveEmail}`,
         ];
 
         if (notes.trim()) {
-          lines.push(`\uD83D\uDCDD *Indicaciones:* ${notes.trim()}`);
+          lines.push(`📝 *Indicaciones:* ${notes.trim()}`);
         }
 
         lines.push('', '¡Muchas gracias! Aguardo confirmación del turno.');
-        const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(
-          lines.join('\n')
-        )}`;
+        const mensaje = lines.join('\n');
+        const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(mensaje)}`;
 
         showToast(
           '¡Reserva confirmada!',
@@ -968,7 +973,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     Pago No Procesado
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    El pago no pudo ser completado en Mercado Pago. Podés reintentar abonar online o elegir la opción de pago en efectivo en el taller.
+                    El pago no pudo ser completado en Mercado Pago. Podés reintentar abonar online o elegir la opción de pago en efectivo o transferencia.
                   </p>
                 </div>
               </>
@@ -1642,7 +1647,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                   </span>
                 </motion.button>
 
-                {/* Efectivo o transferencia en taller */}
+                {/* Efectivo o transferencia */}
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.01 }}
@@ -1658,7 +1663,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                     <span className="text-2xl select-none leading-none">💵</span>
                     <div className="text-sm sm:text-base font-extrabold text-white leading-tight text-left">
                       <div>Efectivo o</div>
-                      <div>transferencia en taller</div>
+                      <div>transferencia</div>
                     </div>
                   </div>
                   <span className="px-3.5 py-1.5 rounded-full font-black text-xs uppercase tracking-wider bg-[#10b981] text-slate-950 shadow-sm shrink-0">
@@ -1759,7 +1764,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 {paymentMethod === 'MERCADO_PAGO' ? (
                   <>🔒 Checkout Pro seguro. Guarda tu turno y te redirige a abonar online.</>
                 ) : (
-                  <>💵 Abonás en taller (efectivo o transferencia) con <strong>5% de descuento</strong>. Guarda tu turno, alerta por email y abre <strong>WhatsApp</strong>.</>
+                  <>💵 Abonás con <strong>Efectivo o transferencia</strong> (<strong>5% de descuento</strong>). Guarda tu turno, alerta por email y abre <strong>WhatsApp</strong>.</>
                 )}
               </p>
             </div>

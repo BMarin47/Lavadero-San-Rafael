@@ -253,6 +253,16 @@ export class EmailService {
       ? `${params.startTime} a ${params.endTime} hs`
       : params.startTime;
 
+    const paymentLabel =
+      params.paymentMethod === 'MERCADO_PAGO' ||
+      String(params.serviceDescription || '').toLowerCase().includes('mercado pago')
+        ? 'Mercado Pago (Online)'
+        : params.paymentMethod === 'CASH' ||
+          String(params.serviceDescription || '').toLowerCase().includes('efectivo') ||
+          String(params.notes || '').toLowerCase().includes('efectivo')
+        ? 'Efectivo o transferencia'
+        : params.paymentMethod || '';
+
     const cleanCustomerDigits = sanitizeWhatsAppPhone(clientPhone);
 
     console.log('[EmailService][Confirmación] Preparando envío de correo de reserva...', {
@@ -362,6 +372,15 @@ export class EmailService {
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Horario de atención:</td>
                   <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">⏰ ${timeRange}</td>
                 </tr>
+                ${
+                  paymentLabel
+                    ? `
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Método de pago:</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #34d399; text-align: right; font-weight: 700;">💳 ${paymentLabel}</td>
+                </tr>`
+                    : ''
+                }
                 ${
                   params.homeDelivery && params.deliveryAddress
                     ? `

@@ -15,7 +15,13 @@ export type PlanCode = 'PLATA' | 'ORO' | 'PLATINO';
 export type ServiceMode = 'INDIVIDUAL' | 'SUBSCRIPTION';
 
 export const BRAND_CONFIG = {
-  name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || 'Lavadero San Rafael',
+  name: (() => {
+    const raw = process.env.NEXT_PUBLIC_BRAND_NAME?.trim();
+    if (!raw || raw.toLowerCase().includes('aquashine')) {
+      return 'Lavadero San Rafael';
+    }
+    return raw;
+  })(),
   shortName: 'Lavadero',
   city: 'San Rafael',
   province: 'Mendoza',

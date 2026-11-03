@@ -115,6 +115,7 @@ export async function POST(request: Request) {
       endTime: endTime || '',
       serviceDescription:
         serviceDescription || body.service_type || 'Lavado Completo',
+      paymentMethod: body.paymentMethod || body.metodo_pago,
       amount: amount ?? body.precio ?? body.price ?? 0,
       homeDelivery: Boolean(homeDelivery),
       deliveryAddress: deliveryAddress || '',

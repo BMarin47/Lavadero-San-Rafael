@@ -189,7 +189,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </span>
             </div>
             <div className="text-sm sm:text-base font-extrabold text-white group-hover:text-emerald-300 transition-colors">
-              Efectivo o transferencia en taller
+              Efectivo o transferencia
             </div>
             <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
               Abonás de forma presencial o transferencia al entregar tu vehículo (5% de descuento)

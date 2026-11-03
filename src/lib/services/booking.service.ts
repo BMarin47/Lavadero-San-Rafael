@@ -117,6 +117,8 @@ export function generateWhatsAppBookingUrl(params: {
   amount: number;
   userName: string;
   userPhone: string;
+  userEmail?: string;
+  notes?: string;
   homeDelivery?: boolean;
   deliveryAddress?: string;
 }): string {
@@ -126,7 +128,7 @@ export function generateWhatsAppBookingUrl(params: {
   const paymentText =
     params.paymentMethod === 'MERCADO_PAGO'
       ? 'Mercado Pago (Online)'
-      : 'Efectivo en el lavadero (Presencial)';
+      : 'Efectivo o transferencia';
 
   const vehicleDisplay = resolveVehicleDisplayName(
     params.vehicleType,
@@ -134,25 +136,34 @@ export function generateWhatsAppBookingUrl(params: {
   );
 
   const lines = [
-    `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
+    '¡Hola Lavadero San Rafael! 👋',
     'Acabo de confirmar una reserva a través de la Web App:',
     '',
-    `\uD83D\uDCC5 *Fecha:* ${params.appointmentDate}`,
-    `\u23F0 *Horario:* ${params.startTime} a ${params.endTime} hs`,
-    `\uD83D\uDE97 *Vehículo:* ${vehicleDisplay}`,
-    `\uD83E\uDDFC *Servicio:* ${params.serviceDescription}`,
-    `\uD83D\uDCB0 *Método de Pago:* ${paymentText} ($${params.amount.toLocaleString('es-AR')})`,
-    `\uD83D\uDC64 *Cliente:* ${params.userName} (${params.userPhone})`,
+    `📅 *Fecha:* ${params.appointmentDate}`,
+    `⏰ *Horario:* ${params.startTime} a ${params.endTime} hs`,
+    `🚗 *Vehículo:* ${vehicleDisplay}`,
+    `🧼 *Servicio:* ${params.serviceDescription}`,
+    `💰 *Total a Abonar:* $${params.amount.toLocaleString('es-AR')} ARS (${paymentText})`,
+    `👤 *Cliente:* ${params.userName}`,
+    `📱 *Teléfono:* ${params.userPhone}`,
   ];
 
+  if (params.userEmail) {
+    lines.push(`📧 *Email:* ${params.userEmail}`);
+  }
+
   if (params.homeDelivery && params.deliveryAddress) {
-    lines.push(`\uD83D\uDE9A *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
+    lines.push(`🚚 *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
+  }
+
+  if (params.notes && params.notes.trim()) {
+    lines.push(`📝 *Indicaciones:* ${params.notes.trim()}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo la recepción del vehículo.');
 
-  const encodedMessage = encodeURIComponent(lines.join('\n'));
-  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  const mensaje = lines.join('\n');
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensaje)}`;
 }
 
 /**
@@ -173,17 +184,17 @@ export function generateWhatsAppCancellationUrl(params: {
   const vehicleDisplay = resolveVehicleDisplayName(params.vehicle);
 
   const lines = [
-    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *${BRAND_CONFIG.name}* \uD83D\uDE97\u2728`,
+    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *${BRAND_CONFIG.name}* 🚗✨`,
     '',
     'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
     '',
-    `\uD83D\uDE97 *Vehículo:* ${vehicleDisplay}`,
-    `\uD83D\uDCC5 *Fecha:* ${params.date || '-'}`,
-    `\u23F0 *Horario:* ${params.time || '-'}`,
+    `🚗 *Vehículo:* ${vehicleDisplay}`,
+    `📅 *Fecha:* ${params.date || '-'}`,
+    `⏰ *Horario:* ${params.time || '-'}`,
   ];
 
   if (params.reason) {
-    lines.push(`\uD83D\uDCDD *Motivo:* ${params.reason}`);
+    lines.push(`📝 *Motivo:* ${params.reason}`);
   }
 
   lines.push(
@@ -415,6 +426,8 @@ export class BookingService {
         amount: finalPrice,
         userName: dto.userFullName,
         userPhone: dto.userPhone,
+        userEmail: dto.userEmail,
+        notes: dto.notes,
         homeDelivery: dto.homeDeliveryRequested,
         deliveryAddress: dto.deliveryAddress,
       });

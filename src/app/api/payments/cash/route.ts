@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Cobro presencial en efectivo registrado exitosamente en caja.',
+      message: 'Cobro (Efectivo o transferencia) registrado exitosamente en caja.',
     });
   } catch (error: any) {
     console.error('[Cash Payment Error]:', error);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aquashine-pwa-v4';
+const CACHE_NAME = 'lavadero-san-rafael-pwa-v5';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192x192.png',

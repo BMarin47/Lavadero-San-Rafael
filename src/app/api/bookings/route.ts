@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message:
           body.paymentMethod === 'CASH'
-            ? '¡Turno confirmado con éxito! Abonarás en efectivo en el taller al entregar tu vehículo.'
+            ? '¡Turno confirmado con éxito! Abonarás con Efectivo o transferencia al entregar tu vehículo.'
             : result.mpCheckoutUrl
             ? 'Turno reservado temporalmente. Procede al pago con Mercado Pago para asegurar tu lugar.'
             : '¡Turno confirmado exitosamente!',

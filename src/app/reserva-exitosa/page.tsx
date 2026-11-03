@@ -106,41 +106,40 @@ function ReservaExitosaContent() {
   // Construir mensaje de WhatsApp con los datos del turno
   const staticLavaderoPhone = BRAND_CONFIG.whatsappNumber;
   const lines = [
-    `¡Hola ${BRAND_CONFIG.name}! \uD83D\uDC4B`,
+    '¡Hola Lavadero San Rafael! 👋',
     'Acabo de abonar mi reserva en Mercado Pago y confirmo mi turno:',
     '',
   ];
 
   if (booking) {
     const displayVehicle = resolveVehicleDisplayName(booking.vehicleSummary || booking.vehicleType);
-    lines.push(`\uD83D\uDCC5 *Fecha:* ${booking.appointmentDate}`);
-    lines.push(`\u23F0 *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
-    lines.push(`\uD83D\uDE97 *Vehículo:* ${displayVehicle}`);
-    lines.push(`\uD83E\uDDFC *Servicio:* ${booking.serviceDescription}`);
+    lines.push(`📅 *Fecha:* ${booking.appointmentDate}`);
+    lines.push(`⏰ *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
+    lines.push(`🚗 *Vehículo:* ${displayVehicle}`);
+    lines.push(`🧼 *Servicio:* ${booking.serviceDescription}`);
     lines.push(
-      `\uD83D\uDCB0 *Total Pagado:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
+      `💰 *Total a Abonar:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
     );
-    lines.push(`\uD83D\uDC64 *Cliente:* ${booking.clientName}`);
-    lines.push(`\uD83D\uDCF1 *Teléfono:* ${booking.clientPhone}`);
-    lines.push(`\uD83D\uDCE7 *Email:* ${booking.clientEmail}`);
+    lines.push(`👤 *Cliente:* ${booking.clientName}`);
+    lines.push(`📱 *Teléfono:* ${booking.clientPhone}`);
+    lines.push(`📧 *Email:* ${booking.clientEmail}`);
 
     if (booking.homeDelivery && booking.deliveryAddress) {
-      lines.push(`\uD83D\uDE9A *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
+      lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
     }
 
     if (booking.notes) {
-      lines.push(`\uD83D\uDCDD *Notas:* ${booking.notes}`);
+      lines.push(`📝 *Indicaciones:* ${booking.notes}`);
     }
   }
 
   if (paymentId) {
-    lines.push(`\uD83D\uDCB3 *Nº Comprobante MP:* #${paymentId}`);
+    lines.push(`💳 *Nº Comprobante MP:* #${paymentId}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo confirmación de la recepción.');
-  const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(
-    lines.join('\n')
-  )}`;
+  const mensaje = lines.join('\n');
+  const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(mensaje)}`;
 
   const handleWhatsAppClick = () => {
     // Si aún no se había enviado el correo, intentarlo también al hacer clic

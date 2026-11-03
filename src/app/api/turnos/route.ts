@@ -414,6 +414,7 @@ export async function POST(request: Request) {
           appointmentDate: bookingDate,
           startTime: bookingTime,
           serviceDescription: serviceType,
+          paymentMethod: body.paymentMethod || body.metodo_pago,
           amount: numPrice,
           notes: notesText,
         });
