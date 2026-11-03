@@ -24,7 +24,7 @@ import type {
   ServiceMode,
   PlanCode,
 } from '@/components/ServiceModeSelector';
-import { CalendarSlotPicker, isSlotPast } from '@/components/CalendarSlotPicker';
+import { CalendarSlotPicker, isSlotPast, shouldDisableDate } from '@/components/CalendarSlotPicker';
 import type { PaymentMethod } from '@/components/PaymentMethodSelector';
 import {
   Sparkles,
@@ -223,8 +223,10 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.vehicleType) setVehicleType(normalizeVehicleType(parsed.vehicleType));
-        if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
-        if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot);
+        if (parsed.selectedDate && !shouldDisableDate(parsed.selectedDate)) {
+          setSelectedDate(parsed.selectedDate);
+          if (parsed.selectedSlot) setSelectedSlot(parsed.selectedSlot);
+        }
         if (parsed.phone && !phone) setPhone(parsed.phone);
         if (parsed.notes) setNotes(parsed.notes);
         localStorage.removeItem('lavadero_draft_booking');

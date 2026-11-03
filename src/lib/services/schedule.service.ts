@@ -20,6 +20,18 @@ export interface SlotAvailability {
 
 export const MAX_CAPACITY_PER_SLOT = 1;
 
+export const ALLOWED_BOOKING_DATES: readonly string[] = [
+  '2026-11-06',
+  '2026-11-07',
+  '2026-11-10',
+  '2026-11-11',
+];
+
+export function isAllowedBookingDate(dateString: string): boolean {
+  if (!dateString) return false;
+  return ALLOWED_BOOKING_DATES.includes(dateString.trim());
+}
+
 /**
  * Genera dinámicamente bloques horarios calculando la hora de fin mediante:
  * inicio (en minutos) + duracion_en_minutos
@@ -279,6 +291,15 @@ export class ScheduleService {
       return {
         isOpen: false,
         reasonClosed: 'El lavadero permanece cerrado los días domingos.',
+        slots: [],
+      };
+    }
+
+    // 1.b Restricción estricta a las fechas habilitadas en el calendario
+    if (!isAllowedBookingDate(dateString)) {
+      return {
+        isOpen: false,
+        reasonClosed: 'Esta fecha se encuentra completa / no disponible para nuevas reservas.',
         slots: [],
       };
     }

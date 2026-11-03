@@ -25,6 +25,22 @@ interface CalendarSlotPickerProps {
 }
 
 /**
+ * Fechas habilitadas exclusivamente para reserva de turnos.
+ * Todas las demás fechas del calendario aparecen deshabilitadas (ocupadas/grises) por defecto.
+ */
+export const ALLOWED_BOOKING_DATES: readonly string[] = [
+  '2026-11-06', // Viernes 6 de noviembre de 2026
+  '2026-11-07', // Sábado 7 de noviembre de 2026
+  '2026-11-10', // Martes 10 de noviembre de 2026
+  '2026-11-11', // Miércoles 11 de noviembre de 2026
+];
+
+export const shouldDisableDate = (dateString: string): boolean => {
+  if (!dateString) return true;
+  return !ALLOWED_BOOKING_DATES.includes(dateString.trim());
+};
+
+/**
  * Determina si un bloque horario ya transcurrió en comparación con la fecha y hora actuales del navegador.
  */
 export const isSlotPast = (startTime: string, dateString: string): boolean => {
@@ -116,24 +132,32 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     });
   }, [slots, vehicleType, selectedDate]);
 
-  // Generar los próximos 8 días a partir de hoy
+  // Generar los días del calendario cubriendo las fechas permitidas y mostrar todos los no incluidos como deshabilitados/ocupados
   const nextDays = React.useMemo(() => {
     const days = [];
     const today = new Date();
-    for (let i = 0; i < 8; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
+    const minEndDate = new Date(2026, 10, 11); // 11 de noviembre de 2026
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diffDays = Math.ceil((minEndDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = Math.max(9, diffDays);
+
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
 
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
       const dateString = `${yyyy}-${mm}-${dd}`;
+      const isSunday = d.getDay() === 0;
+      const isDisabled = shouldDisableDate(dateString);
 
       days.push({
         dateString,
         dayName: d.toLocaleDateString('es-AR', { weekday: 'short' }),
         dayNumber: d.getDate(),
-        isSunday: d.getDay() === 0,
+        isSunday,
+        isDisabled,
       });
     }
     return days;
@@ -142,6 +166,13 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
   // Consultar disponibilidad al cambiar de fecha o categoría de vehículo
   const fetchAvailability = React.useCallback(async () => {
     if (!selectedDate) return;
+    if (shouldDisableDate(selectedDate)) {
+      setIsOpen(false);
+      setReasonClosed('No hay cupos disponibles para esta fecha.');
+      setSlots([]);
+      onSlotChange(null);
+      return;
+    }
 
     setLoading(true);
     setFetchError(null);
@@ -251,43 +282,46 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
           <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar snap-x -mx-0.5 px-0.5">
             {nextDays.map((d) => {
-              const isSelected = selectedDate === d.dateString;
+              const isDisabled = d.isDisabled;
+              const isSelected = !isDisabled && selectedDate === d.dateString;
 
               return (
                 <motion.button
                   key={d.dateString}
                   type="button"
-                  disabled={d.isSunday}
-                  whileHover={!d.isSunday ? { scale: 1.05, y: -2 } : undefined}
-                  whileTap={!d.isSunday ? { scale: 0.95 } : undefined}
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled}
+                  whileHover={!isDisabled ? { scale: 1.05, y: -2 } : undefined}
+                  whileTap={!isDisabled ? { scale: 0.95 } : undefined}
                   onClick={() => {
+                    if (isDisabled) return;
                     onDateChange(d.dateString);
                     onSlotChange(null);
                   }}
-                  className={`min-w-[58px] py-2 px-1.5 rounded-xl border text-center transition-colors duration-200 shrink-0 snap-start cursor-pointer ${
+                  className={`min-w-[58px] py-2 px-1.5 rounded-xl border text-center transition-colors duration-200 shrink-0 snap-start ${
                     isSelected
-                      ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 to-blue-600/15 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-500/20'
-                      : d.isSunday
-                      ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-35'
-                      : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50'
+                      ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 to-blue-600/15 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-500/20 cursor-pointer'
+                      : isDisabled
+                      ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-35 select-none'
+                      : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/30 hover:bg-slate-900/50 cursor-pointer'
                   }`}
                 >
                   <div className="text-[9px] uppercase font-bold text-slate-400">
                     {d.dayName}
                   </div>
-                  <div className="text-base font-black my-0.5 text-white">
+                  <div className={`text-base font-black my-0.5 ${isDisabled ? 'text-slate-500' : 'text-white'}`}>
                     {d.dayNumber}
                   </div>
                   <div
                     className={`text-[8px] font-bold uppercase tracking-wider py-0.5 rounded-md ${
-                      d.isSunday
+                      isDisabled
                         ? 'text-rose-400/70'
                         : isSelected
                         ? 'text-cyan-300 font-black'
-                        : 'text-slate-500'
+                        : 'text-emerald-400'
                     }`}
                   >
-                    {d.isSunday ? 'Cerrado' : 'Abierto'}
+                    {d.isSunday ? 'Cerrado' : isDisabled ? 'Ocupado' : 'Abierto'}
                   </div>
                 </motion.button>
               );
@@ -476,43 +510,46 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
 
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
           {nextDays.map((d) => {
-            const isSelected = selectedDate === d.dateString;
+            const isDisabled = d.isDisabled;
+            const isSelected = !isDisabled && selectedDate === d.dateString;
 
             return (
               <motion.button
                 key={d.dateString}
                 type="button"
-                disabled={d.isSunday}
-                whileHover={!d.isSunday ? { scale: 1.05, y: -2 } : undefined}
-                whileTap={!d.isSunday ? { scale: 0.95 } : undefined}
+                disabled={isDisabled}
+                aria-disabled={isDisabled}
+                whileHover={!isDisabled ? { scale: 1.05, y: -2 } : undefined}
+                whileTap={!isDisabled ? { scale: 0.95 } : undefined}
                 onClick={() => {
+                  if (isDisabled) return;
                   onDateChange(d.dateString);
                   onSlotChange(null);
                 }}
-                className={`p-3.5 rounded-2xl border text-center transition-colors duration-300 relative cursor-pointer ${
+                className={`p-3.5 rounded-2xl border text-center transition-colors duration-300 relative ${
                   isSelected
-                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20'
-                    : d.isSunday
-                    ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-40'
-                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white'
+                    ? 'border-cyan-400 bg-gradient-to-b from-cyan-500/25 via-blue-600/15 to-slate-950/80 text-white ring-1 ring-cyan-400/50 shadow-xl shadow-cyan-500/20 cursor-pointer'
+                    : isDisabled
+                    ? 'border-white/[0.04] bg-slate-950/30 text-slate-600 cursor-not-allowed opacity-40 select-none'
+                    : 'border-white/[0.08] bg-slate-950/60 text-slate-300 hover:border-cyan-400/40 hover:bg-slate-900/60 hover:text-white cursor-pointer'
                 }`}
               >
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                   {d.dayName}
                 </div>
-                <div className="text-xl font-black my-1 text-white">
+                <div className={`text-xl font-black my-1 ${isDisabled ? 'text-slate-500' : 'text-white'}`}>
                   {d.dayNumber}
                 </div>
                 <div
                   className={`text-[9px] font-bold uppercase tracking-wider py-0.5 rounded-md ${
-                    d.isSunday
+                    isDisabled
                       ? 'text-rose-400/70'
                       : isSelected
                       ? 'text-cyan-300 font-black'
-                      : 'text-slate-500'
+                      : 'text-emerald-400'
                   }`}
                 >
-                  {d.isSunday ? 'Cerrado' : 'Abierto'}
+                  {d.isSunday ? 'Cerrado' : isDisabled ? 'Ocupado' : 'Abierto'}
                 </div>
               </motion.button>
             );
