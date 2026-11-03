@@ -631,28 +631,34 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           }
         }
 
-        // 2. Armar mensaje de WhatsApp y redirigir directamente
+        // 2. Armar mensaje de WhatsApp y redirigir directamente usando api.whatsapp.com/send
+        // (Evita el bug del redireccionamiento 302 de wa.me que corrompe emojis a  en WhatsApp Desktop/Web)
         const lines = [
-          '¡Hola Lavadero San Rafael! 👋',
+          `¡Hola Lavadero San Rafael! ${String.fromCodePoint(0x1f44b)}`,
           'Quiero confirmar mi reserva de turno con *Pago en Efectivo o transferencia*:',
           '',
-          `📅 *Fecha:* ${selectedDate}`,
-          `⏰ *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
-          `🚗 *Vehículo:* ${vehicleSummaryDisplay}`,
-          `🧼 *Servicio:* ${serviceDescription}`,
-          `💰 *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia - 5% OFF)`,
-          `👤 *Cliente:* ${fullName.trim()}`,
-          `📱 *Teléfono:* ${fullUserPhone}`,
-          `📧 *Email:* ${effectiveEmail}`,
+          `${String.fromCodePoint(0x1f4c5)} *Fecha:* ${selectedDate}`,
+          `${String.fromCodePoint(0x23f0)} *Horario:* ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`,
+          `${String.fromCodePoint(0x1f697)} *Vehículo:* ${vehicleSummaryDisplay}`,
+          `${String.fromCodePoint(0x1f9fc)} *Servicio:* ${serviceDescription}`,
+          `${String.fromCodePoint(0x1f4b0)} *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia - 5% OFF)`,
+          `${String.fromCodePoint(0x1f464)} *Cliente:* ${fullName.trim()}`,
+          `${String.fromCodePoint(0x1f4f1)} *Teléfono:* ${fullUserPhone}`,
+          `${String.fromCodePoint(0x1f4e7)} *Email:* ${effectiveEmail}`,
         ];
 
         if (notes.trim()) {
-          lines.push(`📝 *Indicaciones:* ${notes.trim()}`);
+          lines.push(`${String.fromCodePoint(0x1f4dd)} *Indicaciones:* ${notes.trim()}`);
         }
 
         lines.push('', '¡Muchas gracias! Aguardo confirmación del turno.');
-        const mensaje = lines.join('\n');
-        const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(mensaje)}`;
+        const mensaje = lines.join('\n').normalize('NFC');
+        const whatsAppUrl = `https://api.whatsapp.com/send/?phone=${staticLavaderoPhone}&text=${encodeURIComponent(mensaje)}&type=phone_number&app_absent=0`;
+
+        setConfirmedBookingData({
+          whatsAppUrl,
+          summaryText: `${selectedDate} de ${selectedSlot.startTime} a ${selectedSlot.endTime} hs • ${vehicleSummaryDisplay}`,
+        });
 
         showToast(
           '¡Reserva confirmada!',

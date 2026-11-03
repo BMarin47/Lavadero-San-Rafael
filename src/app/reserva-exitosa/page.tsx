@@ -103,43 +103,44 @@ function ReservaExitosaContent() {
       });
   }, [booking]);
 
-  // Construir mensaje de WhatsApp con los datos del turno
+  // Construir mensaje de WhatsApp con los datos del turno usando api.whatsapp.com/send
+  // (Evita el bug del redireccionamiento 302 de wa.me que corrompe emojis a  en WhatsApp Desktop/Web)
   const staticLavaderoPhone = BRAND_CONFIG.whatsappNumber;
   const lines = [
-    '¡Hola Lavadero San Rafael! 👋',
+    `¡Hola Lavadero San Rafael! ${String.fromCodePoint(0x1f44b)}`,
     'Acabo de abonar mi reserva en Mercado Pago y confirmo mi turno:',
     '',
   ];
 
   if (booking) {
     const displayVehicle = resolveVehicleDisplayName(booking.vehicleSummary || booking.vehicleType);
-    lines.push(`📅 *Fecha:* ${booking.appointmentDate}`);
-    lines.push(`⏰ *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
-    lines.push(`🚗 *Vehículo:* ${displayVehicle}`);
-    lines.push(`🧼 *Servicio:* ${booking.serviceDescription}`);
+    lines.push(`${String.fromCodePoint(0x1f4c5)} *Fecha:* ${booking.appointmentDate}`);
+    lines.push(`${String.fromCodePoint(0x23f0)} *Horario:* ${booking.startTime} a ${booking.endTime} hs`);
+    lines.push(`${String.fromCodePoint(0x1f697)} *Vehículo:* ${displayVehicle}`);
+    lines.push(`${String.fromCodePoint(0x1f9fc)} *Servicio:* ${booking.serviceDescription}`);
     lines.push(
-      `💰 *Total a Abonar:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
+      `${String.fromCodePoint(0x1f4b0)} *Total a Abonar:* $${Number(booking.amount).toLocaleString('es-AR')} ARS (Mercado Pago)`
     );
-    lines.push(`👤 *Cliente:* ${booking.clientName}`);
-    lines.push(`📱 *Teléfono:* ${booking.clientPhone}`);
-    lines.push(`📧 *Email:* ${booking.clientEmail}`);
+    lines.push(`${String.fromCodePoint(0x1f464)} *Cliente:* ${booking.clientName}`);
+    lines.push(`${String.fromCodePoint(0x1f4f1)} *Teléfono:* ${booking.clientPhone}`);
+    lines.push(`${String.fromCodePoint(0x1f4e7)} *Email:* ${booking.clientEmail}`);
 
     if (booking.homeDelivery && booking.deliveryAddress) {
-      lines.push(`🚚 *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
+      lines.push(`${String.fromCodePoint(0x1f69a)} *Retiro / Entrega a Domicilio:* ${booking.deliveryAddress}`);
     }
 
     if (booking.notes) {
-      lines.push(`📝 *Indicaciones:* ${booking.notes}`);
+      lines.push(`${String.fromCodePoint(0x1f4dd)} *Indicaciones:* ${booking.notes}`);
     }
   }
 
   if (paymentId) {
-    lines.push(`💳 *Nº Comprobante MP:* #${paymentId}`);
+    lines.push(`${String.fromCodePoint(0x1f4b3)} *Nº Comprobante MP:* #${paymentId}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo confirmación de la recepción.');
-  const mensaje = lines.join('\n');
-  const whatsAppUrl = `https://wa.me/${staticLavaderoPhone}?text=${encodeURIComponent(mensaje)}`;
+  const mensaje = lines.join('\n').normalize('NFC');
+  const whatsAppUrl = `https://api.whatsapp.com/send/?phone=${staticLavaderoPhone}&text=${encodeURIComponent(mensaje)}&type=phone_number&app_absent=0`;
 
   const handleWhatsAppClick = () => {
     // Si aún no se había enviado el correo, intentarlo también al hacer clic

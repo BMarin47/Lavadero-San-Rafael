@@ -136,38 +136,38 @@ export function generateWhatsAppBookingUrl(params: {
   );
 
   const lines = [
-    '¡Hola Lavadero San Rafael! 👋',
+    `¡Hola Lavadero San Rafael! ${String.fromCodePoint(0x1f44b)}`,
     'Acabo de confirmar una reserva a través de la Web App:',
     '',
-    `📅 *Fecha:* ${params.appointmentDate}`,
-    `⏰ *Horario:* ${params.startTime} a ${params.endTime} hs`,
-    `🚗 *Vehículo:* ${vehicleDisplay}`,
-    `🧼 *Servicio:* ${params.serviceDescription}`,
-    `💰 *Total a Abonar:* $${params.amount.toLocaleString('es-AR')} ARS (${paymentText})`,
-    `👤 *Cliente:* ${params.userName}`,
-    `📱 *Teléfono:* ${params.userPhone}`,
+    `${String.fromCodePoint(0x1f4c5)} *Fecha:* ${params.appointmentDate}`,
+    `${String.fromCodePoint(0x23f0)} *Horario:* ${params.startTime} a ${params.endTime} hs`,
+    `${String.fromCodePoint(0x1f697)} *Vehículo:* ${vehicleDisplay}`,
+    `${String.fromCodePoint(0x1f9fc)} *Servicio:* ${params.serviceDescription}`,
+    `${String.fromCodePoint(0x1f4b0)} *Total a Abonar:* $${params.amount.toLocaleString('es-AR')} ARS (${paymentText})`,
+    `${String.fromCodePoint(0x1f464)} *Cliente:* ${params.userName}`,
+    `${String.fromCodePoint(0x1f4f1)} *Teléfono:* ${params.userPhone}`,
   ];
 
   if (params.userEmail) {
-    lines.push(`📧 *Email:* ${params.userEmail}`);
+    lines.push(`${String.fromCodePoint(0x1f4e7)} *Email:* ${params.userEmail}`);
   }
 
   if (params.homeDelivery && params.deliveryAddress) {
-    lines.push(`🚚 *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
+    lines.push(`${String.fromCodePoint(0x1f69a)} *Retiro y Entrega a Domicilio:* ${params.deliveryAddress}`);
   }
 
   if (params.notes && params.notes.trim()) {
-    lines.push(`📝 *Indicaciones:* ${params.notes.trim()}`);
+    lines.push(`${String.fromCodePoint(0x1f4dd)} *Indicaciones:* ${params.notes.trim()}`);
   }
 
   lines.push('', '¡Muchas gracias! Aguardo la recepción del vehículo.');
 
-  const mensaje = lines.join('\n');
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensaje)}`;
+  const mensaje = lines.join('\n').normalize('NFC');
+  return `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${encodeURIComponent(mensaje)}&type=phone_number&app_absent=0`;
 }
 
 /**
- * Genera la URL de WhatsApp (wa.me) con el mensaje de aviso de cancelación
+ * Genera la URL de WhatsApp (api.whatsapp.com/send) con el mensaje de aviso de cancelación
  * para notificar al cliente al número de teléfono registrado en el turno.
  */
 export function generateWhatsAppCancellationUrl(params: {
@@ -184,17 +184,17 @@ export function generateWhatsAppCancellationUrl(params: {
   const vehicleDisplay = resolveVehicleDisplayName(params.vehicle);
 
   const lines = [
-    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *${BRAND_CONFIG.name}* 🚗✨`,
+    `Hola ${params.clientName || 'Estimado/a cliente'}, te contactamos de *${BRAND_CONFIG.name}* ${String.fromCodePoint(0x1f697)}${String.fromCodePoint(0x2728)}`,
     '',
     'Te informamos que tu reserva de turno ha sido *CANCELADA* en nuestro sistema:',
     '',
-    `🚗 *Vehículo:* ${vehicleDisplay}`,
-    `📅 *Fecha:* ${params.date || '-'}`,
-    `⏰ *Horario:* ${params.time || '-'}`,
+    `${String.fromCodePoint(0x1f697)} *Vehículo:* ${vehicleDisplay}`,
+    `${String.fromCodePoint(0x1f4c5)} *Fecha:* ${params.date || '-'}`,
+    `${String.fromCodePoint(0x23f0)} *Horario:* ${params.time || '-'}`,
   ];
 
   if (params.reason) {
-    lines.push(`📝 *Motivo:* ${params.reason}`);
+    lines.push(`${String.fromCodePoint(0x1f4dd)} *Motivo:* ${params.reason}`);
   }
 
   lines.push(
@@ -205,8 +205,8 @@ export function generateWhatsAppCancellationUrl(params: {
     '¡Disculpas por las molestias y muchas gracias!'
   );
 
-  const encodedMessage = encodeURIComponent(lines.join('\n'));
-  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+  const encodedMessage = encodeURIComponent(lines.join('\n').normalize('NFC'));
+  return `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
 }
 
 
