@@ -165,27 +165,6 @@ export function classifyEmailError(error: any): {
  */
 export class EmailService {
   /**
-   * Registro en memoria para garantizar idempotencia y evitar el envío de correos
-   * de cancelación duplicados para la misma reserva en solicitudes concurrentes.
-   */
-  private static recentCancellationDispatches = new Map<string, number>();
-
-  private static acquireCancellationLock(key: string, ttlMs = 120_000): boolean {
-    const now = Date.now();
-    for (const [k, timestamp] of this.recentCancellationDispatches.entries()) {
-      if (now - timestamp > ttlMs) {
-        this.recentCancellationDispatches.delete(k);
-      }
-    }
-    const existing = this.recentCancellationDispatches.get(key);
-    if (existing && now - existing < ttlMs) {
-      return false;
-    }
-    this.recentCancellationDispatches.set(key, now);
-    return true;
-  }
-
-  /**
    * Envía un correo con reintento automático en caso de rate-limit (código HTTP 429).
    */
   private static async sendWithRateLimitRetry(
@@ -581,17 +560,6 @@ export class EmailService {
    */
   static async sendCancellationNotification(params: CancellationEmailParams) {
     const startTimestamp = Date.now();
-    const dedupeKey = `cancel:${params.bookingId || `${params.clientEmail || ''}:${params.date}:${params.time}`}`;
-    if (!this.acquireCancellationLock(dedupeKey)) {
-      console.warn(
-        `[EmailService][Cancelación Idempotencia]: Omitiendo envío duplicado para "${dedupeKey}".`
-      );
-      return {
-        success: true,
-        skippedDuplicate: true,
-      };
-    }
-
     const apiKey = process.env.RESEND_API_KEY?.trim();
     const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'onboarding@resend.dev';
     const adminEmail = ADMIN_CONFIRMATION_EMAIL;
@@ -770,6 +738,9 @@ export class EmailService {
 </html>
     `;
 
+    const targetLogEmail =
+      clientEmail && clientEmail.includes('@') ? clientEmail : adminEmail;
+    console.log('Enviando correo de cancelación a:', targetLogEmail);
     console.log(
       `[Resend Cancelación]: Enviando alerta de cancelación a admin "${adminEmail}" desde "${fromEmail}"...`
     );
@@ -921,16 +892,7 @@ export class EmailService {
     sent: boolean;
     id?: string;
     error?: string;
-    skippedDuplicate?: boolean;
   }> {
-    const dedupeKey = `cancel:${params.bookingId || `${params.clientEmail || ''}:${params.date || ''}:${params.time || ''}`}`;
-    if (!this.acquireCancellationLock(dedupeKey)) {
-      console.warn(
-        `[EmailService][Cancelación Admin -> Cliente Idempotencia]: Omitiendo envío duplicado para "${dedupeKey}".`
-      );
-      return { sent: true, skippedDuplicate: true };
-    }
-
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (!apiKey) {
       console.warn('[EmailService][Cancelación Admin -> Cliente]: RESEND_API_KEY no configurada en el entorno.');
@@ -940,6 +902,10 @@ export class EmailService {
     try {
       const resend = new Resend(apiKey);
       const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'Lavadero San Rafael <onboarding@resend.dev>';
+      const recipientEmail =
+        params.clientEmail && params.clientEmail.includes('@')
+          ? params.clientEmail.trim()
+          : ADMIN_CONFIRMATION_EMAIL;
       const clientName = escapeHtml(sanitizePlainText(params.clientName, 80) || 'Estimado/a cliente');
       const vehicle = escapeHtml(resolveVehicleDisplayName(sanitizePlainText(params.vehicle, 80) || 'Vehículo'));
       const date = escapeHtml(sanitizePlainText(params.date, 30) || 'Fecha programada');
@@ -1051,19 +1017,45 @@ export class EmailService {
 </html>
       `;
 
-      const result = await this.sendWithRateLimitRetry(resend, {
+      console.log('Enviando correo de cancelación a:', recipientEmail);
+
+      let result = await this.sendWithRateLimitRetry(resend, {
         from: fromEmail,
-        to: [params.clientEmail],
+        to: [recipientEmail],
         subject: 'Aviso importante sobre tu turno - Lavadero San Rafael',
         html: htmlContent,
       });
+
+      // Fallback automático si Resend está en modo Sandbox (403) y el email del cliente no es el propietario de la cuenta Resend
+      if (result.error) {
+        const errMsg = String((result.error as any).message || '');
+        const errStatus = (result.error as any).statusCode || (result.error as any).status;
+        const ownerMatch = errMsg.match(/\(([^)]+@[^)]+)\)/);
+        const fallbackOwnerEmail = ownerMatch ? ownerMatch[1].trim() : ADMIN_CONFIRMATION_EMAIL;
+
+        if (
+          (errStatus === 403 || errMsg.toLowerCase().includes('only send testing emails')) &&
+          recipientEmail.toLowerCase() !== fallbackOwnerEmail.toLowerCase()
+        ) {
+          console.warn(
+            `[EmailService][Cancelación Sandbox Fallback]: Redirigiendo correo de cancelación a "${fallbackOwnerEmail}" porque "${recipientEmail}" requiere dominio verificado en Resend.`
+          );
+          console.log('Enviando correo de cancelación a:', fallbackOwnerEmail);
+          result = await this.sendWithRateLimitRetry(resend, {
+            from: fromEmail,
+            to: [fallbackOwnerEmail],
+            subject: `🚨 Turno Cancelado (${clientName}) - Lavadero San Rafael`,
+            html: htmlContent,
+          });
+        }
+      }
 
       if (result.error) {
         console.error('[EmailService][Cancelación Admin -> Cliente Resend Error]:', result.error);
         return { sent: false, error: (result.error as any).message || String(result.error) };
       }
 
-      console.log('[EmailService][Cancelación Admin -> Cliente] Correo enviado exitosamente a:', params.clientEmail, 'ID:', result.data?.id);
+      console.log('[EmailService][Cancelación Admin -> Cliente] Correo enviado exitosamente a:', recipientEmail, 'ID:', result.data?.id);
       return { sent: true, id: result.data?.id };
     } catch (err: any) {
       console.error('[EmailService][Cancelación Admin -> Cliente Catch Error]:', err);

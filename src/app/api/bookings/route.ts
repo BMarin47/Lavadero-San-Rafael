@@ -319,28 +319,24 @@ export async function PATCH(request: NextRequest) {
           bookingToCancelData?.precio ||
           body.bookingDetails?.precio;
 
-        const previousStatus = String(
-          bookingToCancelData?.status || bookingToCancelData?.estado || ''
-        )
-          .toLowerCase()
-          .trim();
-        const wasAlreadyCancelled =
-          previousStatus === 'cancelado' || previousStatus === 'cancelled';
+        const email =
+          clientEmail && clientEmail.includes('@')
+            ? clientEmail.trim()
+            : 'bruno.marin.soporte@gmail.com';
 
-        if (!wasAlreadyCancelled) {
-          await EmailService.sendCancellationNotification({
-            bookingId: String(id),
-            clientName,
-            clientEmail,
-            clientPhone,
-            vehicle,
-            category,
-            service,
-            date,
-            time,
-            price,
-          });
-        }
+        console.log('Enviando correo de cancelación a:', email);
+        await EmailService.sendCancellationNotification({
+          bookingId: String(id),
+          clientName,
+          clientEmail: email,
+          clientPhone,
+          vehicle,
+          category,
+          service,
+          date,
+          time,
+          price,
+        });
 
         const whatsAppUrl = generateWhatsAppCancellationUrl({
           clientPhone,

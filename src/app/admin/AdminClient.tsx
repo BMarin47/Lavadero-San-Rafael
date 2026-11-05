@@ -218,7 +218,12 @@ export default function AdminClient({ user }: { user: User }) {
       const res = await fetch('/api/admin/turnos', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus }),
+        body: JSON.stringify({
+          id,
+          status: newStatus,
+          clientEmail: targetTurno?.client_email,
+          bookingDetails: targetTurno,
+        }),
       });
 
       const json = await res.json().catch(() => ({}));

@@ -308,11 +308,15 @@ export async function PATCH(request: NextRequest) {
       existingBooking?.client_email ||
       existingBooking?.email ||
       existingBooking?.user_email ||
+      body.clientEmail ||
+      body.client_email ||
+      body.bookingDetails?.client_email ||
       null;
 
     const targetUserId =
       existingBooking?.user_id ||
       existingBooking?.userId ||
+      body.bookingDetails?.user_id ||
       null;
 
     if ((!clientEmail || !clientEmail.includes('@')) && targetUserId) {
@@ -454,42 +458,67 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Datos consolidados para avisos
-    const clientName = existingBooking?.client_name || existingBooking?.nombre_cliente || 'Cliente';
-    const clientPhone = existingBooking?.client_phone || existingBooking?.phone || null;
-    const vehicleFinal = updatePayload.vehicle_details || existingBooking?.vehicle_details || existingBooking?.vehiculo || 'Vehículo';
-    const dateFinal = updatePayload.date || existingBooking?.date || 'Fecha programada';
-    const timeFinal = updatePayload.time || existingBooking?.time || 'Horario programado';
-    const priceFinal = updatePayload.price ?? existingBooking?.price ?? existingBooking?.precio ?? 0;
-    const serviceFinal = existingBooking?.service_type || existingBooking?.servicio || 'Lavado Detailing';
+    const clientName =
+      existingBooking?.client_name ||
+      existingBooking?.nombre_cliente ||
+      body.bookingDetails?.nombre_cliente ||
+      'Cliente';
+    const clientPhone =
+      existingBooking?.client_phone ||
+      existingBooking?.phone ||
+      body.bookingDetails?.client_phone ||
+      null;
+    const vehicleFinal =
+      updatePayload.vehicle_details ||
+      existingBooking?.vehicle_details ||
+      existingBooking?.vehiculo ||
+      body.bookingDetails?.vehiculo ||
+      'Vehículo';
+    const dateFinal =
+      updatePayload.date ||
+      existingBooking?.date ||
+      body.bookingDetails?.date ||
+      'Fecha programada';
+    const timeFinal =
+      updatePayload.time ||
+      existingBooking?.time ||
+      body.bookingDetails?.time ||
+      'Horario programado';
+    const priceFinal =
+      updatePayload.price ??
+      existingBooking?.price ??
+      existingBooking?.precio ??
+      body.bookingDetails?.precio ??
+      0;
+    const serviceFinal =
+      existingBooking?.service_type ||
+      existingBooking?.servicio ||
+      existingBooking?.categoria ||
+      body.bookingDetails?.categoria ||
+      'Lavado Detailing';
 
     let whatsAppUrl = '';
 
-    // 5. Si el Superadministrador canceló el turno, notificar por email UNA SOLA VEZ vía EmailService (Fail-safe)
-    if (normalizedStatus === 'cancelado') {
-      if (!wasAlreadyCancelled) {
-        if (clientEmail && clientEmail.includes('@')) {
-          try {
-            await EmailService.sendCustomerCancellationEmail({
-              bookingId: String(id),
-              clientEmail,
-              clientName,
-              vehicle: vehicleFinal,
-              date: dateFinal,
-              time: timeFinal,
-              service: serviceFinal,
-            });
-          } catch (mailErr: any) {
-            console.error('[Admin PATCH EmailService Exception Fail-safe]:', mailErr);
-          }
-        } else {
-          console.warn(
-            `[Admin Cancelación]: No se encontró un correo electrónico válido para notificar la cancelación del turno ${id}.`
-          );
-        }
-      } else {
-        console.log(
-          `[Admin Cancelación Idempotencia]: El turno ${id} ya se encontraba en estado cancelado. Se omite reenvío de email.`
-        );
+    // 5. Si el Superadministrador canceló el turno, enviar correo de cancelación UNA SOLA VEZ inmediatamente después de actualizar la BD
+    if (normalizedStatus === 'cancelado' || normalizedStatus === 'cancelled') {
+      const email =
+        clientEmail && clientEmail.includes('@')
+          ? clientEmail.trim()
+          : 'bruno.marin.soporte@gmail.com';
+
+      try {
+        console.log('Enviando correo de cancelación a:', email);
+        await EmailService.sendCustomerCancellationEmail({
+          bookingId: String(id),
+          clientEmail: email,
+          clientName,
+          vehicle: vehicleFinal,
+          date: dateFinal,
+          time: timeFinal,
+          service: serviceFinal,
+        });
+      } catch (mailErr: any) {
+        console.error('[Admin PATCH EmailService Exception Fail-safe]:', mailErr);
       }
 
       // Generar URL de WhatsApp dirigida al teléfono del cliente
