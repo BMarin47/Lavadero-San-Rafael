@@ -1115,12 +1115,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </div>
             </div>
 
-            {/* 2. SECCIÓN DE PLANES Y SERVICIOS INMEDIATAMENTE DEBAJO DE INICIAR SESIÓN */}
-            <section aria-label="Planes y Servicios" className="mt-6 sm:mt-8">
-              <PlansAccordion initialVehicleType={vehicleType} />
-            </section>
-
-            {/* HERO SECTION INFORMATIVA DEBAJO */}
+            {/* 2. SEGUNDO ELEMENTO: HERO SECTION (TÍTULO PRINCIPAL, DESCRIPCIÓN Y BADGES) */}
             <header className="text-center space-y-4 max-w-xl mx-auto pt-2">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-cyan-500/10">
                 <span className="flex h-2 w-2 relative">
@@ -1155,6 +1150,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </span>
               </div>
             </header>
+
+            {/* 3. TERCER ELEMENTO (ABAJO DE TODO LO ANTERIOR): PLANES MENSUALES DE LAVADO */}
+            <section aria-label="Planes Mensuales de Lavado" className="pt-2">
+              <PlansAccordion initialVehicleType={vehicleType} />
+            </section>
           </div>
         ) : (
           /* FORMULARIO COMPACTO MOBILE PWA CON ACORDEÓN Y SELECTOR HORIZONTAL */
