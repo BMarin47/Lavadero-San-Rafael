@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { EmailService, classifyEmailError } from '@/lib/services/email.service';
+import {
+  sanitizePlainText,
+  sanitizeEmailInput,
+  formatWhatsAppArgPhone,
+} from '@/lib/validations/booking.schema';
 
 export async function POST(request: Request) {
   try {
@@ -24,23 +29,36 @@ export async function POST(request: Request) {
       }
 
       const cancellationResult = await EmailService.sendCancellationNotification({
-        bookingId: body.bookingId || body.id || '',
-        clientName: body.clientName || body.userFullName || body.nombre_cliente || 'Cliente',
-        clientEmail: body.clientEmail || body.userEmail || body.email,
-        clientPhone: body.clientPhone || body.userPhone || body.phone,
+        bookingId: sanitizePlainText(body.bookingId || body.id || '', 64),
+        clientName:
+          sanitizePlainText(
+            body.clientName || body.userFullName || body.nombre_cliente || 'Cliente',
+            80
+          ) || 'Cliente',
+        clientEmail: sanitizeEmailInput(body.clientEmail || body.userEmail || body.email),
+        clientPhone: formatWhatsAppArgPhone(body.clientPhone || body.userPhone || body.phone || ''),
         vehicle:
-          body.vehicle ||
-          body.vehiculo ||
-          `${body.vehicleBrand || ''} ${body.vehicleModel || ''}`.trim() ||
-          'Vehículo',
-        category: body.category || body.categoria || body.vehicleType,
-        service: body.service || body.serviceDescription || body.servicio || 'Lavado Completo',
-        date: body.date || body.appointmentDate || 'Fecha programada',
-        time:
+          sanitizePlainText(
+            body.vehicle ||
+              body.vehiculo ||
+              `${body.vehicleBrand || ''} ${body.vehicleModel || ''}`.trim() ||
+              'Vehículo',
+            80
+          ) || 'Vehículo',
+        category: sanitizePlainText(body.category || body.categoria || body.vehicleType, 60),
+        service:
+          sanitizePlainText(
+            body.service || body.serviceDescription || body.servicio || 'Lavado Completo',
+            120
+          ) || 'Lavado Completo',
+        date: sanitizePlainText(body.date || body.appointmentDate || 'Fecha programada', 30),
+        time: sanitizePlainText(
           body.time ||
-          (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Horario programado'),
+            (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Horario programado'),
+          40
+        ),
         price: body.price || body.precio || body.amount,
-        notes: body.notes || body.indicaciones,
+        notes: sanitizePlainText(body.notes || body.indicaciones || '', 300),
       });
 
       if (!cancellationResult.success) {
@@ -75,15 +93,13 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    const effectiveUserEmail = String(
-      userEmail || body.client_email || body.email || 'cliente@lavadero.com'
-    ).trim();
-    const effectiveAppointmentDate = String(
-      appointmentDate || body.date || new Date().toISOString().split('T')[0]
-    ).trim();
-    const effectiveStartTime = String(
-      startTime || body.time || '09:00'
-    ).trim();
+    const effectiveUserEmail =
+      sanitizeEmailInput(userEmail || body.client_email || body.email) || 'cliente@lavadero.com';
+    const effectiveAppointmentDate = sanitizePlainText(
+      appointmentDate || body.date || new Date().toISOString().split('T')[0],
+      20
+    );
+    const effectiveStartTime = sanitizePlainText(startTime || body.time || '09:00', 20);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(effectiveUserEmail)) {
@@ -97,29 +113,39 @@ export async function POST(request: Request) {
     }
 
     const result = await EmailService.sendBookingConfirmation({
-      appointmentId: body.appointmentId || body.turnoId || body.id,
-      userFullName: userFullName || body.client_name || body.nombre_cliente || 'Cliente',
+      appointmentId: sanitizePlainText(body.appointmentId || body.turnoId || body.id || '', 64),
+      userFullName:
+        sanitizePlainText(
+          userFullName || body.client_name || body.nombre_cliente || 'Cliente',
+          80
+        ) || 'Cliente',
       userEmail: effectiveUserEmail,
-      userPhone: userPhone || body.client_phone || body.phone || 'No proporcionado',
-      vehicleType: vehicleType || body.categoria || 'CAR',
-      vehicleBrand: vehicleBrand || '',
-      vehicleModel: vehicleModel || '',
+      userPhone:
+        formatWhatsAppArgPhone(userPhone || body.client_phone || body.phone || '') ||
+        'No proporcionado',
+      vehicleType: sanitizePlainText(vehicleType || body.categoria || 'CAR', 40),
+      vehicleBrand: sanitizePlainText(vehicleBrand || '', 60),
+      vehicleModel: sanitizePlainText(vehicleModel || '', 60),
       vehicleSummary:
-        vehicleSummary ||
-        body.vehiculo ||
-        body.vehicle_details ||
-        `${vehicleBrand || ''} ${vehicleModel || ''}`.trim() ||
-        'Vehículo',
+        sanitizePlainText(
+          vehicleSummary ||
+            body.vehiculo ||
+            body.vehicle_details ||
+            `${vehicleBrand || ''} ${vehicleModel || ''}`.trim() ||
+            'Vehículo',
+          80
+        ) || 'Vehículo',
       appointmentDate: effectiveAppointmentDate,
       startTime: effectiveStartTime,
-      endTime: endTime || '',
+      endTime: sanitizePlainText(endTime || '', 20),
       serviceDescription:
-        serviceDescription || body.service_type || 'Lavado Completo',
-      paymentMethod: body.paymentMethod || body.metodo_pago,
+        sanitizePlainText(serviceDescription || body.service_type || 'Lavado Completo', 120) ||
+        'Lavado Completo',
+      paymentMethod: sanitizePlainText(body.paymentMethod || body.metodo_pago || '', 40),
       amount: amount ?? body.precio ?? body.price ?? 0,
       homeDelivery: Boolean(homeDelivery),
-      deliveryAddress: deliveryAddress || '',
-      notes: notes || body.indicaciones || '',
+      deliveryAddress: sanitizePlainText(deliveryAddress || '', 150),
+      notes: sanitizePlainText(notes || body.indicaciones || '', 300),
     });
 
     if (!result.sent) {

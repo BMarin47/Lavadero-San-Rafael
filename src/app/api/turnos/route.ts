@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { EmailService } from '@/lib/services/email.service';
 import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
 import { ScheduleService, normalizeVehicleType, areTimeSlotsOverlapping } from '@/lib/services/schedule.service';
-import { VehicleCategorySchema } from '@/lib/validations/booking.schema';
+import {
+  VehicleCategorySchema,
+  sanitizePlainText,
+  sanitizeEmailInput,
+  formatWhatsAppArgPhone,
+} from '@/lib/validations/booking.schema';
 import { BRAND_CONFIG, calculateBookingPrice } from '@/lib/config';
 import { createClient } from '@/utils/supabase/server';
 import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
@@ -125,22 +130,38 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const clientName = String(body.nombre_cliente || body.client_name || '').trim();
+    const clientName = sanitizePlainText(body.nombre_cliente || body.client_name || '', 80);
     const normalizedCategory = VehicleCategorySchema.catch('CAR').parse(
       body.categoria || body.vehicleType || body.vehiculo || 'CAR'
     );
-    const rawVehicleDetails = String(body.vehiculo || body.vehicle_details || '').trim();
+    const rawVehicleDetails = sanitizePlainText(body.vehiculo || body.vehicle_details || '', 80);
     const vehicleDetails = resolveVehicleDisplayName(rawVehicleDetails || normalizedCategory);
-    const serviceType = String(body.categoria ? (body.service_type || 'Lavado Completo Individual') : (body.service_type || body.categoria || '')).trim();
+    const serviceType = sanitizePlainText(
+      body.categoria
+        ? body.service_type || 'Lavado Completo Individual'
+        : body.service_type || body.categoria || '',
+      120
+    );
     const numPrice = Number(body.precio ?? body.price ?? 0);
-    const notesText = body.indicaciones || body.notes ? String(body.indicaciones || body.notes).trim() : null;
-    const bookingDate = String(body.date || body.appointmentDate || new Date().toISOString().split('T')[0]);
-    const bookingTime = String(body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Por coordinar'));
+    const notesText =
+      body.indicaciones || body.notes
+        ? sanitizePlainText(body.indicaciones || body.notes, 300)
+        : null;
+    const bookingDate = sanitizePlainText(
+      body.date || body.appointmentDate || new Date().toISOString().split('T')[0],
+      20
+    );
+    const bookingTime = sanitizePlainText(
+      body.time || (body.startTime ? `${body.startTime} a ${body.endTime} hs` : 'Por coordinar'),
+      40
+    );
     // Requerimiento: Todo turno nuevo solicitado ingresa directamente como CONFIRMADO
     const bookingStatus = 'confirmado';
     const effectiveUserId = user?.id || body.user_id || body.userId || `anon_${Date.now()}`;
-    const effectiveEmail = user?.email || body.client_email || body.userEmail || body.email || 'cliente@lavadero.com';
-    const effectivePhone = body.client_phone || body.phone || '';
+    const effectiveEmail =
+      sanitizeEmailInput(user?.email || body.client_email || body.userEmail || body.email) ||
+      'cliente@lavadero.com';
+    const effectivePhone = formatWhatsAppArgPhone(body.client_phone || body.phone || '');
 
     if (!clientName || !vehicleDetails || !serviceType) {
       return NextResponse.json(
@@ -637,18 +658,28 @@ export async function PATCH(request: Request) {
           bookingToCancelData?.price ||
           bookingToCancelData?.precio;
 
-        await EmailService.sendCancellationNotification({
-          bookingId: String(id),
-          clientName,
-          clientEmail,
-          clientPhone,
-          vehicle,
-          category,
-          service,
-          date,
-          time,
-          price,
-        });
+        const previousStatus = String(
+          bookingToCancelData?.status || bookingToCancelData?.estado || ''
+        )
+          .toLowerCase()
+          .trim();
+        const wasAlreadyCancelled =
+          previousStatus === 'cancelado' || previousStatus === 'cancelled';
+
+        if (!wasAlreadyCancelled) {
+          await EmailService.sendCancellationNotification({
+            bookingId: String(id),
+            clientName,
+            clientEmail,
+            clientPhone,
+            vehicle,
+            category,
+            service,
+            date,
+            time,
+            price,
+          });
+        }
       } catch (emailErr) {
         console.error('[Error enviando email de cancelación en /api/turnos]:', emailErr);
       }

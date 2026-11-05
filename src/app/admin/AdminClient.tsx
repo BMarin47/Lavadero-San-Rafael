@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -78,6 +78,7 @@ export default function AdminClient({ user }: { user: User }) {
   const [editingTurno, setEditingTurno] = useState<AdminTurno | null>(null);
   const [isUpdatingTurno, setIsUpdatingTurno] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const isCancelingRef = useRef<boolean>(false);
   const [whatsAppModal, setWhatsAppModal] = useState<{
     isOpen: boolean;
     url: string;
@@ -197,14 +198,17 @@ export default function AdminClient({ user }: { user: User }) {
   // GESTIÓN DE TURNOS (ACCIONES ADMIN)
   // ==========================================
   const handleUpdateStatus = async (id: string, newStatus: string) => {
+    // Bloqueo sincrónico y por estado para evitar envíos múltiples por doble clic
+    if (isCancelingRef.current || cancellingId !== null || isUpdatingTurno) {
+      return;
+    }
+
     const targetTurno = turnos.find((t) => t.id === id);
+    isCancelingRef.current = true;
+    setCancellingId(id);
 
     try {
-      if (newStatus === 'cancelado') {
-        setCancellingId(id);
-        // Filtrar inmediatamente del estado local de React para que desaparezca al instante de la pantalla
-        setTurnos((prev) => prev.filter((t) => t.id !== id));
-      } else {
+      if (newStatus !== 'cancelado') {
         // Optimistic update visual para otros estados (ej: confirmado)
         setTurnos((prev) =>
           prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
@@ -221,6 +225,10 @@ export default function AdminClient({ user }: { user: User }) {
 
       if (!res.ok) {
         throw new Error(json.error || 'No se pudo actualizar el estado.');
+      }
+
+      if (newStatus === 'cancelado') {
+        setTurnos((prev) => prev.filter((t) => t.id !== id));
       }
 
       // Sincronización en tiempo real inmediata con la base de datos y revalidación de Next.js
@@ -262,6 +270,7 @@ export default function AdminClient({ user }: { user: User }) {
       showToast('Error', err.message || 'Falló la actualización.', 'error');
       await loadTurnos();
     } finally {
+      isCancelingRef.current = false;
       setCancellingId(null);
     }
   };
@@ -269,7 +278,7 @@ export default function AdminClient({ user }: { user: User }) {
 
   const handleSaveTurnoModification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTurno) return;
+    if (!editingTurno || isUpdatingTurno || isCancelingRef.current) return;
 
     try {
       setIsUpdatingTurno(true);
@@ -982,8 +991,10 @@ export default function AdminClient({ user }: { user: User }) {
                         {/* Botones de Cambio Rápido de Estado */}
                         <div className="flex items-center gap-1.5">
                           <button
+                            type="button"
                             onClick={() => handleUpdateStatus(t.id, 'confirmado')}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
+                            disabled={cancellingId !== null || isUpdatingTurno}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Confirmar reserva"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -991,9 +1002,10 @@ export default function AdminClient({ user }: { user: User }) {
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleUpdateStatus(t.id, 'cancelado')}
-                            disabled={cancellingId === t.id}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                            disabled={cancellingId !== null || isUpdatingTurno || isCancelado}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Cancelar reserva y notificar por email y WhatsApp"
                           >
                             {cancellingId === t.id ? (
@@ -1006,8 +1018,10 @@ export default function AdminClient({ user }: { user: User }) {
 
                           {/* Botón Modificar Horario / Fecha */}
                           <button
+                            type="button"
                             onClick={() => setEditingTurno(t)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all cursor-pointer"
+                            disabled={cancellingId !== null || isUpdatingTurno}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Modificar fecha u horario"
                           >
                             <Edit3 className="w-3.5 h-3.5" />

@@ -3,10 +3,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Car, CarFront, Truck, Bus, Check, Clock } from 'lucide-react';
-import { normalizeVehicleType } from '@/lib/services/schedule.service';
 import {
   VEHICLE_CONFIG,
   VehicleCategoryType as VehicleType,
+  normalizeVehicleType,
 } from '@/lib/config';
 
 export type { VehicleType };

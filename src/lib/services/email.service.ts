@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { sanitizeWhatsAppPhone, resolveVehicleDisplayName } from './booking.service';
 import { BRAND_CONFIG, VEHICLE_EMAIL_TITLES, VehicleCategoryType } from '@/lib/config';
 import { normalizeVehicleType } from './schedule.service';
+import { escapeHtml, sanitizePlainText, sanitizeEmailInput } from '@/lib/validations/booking.schema';
 
 export interface CancellationEmailParams {
   bookingId: string;
@@ -18,6 +19,7 @@ export interface CancellationEmailParams {
 }
 
 export interface CustomerCancellationEmailParams {
+  bookingId?: string;
   clientEmail: string;
   clientName?: string;
   vehicle?: string;
@@ -163,6 +165,27 @@ export function classifyEmailError(error: any): {
  */
 export class EmailService {
   /**
+   * Registro en memoria para garantizar idempotencia y evitar el envío de correos
+   * de cancelación duplicados para la misma reserva en solicitudes concurrentes.
+   */
+  private static recentCancellationDispatches = new Map<string, number>();
+
+  private static acquireCancellationLock(key: string, ttlMs = 120_000): boolean {
+    const now = Date.now();
+    for (const [k, timestamp] of this.recentCancellationDispatches.entries()) {
+      if (now - timestamp > ttlMs) {
+        this.recentCancellationDispatches.delete(k);
+      }
+    }
+    const existing = this.recentCancellationDispatches.get(key);
+    if (existing && now - existing < ttlMs) {
+      return false;
+    }
+    this.recentCancellationDispatches.set(key, now);
+    return true;
+  }
+
+  /**
    * Envía un correo con reintento automático en caso de rate-limit (código HTTP 429).
    */
   private static async sendWithRateLimitRetry(
@@ -220,15 +243,17 @@ export class EmailService {
     const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'onboarding@resend.dev';
     const toEmail = ADMIN_CONFIRMATION_EMAIL;
 
-    const clientName = params.userFullName?.trim() || 'Cliente';
-    const clientEmail = (params.userEmail || 'No proporcionado').trim();
-    const clientPhone = (params.userPhone || 'No proporcionado').trim();
-    const rawVehicleText =
+    const clientName = escapeHtml(sanitizePlainText(params.userFullName, 80) || 'Cliente');
+    const clientEmail = escapeHtml(sanitizeEmailInput(params.userEmail) || 'No proporcionado');
+    const clientPhone = escapeHtml(sanitizePlainText(params.userPhone, 25) || 'No proporcionado');
+    const rawVehicleText = sanitizePlainText(
       params.vehicleSummary?.trim() ||
-      `${params.vehicleBrand || ''} ${params.vehicleModel || ''}`.trim() ||
-      params.vehicleType ||
-      'Vehículo';
-    const vehicleText = resolveVehicleDisplayName(rawVehicleText);
+        `${params.vehicleBrand || ''} ${params.vehicleModel || ''}`.trim() ||
+        params.vehicleType ||
+        'Vehículo',
+      80
+    );
+    const vehicleText = escapeHtml(resolveVehicleDisplayName(rawVehicleText));
 
     const categoryMap: Record<string, string> = {
       CAR: 'Auto (Hatchback / Sedán • 2 hs)',
@@ -362,22 +387,22 @@ export class EmailService {
                 </tr>
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Servicio:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #22d3ee; text-align: right; font-weight: 700;">${params.serviceDescription || 'Lavado Completo'}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #22d3ee; text-align: right; font-weight: 700;">${escapeHtml(sanitizePlainText(params.serviceDescription, 120) || 'Lavado Completo')}</td>
                 </tr>
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Fecha solicitada:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">📅 ${params.appointmentDate}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">📅 ${escapeHtml(sanitizePlainText(params.appointmentDate, 30))}</td>
                 </tr>
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Horario de atención:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">⏰ ${timeRange}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right; font-weight: 700;">⏰ ${escapeHtml(sanitizePlainText(timeRange, 40))}</td>
                 </tr>
                 ${
                   paymentLabel
                     ? `
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Método de pago:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #34d399; text-align: right; font-weight: 700;">💳 ${paymentLabel}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #34d399; text-align: right; font-weight: 700;">💳 ${escapeHtml(paymentLabel)}</td>
                 </tr>`
                     : ''
                 }
@@ -386,7 +411,7 @@ export class EmailService {
                     ? `
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Entrega a domicilio:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right;">🚚 ${params.deliveryAddress}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #ffffff; text-align: right;">🚚 ${escapeHtml(sanitizePlainText(params.deliveryAddress, 150))}</td>
                 </tr>`
                     : ''
                 }
@@ -395,7 +420,7 @@ export class EmailService {
                     ? `
                 <tr>
                   <td style="padding: 4px 0; font-size: 13px; color: #94a3b8;">Indicaciones especiales:</td>
-                  <td style="padding: 4px 0; font-size: 13px; color: #facc15; text-align: right;">📝 ${params.notes}</td>
+                  <td style="padding: 4px 0; font-size: 13px; color: #facc15; text-align: right;">📝 ${escapeHtml(sanitizePlainText(params.notes, 300))}</td>
                 </tr>`
                     : ''
                 }
@@ -556,6 +581,17 @@ export class EmailService {
    */
   static async sendCancellationNotification(params: CancellationEmailParams) {
     const startTimestamp = Date.now();
+    const dedupeKey = `cancel:${params.bookingId || `${params.clientEmail || ''}:${params.date}:${params.time}`}`;
+    if (!this.acquireCancellationLock(dedupeKey)) {
+      console.warn(
+        `[EmailService][Cancelación Idempotencia]: Omitiendo envío duplicado para "${dedupeKey}".`
+      );
+      return {
+        success: true,
+        skippedDuplicate: true,
+      };
+    }
+
     const apiKey = process.env.RESEND_API_KEY?.trim();
     const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'onboarding@resend.dev';
     const adminEmail = ADMIN_CONFIRMATION_EMAIL;
@@ -581,14 +617,14 @@ export class EmailService {
 
     const resend = new Resend(apiKey);
 
-    const clientName = params.clientName?.trim() || 'Cliente';
-    const clientEmail = params.clientEmail?.trim() || '';
-    const clientPhone = params.clientPhone?.trim() || 'No proporcionado';
-    const vehicle = resolveVehicleDisplayName(params.vehicle?.trim() || 'Vehículo');
-    const category = resolveVehicleDisplayName(params.category?.trim() || 'General');
-    const service = params.service?.trim() || 'Lavado Completo';
-    const date = params.date?.trim() || 'Por coordinar';
-    const time = params.time?.trim() || 'Por coordinar';
+    const clientName = escapeHtml(sanitizePlainText(params.clientName, 80) || 'Cliente');
+    const clientEmail = sanitizeEmailInput(params.clientEmail);
+    const clientPhone = escapeHtml(sanitizePlainText(params.clientPhone, 25) || 'No proporcionado');
+    const vehicle = escapeHtml(resolveVehicleDisplayName(sanitizePlainText(params.vehicle, 80) || 'Vehículo'));
+    const category = escapeHtml(resolveVehicleDisplayName(sanitizePlainText(params.category, 60) || 'General'));
+    const service = escapeHtml(sanitizePlainText(params.service, 100) || 'Lavado Completo');
+    const date = escapeHtml(sanitizePlainText(params.date, 30) || 'Por coordinar');
+    const time = escapeHtml(sanitizePlainText(params.time, 40) || 'Por coordinar');
     const bookingIdDisplay = params.bookingId ? params.bookingId.slice(0, 8).toUpperCase() : 'N/A';
 
     const formattedPrice =
@@ -885,7 +921,16 @@ export class EmailService {
     sent: boolean;
     id?: string;
     error?: string;
+    skippedDuplicate?: boolean;
   }> {
+    const dedupeKey = `cancel:${params.bookingId || `${params.clientEmail || ''}:${params.date || ''}:${params.time || ''}`}`;
+    if (!this.acquireCancellationLock(dedupeKey)) {
+      console.warn(
+        `[EmailService][Cancelación Admin -> Cliente Idempotencia]: Omitiendo envío duplicado para "${dedupeKey}".`
+      );
+      return { sent: true, skippedDuplicate: true };
+    }
+
     const apiKey = process.env.RESEND_API_KEY?.trim();
     if (!apiKey) {
       console.warn('[EmailService][Cancelación Admin -> Cliente]: RESEND_API_KEY no configurada en el entorno.');
@@ -895,11 +940,11 @@ export class EmailService {
     try {
       const resend = new Resend(apiKey);
       const fromEmail = process.env.RESEND_FROM_EMAIL?.trim() || 'Lavadero San Rafael <onboarding@resend.dev>';
-      const clientName = params.clientName?.trim() || 'Estimado/a cliente';
-      const vehicle = resolveVehicleDisplayName(params.vehicle?.trim() || 'Vehículo');
-      const date = params.date?.trim() || 'Fecha programada';
-      const time = params.time?.trim() || 'Horario programado';
-      const service = params.service?.trim() || 'Lavado Detailing';
+      const clientName = escapeHtml(sanitizePlainText(params.clientName, 80) || 'Estimado/a cliente');
+      const vehicle = escapeHtml(resolveVehicleDisplayName(sanitizePlainText(params.vehicle, 80) || 'Vehículo'));
+      const date = escapeHtml(sanitizePlainText(params.date, 30) || 'Fecha programada');
+      const time = escapeHtml(sanitizePlainText(params.time, 40) || 'Horario programado');
+      const service = escapeHtml(sanitizePlainText(params.service, 100) || 'Lavado Detailing');
 
       const htmlContent = `
 <!DOCTYPE html>

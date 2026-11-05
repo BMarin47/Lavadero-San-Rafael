@@ -304,20 +304,27 @@ export class ScheduleService {
       };
     }
 
-    // 2. Comprobar feriados nacionales y provinciales de Mendoza
-    const holidayCheck = await HolidayService.isHoliday(dateString);
-    if (holidayCheck.isHoliday) {
-      return {
-        isOpen: false,
-        reasonClosed: `Cerrado por Feriado: ${holidayCheck.reason}`,
-        slots: [],
-      };
+    // 2. Comprobar feriados nacionales y provinciales de Mendoza (con fallback silencioso si falla DB)
+    try {
+      const holidayCheck = await HolidayService.isHoliday(dateString);
+      if (holidayCheck.isHoliday) {
+        return {
+          isOpen: false,
+          reasonClosed: `Cerrado por Feriado: ${holidayCheck.reason}`,
+          slots: [],
+        };
+      }
+    } catch (holidayErr: any) {
+      console.warn(
+        `[ScheduleService] Omitiendo chequeo de feriado por error de conexión (${dateString}):`,
+        holidayErr?.message || holidayErr
+      );
     }
 
     // 3. Obtener bloques según tipo de vehículo y día (L-V o Sábado)
     const allowedSlots = getAllowedSlotsForVehicle(vehicleType, dayOfWeek);
 
-    // 4. Consultar turnos ya reservados en la base de datos
+    // 4. Consultar turnos ya reservados en la base de datos en paralelo con timeout corto
     // Rango normalizado para San Rafael (UTC-3) tolerante a marcas UTC y locales
     const startOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
     const endOfDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1, 3, 0, 0));
@@ -331,74 +338,118 @@ export class ScheduleService {
       }
     };
 
-    try {
-      const activeAppointments = await prisma.appointment.findMany({
-        where: {
-          appointmentDate: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
-        },
-        select: {
-          id: true,
-          startTime: true,
-          endTime: true,
-          vehicle: { select: { vehicleType: true } },
-        },
+    const withDbTimeout = <T>(promise: Promise<T>, ms = 3000): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('DB query timeout')), ms);
+        promise
+          .then((val) => {
+            clearTimeout(timer);
+            resolve(val);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
       });
 
-      for (const app of activeAppointments) {
-        const id = app.id || `app_${app.startTime}_${app.endTime}`;
-        const computedEndTime = app.endTime || calculateSlotEndTime(app.startTime, app.vehicle?.vehicleType);
-        const timeStr = `${app.startTime} a ${computedEndTime}`;
-        registerBooking(id, timeStr);
-      }
-    } catch (_) {}
+    // Ejecutar consultas en paralelo (Supabase REST API por HTTPS no sufre agotamiento de conexiones TCP)
+    const supabaseQueryTask = async () => {
+      try {
+        const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const sbKey =
+          process.env.SUPABASE_SERVICE_ROLE_KEY ||
+          process.env.SUPABASE_SERVICE_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (sbUrl && sbKey) {
+          const sb = createSupabaseClient(sbUrl, sbKey, {
+            auth: { autoRefreshToken: false, persistSession: false },
+          });
+          const [bookingsRes, turnosRes] = await Promise.allSettled([
+            sb
+              .from('bookings')
+              .select('id, time, status')
+              .eq('date', dateString)
+              .not('status', 'in', '("cancelado","cancelled","rechazado","CANCELLED","REJECTED")'),
+            sb
+              .from('turnos')
+              .select('id, time, estado')
+              .eq('date', dateString)
+              .not('estado', 'in', '("cancelado","cancelled","rechazado","CANCELLED","REJECTED")'),
+          ]);
 
-    // Consultar también tabla bookings en Prisma / PostgreSQL para máxima consistencia
-    try {
-      const activeBookings = await prisma.booking.findMany({
-        where: {
-          date: dateString,
-          NOT: {
-            status: {
-              in: ['cancelado', 'cancelled', 'rechazado', 'CANCELLED', 'REJECTED'],
-            },
-          },
-        },
-        select: { id: true, time: true },
-      });
-
-      for (const b of activeBookings) {
-        registerBooking(b.id || `booking_${b.time}`, b.time);
-      }
-    } catch (_) {}
-
-    // Consultar también Supabase Cloud si están configuradas las credenciales de servicio
-    try {
-      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const sbKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.SUPABASE_SERVICE_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (sbUrl && sbKey) {
-        const sb = createSupabaseClient(sbUrl, sbKey, {
-          auth: { autoRefreshToken: false, persistSession: false },
-        });
-        const { data: sbBookings } = await sb
-          .from('bookings')
-          .select('id, time, status')
-          .eq('date', dateString)
-          .not('status', 'in', '("cancelado","cancelled","rechazado","CANCELLED","REJECTED")');
-
-        if (Array.isArray(sbBookings)) {
-          for (const b of sbBookings) {
-            registerBooking(String(b.id || `sb_${b.time}`), b.time);
+          if (bookingsRes.status === 'fulfilled' && Array.isArray(bookingsRes.value.data)) {
+            for (const b of bookingsRes.value.data) {
+              registerBooking(String(b.id || `sb_${b.time}`), b.time);
+            }
+          }
+          if (turnosRes.status === 'fulfilled' && Array.isArray(turnosRes.value.data)) {
+            for (const t of turnosRes.value.data) {
+              registerBooking(String(t.id || `sbt_${t.time}`), t.time);
+            }
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    };
+
+    const prismaAppointmentsTask = async () => {
+      try {
+        const activeAppointments = await withDbTimeout(
+          prisma.appointment.findMany({
+            where: {
+              appointmentDate: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+              status: { in: ['CONFIRMED', 'PENDING_PAYMENT', 'IN_PROGRESS'] },
+            },
+            select: {
+              id: true,
+              startTime: true,
+              endTime: true,
+              vehicle: { select: { vehicleType: true } },
+            },
+          }),
+          3000
+        );
+
+        for (const app of activeAppointments) {
+          const id = app.id || `app_${app.startTime}_${app.endTime}`;
+          const computedEndTime =
+            app.endTime || calculateSlotEndTime(app.startTime, app.vehicle?.vehicleType);
+          const timeStr = `${app.startTime} a ${computedEndTime}`;
+          registerBooking(id, timeStr);
+        }
+      } catch (_) {}
+    };
+
+    const prismaBookingsTask = async () => {
+      try {
+        const activeBookings = await withDbTimeout(
+          prisma.booking.findMany({
+            where: {
+              date: dateString,
+              NOT: {
+                status: {
+                  in: ['cancelado', 'cancelled', 'rechazado', 'CANCELLED', 'REJECTED'],
+                },
+              },
+            },
+            select: { id: true, time: true },
+          }),
+          3000
+        );
+
+        for (const b of activeBookings) {
+          registerBooking(b.id || `booking_${b.time}`, b.time);
+        }
+      } catch (_) {}
+    };
+
+    await Promise.allSettled([
+      supabaseQueryTask(),
+      prismaAppointmentsTask(),
+      prismaBookingsTask(),
+    ]);
 
     // 5. Construir slots con cálculo de capacidad y solapamiento de horarios cruzados (Time Overlap)
     // No busca coincidencia de texto exacto: itera sobre todas las reservas existentes del día

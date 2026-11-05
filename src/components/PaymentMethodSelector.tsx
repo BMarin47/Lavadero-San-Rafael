@@ -62,8 +62,11 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           <input
             type="text"
             required
+            minLength={2}
+            maxLength={80}
+            autoComplete="name"
             value={fullName}
-            onChange={(e) => onFullNameChange(e.target.value)}
+            onChange={(e) => onFullNameChange(e.target.value.replace(/[<>]/g, '').slice(0, 80))}
             placeholder="Ej: Juan Pérez"
             className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all duration-200 shadow-inner hover:border-white/[0.18]"
           />
@@ -78,8 +81,12 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             <input
               type="email"
               required
+              maxLength={120}
+              autoComplete="email"
               value={userEmail}
-              onChange={(e) => onEmailChange(e.target.value)}
+              onChange={(e) =>
+                onEmailChange(e.target.value.replace(/[\s<>",;:\\]/g, '').toLowerCase().slice(0, 120))
+              }
               placeholder="juan.perez@ejemplo.com"
               className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all duration-200 shadow-inner hover:border-white/[0.18]"
             />
@@ -96,12 +103,15 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </span>
               <input
                 type="tel"
+                inputMode="tel"
                 required
+                maxLength={18}
+                autoComplete="tel-national"
                 value={phone}
                 onChange={(e) => {
-                  let val = e.target.value;
+                  let val = e.target.value.replace(/[^\d\s\-]/g, '');
                   val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
-                  onPhoneChange(val);
+                  onPhoneChange(val.slice(0, 18));
                 }}
                 placeholder="260 465-4255"
                 className="w-full min-w-0 px-4 py-3.5 text-sm bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
@@ -117,8 +127,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           </label>
           <input
             type="text"
+            maxLength={300}
             value={notes}
-            onChange={(e) => onNotesChange(e.target.value)}
+            onChange={(e) => onNotesChange(e.target.value.replace(/[<>]/g, '').slice(0, 300))}
             placeholder="Ej: Cuidado con espejo lateral, retirar por la tarde"
             className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/25 transition-all duration-200 shadow-inner hover:border-white/[0.18]"
           />

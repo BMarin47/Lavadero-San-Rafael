@@ -5,8 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fireSuccessConfetti } from '@/lib/confetti';
-import { resolveVehicleDisplayName } from '@/lib/services/booking.service';
-import { BRAND_CONFIG } from '@/lib/config';
+import { BRAND_CONFIG, resolveVehicleDisplayName } from '@/lib/config';
 import {
   CheckCircle2,
   Calendar,

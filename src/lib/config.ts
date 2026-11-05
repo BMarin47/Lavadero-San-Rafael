@@ -389,3 +389,274 @@ export function calculateBookingPrice(
   }
   return basePrice;
 }
+
+export interface SlotAvailability {
+  startTime: string;
+  endTime: string;
+  totalCapacity: number;
+  bookedCount: number;
+  remainingCapacity: number;
+  isAvailable: boolean;
+}
+
+export const MAX_CAPACITY_PER_SLOT = 1;
+
+export const ALLOWED_BOOKING_DATES: readonly string[] = [
+  '2026-11-06',
+  '2026-11-07',
+  '2026-11-10',
+  '2026-11-11',
+];
+
+export function isAllowedBookingDate(dateString: string): boolean {
+  if (!dateString) return false;
+  return ALLOWED_BOOKING_DATES.includes(dateString.trim());
+}
+
+/**
+ * Genera dinámicamente bloques horarios calculando la hora de fin mediante:
+ * inicio (en minutos) + duracion_en_minutos
+ */
+export function buildSlotsFromStartTimes(
+  startTimes: readonly string[],
+  durationMinutes: number
+): { startTime: string; endTime: string }[] {
+  return startTimes.map((startTime) => ({
+    startTime,
+    endTime: calculateEndTimeFromMinutes(startTime, durationMinutes),
+  }));
+}
+
+export const WEEKDAY_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.CAR.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.CAR.durationMinutes
+);
+
+export const SATURDAY_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.CAR.saturdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.CAR.durationMinutes
+);
+
+export const PICKUP_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.PICKUP.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.PICKUP.durationMinutes
+);
+
+export const LARGE_VEHICLE_SLOTS = buildSlotsFromStartTimes(
+  VEHICLE_CATEGORIES_CONFIG.LARGE_PICKUP.weekdayStartTimes,
+  VEHICLE_CATEGORIES_CONFIG.LARGE_PICKUP.durationMinutes
+);
+
+/**
+ * Determina si el vehículo corresponde a "Trafic / Utilitario" (UTILITY - 4 hs).
+ */
+export function isUtilityVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'utility' ||
+    str === 'trafic' ||
+    str === 'traffic' ||
+    str === 'utilitario' ||
+    str === 'trafic / utilitario' ||
+    str === 'trafic/utilitario' ||
+    str === 'furgon' ||
+    str === 'furgón' ||
+    str === 'combi' ||
+    str === 'van' ||
+    str.includes('trafic') ||
+    str.includes('traffic') ||
+    str.includes('utilitario') ||
+    str.includes('utility') ||
+    str.includes('furgon') ||
+    str.includes('furgón')
+  );
+}
+
+/**
+ * Determina si el vehículo corresponde a "Camioneta Grande" (LARGE_PICKUP - 4 hs).
+ */
+export function isLargePickupVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'large_pickup' ||
+    str === 'large-pickup' ||
+    str === 'largepickup' ||
+    str === 'camioneta grande' ||
+    str === 'camioneta_grande' ||
+    str === 'camioneta-grande' ||
+    str.includes('large_pickup') ||
+    str.includes('large-pickup') ||
+    str.includes('camioneta grande') ||
+    str.includes('camioneta_grande')
+  );
+}
+
+/**
+ * Determina si el vehículo pertenece a las categorías de gran porte (4 horas de lavado):
+ * "Camioneta Grande" (LARGE_PICKUP) o "Trafic / Utilitario" (UTILITY).
+ */
+export function isLargeVehicle(vehicleType?: unknown): boolean {
+  return isLargePickupVehicle(vehicleType) || isUtilityVehicle(vehicleType);
+}
+
+/**
+ * Determina si el tipo de vehículo corresponde a Camioneta estándar (PICKUP - 3 hs)
+ */
+export function isPickupVehicle(vehicleType?: unknown): boolean {
+  if (!vehicleType) return false;
+  if (isLargePickupVehicle(vehicleType) || isUtilityVehicle(vehicleType)) {
+    return false;
+  }
+  const str = String(vehicleType).trim().toLowerCase();
+  return (
+    str === 'pickup' ||
+    str === 'pick-up' ||
+    str === 'pick_up' ||
+    str === 'camioneta' ||
+    str === 'truck' ||
+    str.includes('pickup') ||
+    str.includes('camioneta') ||
+    str.includes('truck')
+  );
+}
+
+/**
+ * Normaliza cualquier variante de ID o nombre de vehículo a los tipos estándar:
+ * ('CAR' | 'SUV' | 'PICKUP' | 'LARGE_PICKUP' | 'UTILITY').
+ */
+export function normalizeVehicleType(vehicleType?: unknown): VehicleCategoryType {
+  if (isUtilityVehicle(vehicleType)) return 'UTILITY';
+  if (isLargePickupVehicle(vehicleType)) return 'LARGE_PICKUP';
+  if (isPickupVehicle(vehicleType)) return 'PICKUP';
+  if (!vehicleType) return 'CAR';
+  const str = String(vehicleType).trim().toLowerCase();
+  if (str === 'suv' || str.includes('suv')) return 'SUV';
+  return 'CAR';
+}
+
+/**
+ * Devuelve la duración estimada de lavado en minutos según el tipo de vehículo.
+ */
+export function getVehicleDurationMinutes(vehicleType?: unknown): number {
+  const normalized = normalizeVehicleType(vehicleType);
+  return VEHICLE_CATEGORIES_CONFIG[normalized]?.durationMinutes ?? 120;
+}
+
+/**
+ * Devuelve la duración estimada de lavado en horas según el tipo de vehículo.
+ */
+export function getVehicleDurationHours(vehicleType?: unknown): number {
+  const normalized = normalizeVehicleType(vehicleType);
+  return VEHICLE_CATEGORIES_CONFIG[normalized]?.durationHours ?? 2;
+}
+
+/**
+ * Calcula la hora de finalización exacta dinámicamente sumando los minutos correspondientes a la categoría del vehículo.
+ */
+export function calculateSlotEndTime(startTime: string, vehicleType?: unknown): string {
+  const durationMinutes = getVehicleDurationMinutes(vehicleType);
+  return calculateEndTimeFromMinutes(startTime, durationMinutes);
+}
+
+/**
+ * Obtiene los bloques horarios correspondientes al tipo de vehículo y día de la semana.
+ */
+export function getAllowedSlotsForVehicle(
+  vehicleType?: unknown,
+  dayOfWeek?: number
+): { startTime: string; endTime: string }[] {
+  const normalized = normalizeVehicleType(vehicleType);
+  const isSaturday = dayOfWeek === 6;
+  const config = VEHICLE_CATEGORIES_CONFIG[normalized];
+  const startTimes = isSaturday ? config.saturdayStartTimes : config.weekdayStartTimes;
+
+  return buildSlotsFromStartTimes(startTimes, config.durationMinutes);
+}
+
+/**
+ * Extrae las horas de inicio y fin en minutos de un string de horario o rango.
+ */
+export function parseTimeInterval(
+  timeStr: string,
+  fallbackDurationMinutes: number = 120
+): { start: number; end: number } | null {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const matches = Array.from(timeStr.matchAll(/(\d{1,2}):(\d{2})/g));
+  if (matches.length === 0) return null;
+
+  const start = parseInt(matches[0][1], 10) * 60 + parseInt(matches[0][2], 10);
+  let end: number;
+
+  if (matches.length >= 2) {
+    end = parseInt(matches[1][1], 10) * 60 + parseInt(matches[1][2], 10);
+  } else {
+    end = start + fallbackDurationMinutes;
+  }
+
+  return { start, end };
+}
+
+/**
+ * Determina si dos cadenas de horarios se solapan en el tiempo (Time Overlap):
+ * Condición matemática estricta: startA < endB && endA > startB
+ */
+export function areTimeSlotsOverlapping(
+  slotA: string,
+  slotB: string,
+  fallbackDurationMinutes: number = 120
+): boolean {
+  const intervalA = parseTimeInterval(slotA, fallbackDurationMinutes);
+  const intervalB = parseTimeInterval(slotB, fallbackDurationMinutes);
+
+  if (!intervalA || !intervalB) return false;
+
+  return intervalA.start < intervalB.end && intervalA.end > intervalB.start;
+}
+
+export const checkTimeOverlap = areTimeSlotsOverlapping;
+export const isTimeOverlap = areTimeSlotsOverlapping;
+export const hasTimeOverlap = areTimeSlotsOverlapping;
+
+/**
+ * Resuelve el nombre legible en español de cualquier código o descripción de vehículo.
+ */
+export function resolveVehicleDisplayName(
+  vehicleTypeOrLabel?: string | null,
+  vehicleModel?: string | null
+): string {
+  if (vehicleTypeOrLabel) {
+    const trimmed = vehicleTypeOrLabel.trim();
+    const typeMap = VEHICLE_TYPE_LABELS as Record<string, string>;
+    if (typeMap[trimmed]) {
+      const label = typeMap[trimmed];
+      if (
+        vehicleModel &&
+        vehicleModel.trim() &&
+        vehicleModel.trim().toLowerCase() !== label.toLowerCase()
+      ) {
+        return `${label} - ${vehicleModel.trim()}`;
+      }
+      return label;
+    }
+    const normalized = normalizeVehicleType(trimmed);
+    if (
+      ['car', 'suv', 'pickup', 'large_pickup', 'utility'].includes(
+        trimmed.toLowerCase()
+      )
+    ) {
+      const label = typeMap[normalized] || trimmed;
+      if (
+        vehicleModel &&
+        vehicleModel.trim() &&
+        vehicleModel.trim().toLowerCase() !== label.toLowerCase()
+      ) {
+        return `${label} - ${vehicleModel.trim()}`;
+      }
+      return label;
+    }
+    return trimmed;
+  }
+  return vehicleModel?.trim() || 'Vehículo';
+}

@@ -9,6 +9,11 @@ import { parseArgentinaAppointmentDate } from '@/lib/services/reminder.service';
 import { createClient } from '@/utils/supabase/server';
 import { Pool } from 'pg';
 import { prisma } from '@/lib/prisma';
+import {
+  sanitizePlainText,
+  sanitizeEmailInput,
+  formatWhatsAppArgPhone,
+} from '@/lib/validations/booking.schema';
 
 
 export async function GET() {
@@ -68,7 +73,22 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreateBookingDTO;
+    const rawBody = (await request.json()) as CreateBookingDTO;
+    const body: CreateBookingDTO = {
+      ...rawBody,
+      userEmail: sanitizeEmailInput(rawBody.userEmail),
+      userFullName: sanitizePlainText(rawBody.userFullName, 80),
+      userPhone: formatWhatsAppArgPhone(rawBody.userPhone),
+      vehicleBrand: sanitizePlainText(rawBody.vehicleBrand, 60),
+      vehicleModel: sanitizePlainText(rawBody.vehicleModel, 60),
+      appointmentDate: sanitizePlainText(rawBody.appointmentDate, 20),
+      startTime: sanitizePlainText(rawBody.startTime, 10),
+      endTime: sanitizePlainText(rawBody.endTime, 10),
+      deliveryAddress: rawBody.deliveryAddress
+        ? sanitizePlainText(rawBody.deliveryAddress, 150)
+        : undefined,
+      notes: rawBody.notes ? sanitizePlainText(rawBody.notes, 300) : undefined,
+    };
 
     // Validaciones requeridas de reserva
     if (!body.userEmail || !body.vehicleModel || !body.appointmentDate || !body.startTime || !body.endTime) {
@@ -238,7 +258,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // 4. Si se canceló exitosamente, sincronizar con Prisma y enviar alerta por email automática con Resend
+    // 4. Si se canceló exitosamente, sincronizar con Prisma y enviar alerta por email UNA SOLA VEZ con Resend
     if (normalizedStatus === 'cancelado') {
       try {
         await prisma.appointment.updateMany({
@@ -299,18 +319,28 @@ export async function PATCH(request: NextRequest) {
           bookingToCancelData?.precio ||
           body.bookingDetails?.precio;
 
-        await EmailService.sendCancellationNotification({
-          bookingId: String(id),
-          clientName,
-          clientEmail,
-          clientPhone,
-          vehicle,
-          category,
-          service,
-          date,
-          time,
-          price,
-        });
+        const previousStatus = String(
+          bookingToCancelData?.status || bookingToCancelData?.estado || ''
+        )
+          .toLowerCase()
+          .trim();
+        const wasAlreadyCancelled =
+          previousStatus === 'cancelado' || previousStatus === 'cancelled';
+
+        if (!wasAlreadyCancelled) {
+          await EmailService.sendCancellationNotification({
+            bookingId: String(id),
+            clientName,
+            clientEmail,
+            clientPhone,
+            vehicle,
+            category,
+            service,
+            date,
+            time,
+            price,
+          });
+        }
 
         const whatsAppUrl = generateWhatsAppCancellationUrl({
           clientPhone,

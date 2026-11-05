@@ -1,7 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
+import { createClient } from '@/utils/supabase/server';
+import { isSuperAdmin } from '@/lib/auth/admin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Validación de seguridad: requerir sesión de Superadministrador o token CRON_SECRET
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  const hasValidSecret = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+  if (!hasValidSecret) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user || !isSuperAdmin(user.email)) {
+      return NextResponse.json(
+        { error: 'Acceso denegado. Se requieren privilegios de Superadministrador.' },
+        { status: 403 }
+      );
+    }
+  }
+
   const dbUrl = process.env.DATABASE_URL;
 
   if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {

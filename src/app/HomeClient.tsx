@@ -14,11 +14,12 @@ import {
   VehicleType,
   VEHICLE_CONFIG,
 } from '@/components/VehicleSelector';
-import { BRAND_CONFIG, calculateBookingPrice } from '@/lib/config';
 import {
+  BRAND_CONFIG,
+  calculateBookingPrice,
   getAllowedSlotsForVehicle,
   normalizeVehicleType,
-} from '@/lib/services/schedule.service';
+} from '@/lib/config';
 import { BookingFormValidationSchema } from '@/lib/validations/booking.schema';
 import type {
   ServiceMode,
@@ -435,25 +436,26 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       vehicleType,
       selectedDate,
       selectedSlot,
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      email: (user?.email || userEmail || 'cliente@lavadero.com').trim(),
-      notes: notes.trim(),
+      fullName,
+      phone,
+      email: user?.email || userEmail || 'cliente@lavadero.com',
+      notes,
       paymentMethod,
     });
 
     if (!validationResult.success) {
+      setOpenSection('contact');
       const firstIssue = validationResult.error.issues[0];
       showToast('Datos inválidos', firstIssue?.message || 'Por favor revisá los datos ingresados.', 'warning');
       return;
     }
 
-    const effectiveEmail = (user?.email || userEmail || 'cliente@lavadero.com').trim();
-
-    // Aseguramos la combinación del prefijo +54 9 con el número ingresado
-    let cleanPhoneDigits = phone.trim().replace(/^(\+?54\s*9?|\+?54)\s*/, '');
-    cleanPhoneDigits = cleanPhoneDigits.replace(/^0+/, '');
-    const fullUserPhone = `+54 9 ${cleanPhoneDigits}`;
+    const {
+      fullName: sanitizedFullName,
+      userEmail: effectiveEmail,
+      formattedPhone: fullUserPhone,
+      notes: sanitizedNotes,
+    } = validationResult.data;
 
     setSubmitting(true);
 
@@ -487,13 +489,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           ? `${serviceDescription} (Pago: Efectivo o transferencia)`
           : serviceDescription;
 
-      // Formateo de notas e indicaciones con fecha y franja horaria
-      const indicacionesTexto = notes.trim()
-        ? `${notes.trim()} (Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs)`
+      // Formateo de notas e indicaciones sanitizadas con fecha y franja horaria
+      const indicacionesTexto = sanitizedNotes
+        ? `${sanitizedNotes} (Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs)`
         : `Turno: ${selectedDate} ${selectedSlot.startTime} a ${selectedSlot.endTime} hs`;
 
-      // =========================================================================
-      // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS / POSTGRESQL)
       // =========================================================================
       // PASO 1: GUARDAR EL TURNO EN LA BASE DE DATOS (CON RLS / SUPABASE / POSTGRESQL)
       // =========================================================================
@@ -514,12 +514,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
             startTime: selectedSlot.startTime,
             endTime: selectedSlot.endTime,
             status: 'confirmado',
-            client_name: fullName.trim(),
+            client_name: sanitizedFullName,
             client_email: effectiveEmail,
             client_phone: fullUserPhone,
             price: currentTotal,
             notes: indicacionesTexto,
-            nombre_cliente: fullName.trim(),
+            nombre_cliente: sanitizedFullName,
             vehiculo: vehicleSummaryDisplay,
             categoria: vehicleType,
             precio: currentTotal,
@@ -570,9 +570,9 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         return;
       }
 
-      // Guardar información del turno en localStorage para que /reserva-exitosa dispare el email y WhatsApp
+      // Guardar información del turno sanitizada en localStorage para que /reserva-exitosa dispare el email y WhatsApp
       const pendingBookingData = {
-        clientName: fullName.trim(),
+        clientName: sanitizedFullName,
         clientEmail: effectiveEmail,
         clientPhone: fullUserPhone,
         vehicleSummary: vehicleSummaryDisplay,
@@ -584,7 +584,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
         endTime: selectedSlot.endTime,
         serviceDescription,
         amount: currentTotal,
-        notes: notes.trim(),
+        notes: sanitizedNotes,
         turnoId: turnoCreado?.id,
       };
 
@@ -607,7 +607,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 userEmail: effectiveEmail,
-                userFullName: fullName.trim(),
+                userFullName: sanitizedFullName,
                 userPhone: fullUserPhone,
                 vehicleType,
                 vehicleBrand: vehicleSummaryDisplay,
@@ -618,8 +618,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 serviceDescription: `${serviceDescription} (Pago: Efectivo o transferencia)`,
                 paymentMethod: 'CASH',
                 amount: currentTotal,
-                notes: notes.trim()
-                  ? `${notes.trim()} (Pago: Efectivo o transferencia)`
+                notes: sanitizedNotes
+                  ? `${sanitizedNotes} (Pago: Efectivo o transferencia)`
                   : 'Pago: Efectivo o transferencia',
               }),
             });
@@ -633,8 +633,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           }
         }
 
-        // 2. Armar mensaje de WhatsApp y redirigir directamente usando api.whatsapp.com/send
-        // (Evita el bug del redireccionamiento 302 de wa.me que corrompe emojis a  en WhatsApp Desktop/Web)
+        // 2. Armar mensaje de WhatsApp con datos sanitizados y redirigir directamente usando api.whatsapp.com/send
         const lines = [
           `¡Hola Lavadero San Rafael! ${String.fromCodePoint(0x1f44b)}`,
           'Quiero confirmar mi reserva de turno con *Pago en Efectivo o transferencia*:',
@@ -644,13 +643,13 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           `${String.fromCodePoint(0x1f697)} *Vehículo:* ${vehicleSummaryDisplay}`,
           `${String.fromCodePoint(0x1f9fc)} *Servicio:* ${serviceDescription}`,
           `${String.fromCodePoint(0x1f4b0)} *Total a Abonar:* $${currentTotal.toLocaleString('es-AR')} ARS (Efectivo o transferencia - 5% OFF)`,
-          `${String.fromCodePoint(0x1f464)} *Cliente:* ${fullName.trim()}`,
+          `${String.fromCodePoint(0x1f464)} *Cliente:* ${sanitizedFullName}`,
           `${String.fromCodePoint(0x1f4f1)} *Teléfono:* ${fullUserPhone}`,
           `${String.fromCodePoint(0x1f4e7)} *Email:* ${effectiveEmail}`,
         ];
 
-        if (notes.trim()) {
-          lines.push(`${String.fromCodePoint(0x1f4dd)} *Indicaciones:* ${notes.trim()}`);
+        if (sanitizedNotes) {
+          lines.push(`${String.fromCodePoint(0x1f4dd)} *Indicaciones:* ${sanitizedNotes}`);
         }
 
         lines.push('', '¡Muchas gracias! Aguardo confirmación del turno.');
@@ -688,7 +687,7 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
           precio: currentTotal,
           turnoId: turnoCreado?.id,
           vehiculo: vehicleSummaryDisplay,
-          nombre_cliente: fullName.trim(),
+          nombre_cliente: sanitizedFullName,
           userEmail: effectiveEmail,
         }),
       });
@@ -810,8 +809,8 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
               </Link>
             )}
 
-            {/* Acceso a Cuenta si hay sesión activa */}
-            {user && (
+            {/* Acceso a Cuenta si hay sesión activa, o botón Iniciar Sesión si no hay sesión */}
+            {user ? (
               <Link
                 href="/dashboard"
                 className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-slate-200 hover:text-white border border-white/[0.1] text-xs font-bold transition-all"
@@ -820,6 +819,17 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="hidden sm:inline">Mi Cuenta</span>
               </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleGoogleSignIn('/')}
+                disabled={isSigningInGoogle}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-950 text-xs font-black transition-all shadow-md shadow-cyan-500/20 active:scale-95 cursor-pointer disabled:opacity-60"
+                title="Iniciar Sesión con Google"
+              >
+                <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>{isSigningInGoogle ? 'Conectando...' : 'Iniciar Sesión'}</span>
+              </button>
             )}
 
           </div>
@@ -1035,51 +1045,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
       )}
 
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
-        
-        {/* COMPONENTE COLAPSABLE DE PLANES (CERO SCROLL - EXPANDIBLE) */}
-        <PlansAccordion initialVehicleType={vehicleType} />
-
-        {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
-        {/* RENDERIZADO CONDICIONAL SEGÚN ESTADO DE SESIÓN */}
+      <div className="relative z-10 w-full max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8">
+        {/* 1. SECCIÓN DE INICIAR SESIÓN / AUTENTICACIÓN (PRIMERO DEBAJO DEL NAVBAR) */}
         {!user ? (
-          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-            {/* HERO SECTION CUANDO NO HAY SESIÓN */}
-            <header className="text-center space-y-4 max-w-xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-cyan-500/10">
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
-                </span>
-                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                <span>San Rafael, Mendoza • Turnos Online en Vivo</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-5xl font-black whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-cyan-400 drop-shadow-sm">
-                Lavadero San Rafael
-              </h1>
-
-              <p className="text-xs sm:text-base text-slate-300 max-w-md mx-auto font-normal leading-relaxed">
-                Lavadero Artesanal, Detailing & Turnos en Vivo. Calidad de detalle para que tu auto brille como recién salido de concesionaria.
-              </p>
-
-              {/* Badges de Beneficios */}
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
-                  <Sparkles className="w-3 h-3 text-cyan-400" />
-                  Lavado Artesanal
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
-                  <Clock className="w-3 h-3 text-emerald-400" />
-                  Cero Filas de Espera
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
-                  <ShieldCheck className="w-3 h-3 text-sky-400" />
-                  Garantía Lavadero San Rafael
-                </span>
-              </div>
-            </header>
-
+          <div className="space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            {/* BLOQUE DE INICIAR SESIÓN PRIMERO */}
             <div className="luxury-glass-card rounded-3xl p-6 sm:p-10 text-center neon-border-cyan relative overflow-hidden">
               {/* Resplandor superior sutil */}
               <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-32 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -1144,6 +1114,47 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 </div>
               </div>
             </div>
+
+            {/* 2. SECCIÓN DE PLANES Y SERVICIOS INMEDIATAMENTE DEBAJO DE INICIAR SESIÓN */}
+            <section aria-label="Planes y Servicios" className="mt-6 sm:mt-8">
+              <PlansAccordion initialVehicleType={vehicleType} />
+            </section>
+
+            {/* HERO SECTION INFORMATIVA DEBAJO */}
+            <header className="text-center space-y-4 max-w-xl mx-auto pt-2">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold backdrop-blur-xl shadow-lg shadow-cyan-500/10">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                </span>
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                <span>San Rafael, Mendoza • Turnos Online en Vivo</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl font-black whitespace-nowrap bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-cyan-400 drop-shadow-sm">
+                Lavadero San Rafael
+              </h1>
+
+              <p className="text-xs sm:text-base text-slate-300 max-w-md mx-auto font-normal leading-relaxed">
+                Lavadero Artesanal, Detailing & Turnos en Vivo. Calidad de detalle para que tu auto brille como recién salido de concesionaria.
+              </p>
+
+              {/* Badges de Beneficios */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <Sparkles className="w-3 h-3 text-cyan-400" />
+                  Lavado Artesanal
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <Clock className="w-3 h-3 text-emerald-400" />
+                  Cero Filas de Espera
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-slate-300">
+                  <ShieldCheck className="w-3 h-3 text-sky-400" />
+                  Garantía Lavadero San Rafael
+                </span>
+              </div>
+            </header>
           </div>
         ) : (
           /* FORMULARIO COMPACTO MOBILE PWA CON ACORDEÓN Y SELECTOR HORIZONTAL */
@@ -1555,8 +1566,15 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                           <input
                             type="text"
                             required
+                            minLength={2}
+                            maxLength={80}
+                            autoComplete="name"
                             value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
+                            onChange={(e) => {
+                              // Eliminar etiquetas o caracteres angulares en tiempo real
+                              const clean = e.target.value.replace(/[<>]/g, '').slice(0, 80);
+                              setFullName(clean);
+                            }}
                             placeholder="Ej: Juan Pérez"
                             className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950/80 border border-white/[0.09] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 shadow-inner"
                           />
@@ -1573,12 +1591,15 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                             </span>
                             <input
                               type="tel"
+                              inputMode="tel"
                               required
+                              maxLength={18}
+                              autoComplete="tel-national"
                               value={phone}
                               onChange={(e) => {
-                                let val = e.target.value;
+                                let val = e.target.value.replace(/[^\d\s\-]/g, '');
                                 val = val.replace(/^(\+?54\s*9?|\+?54)\s*/, '');
-                                setPhone(val);
+                                setPhone(val.slice(0, 18));
                               }}
                               placeholder="260 465-4255"
                               className="w-full min-w-0 px-2.5 py-2 text-xs bg-transparent text-slate-100 placeholder-slate-500 focus:outline-none"
@@ -1594,8 +1615,12 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                         </label>
                         <input
                           type="text"
+                          maxLength={300}
                           value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
+                          onChange={(e) => {
+                            const clean = e.target.value.replace(/[<>]/g, '').slice(0, 300);
+                            setNotes(clean);
+                          }}
                           placeholder="Ej: Cuidado con llantas, retirar por la tarde"
                           className="w-full px-3 py-1.5 text-xs rounded-xl bg-slate-950/60 border border-white/[0.07] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400"
                         />
@@ -1776,6 +1801,11 @@ export default function HomeClient({ initialUser }: { initialUser?: User | null 
                 )}
               </p>
             </div>
+
+            {/* SECCIÓN DE PLANES Y SERVICIOS DEBAJO DE LA RESERVA */}
+            <section aria-label="Planes y Servicios" className="mt-6 sm:mt-8 pt-2">
+              <PlansAccordion initialVehicleType={vehicleType} />
+            </section>
           </div>
         )}
 

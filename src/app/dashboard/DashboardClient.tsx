@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -123,6 +123,7 @@ export default function DashboardClient({ user }: { user: User }) {
   const [turnos, setTurnos] = useState<TurnoItem[]>([]);
   const [loadingTurnos, setLoadingTurnos] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const isUpdatingRef = useRef<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{
     title: string;
     msg: string;
@@ -206,6 +207,11 @@ export default function DashboardClient({ user }: { user: User }) {
 
   // Actualizar estado de una reserva (Confirmar / Cancelar)
   const handleUpdateStatus = async (id: string, newStatus: 'confirmado' | 'cancelado') => {
+    // Bloqueo sincrónico y por estado para evitar envíos múltiples por doble clic
+    if (isUpdatingRef.current || updatingId !== null) {
+      return;
+    }
+
     // Restricción de Cancelación: Debe faltar más de 24 horas
     if (newStatus === 'cancelado') {
       const currentItem = turnos.find((t) => t.id === id);
@@ -222,21 +228,19 @@ export default function DashboardClient({ user }: { user: User }) {
       }
     }
 
-    try {
-      setUpdatingId(id);
+    isUpdatingRef.current = true;
+    setUpdatingId(id);
 
+    try {
       const currentItem = turnos.find((t) => t.id === id);
 
-      // Actualización visual inmediata e intuitiva (Optimistic UI)
-      if (newStatus === 'cancelado') {
-        setTurnos((prev) => prev.filter((t) => t.id !== id));
-      } else {
+      if (newStatus !== 'cancelado') {
         setTurnos((prev) =>
           prev.map((t) => (t.id === id ? { ...t, estado: newStatus } : t))
         );
       }
 
-      // Petición segura a la API (se incluye bookingDetails para asegurar metadatos completos en la alerta por email)
+      // Petición única a la API (evitando llamadas duplicadas a múltiples rutas)
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -247,34 +251,15 @@ export default function DashboardClient({ user }: { user: User }) {
         }),
       });
 
+      const json = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        // Fallback a /api/turnos
-        const resTurnos = await fetch('/api/turnos', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id,
-            status: newStatus,
-            bookingDetails: currentItem,
-          }),
-        });
-        if (!resTurnos.ok) {
-          const json = await res.json().catch(() => ({}));
-          throw new Error(json.error || 'No se pudo actualizar el estado de la reserva.');
-        }
+        throw new Error(json.error || 'No se pudo actualizar el estado de la reserva.');
       }
 
-      // Actualización directa opcional en Supabase con RLS en background
-      try {
-        await supabase
-          .from('bookings')
-          .update({
-            status: newStatus,
-            estado: newStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id);
-      } catch (_) {}
+      if (newStatus === 'cancelado') {
+        setTurnos((prev) => prev.filter((t) => t.id !== id));
+      }
 
       router.refresh();
 
@@ -290,6 +275,7 @@ export default function DashboardClient({ user }: { user: User }) {
       showToast('Error', err.message || 'No se pudo actualizar el estado.', 'error');
       await loadTurnos();
     } finally {
+      isUpdatingRef.current = false;
       setUpdatingId(null);
     }
   };
@@ -635,11 +621,11 @@ export default function DashboardClient({ user }: { user: User }) {
                         {/* Botón Cancelar con regla de 24 horas */}
                         <button
                           type="button"
-                          disabled={isBusy || isCancelado || (!isCancelado && !canCancel)}
+                          disabled={updatingId !== null || isBusy || isCancelado || (!isCancelado && !canCancel)}
                           onClick={() => handleUpdateStatus(t.id, 'cancelado')}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                             isCancelado
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 disabled:opacity-40 cursor-not-allowed'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 cursor-not-allowed'
                               : !canCancel
                               ? 'bg-slate-800/40 text-slate-500 border border-slate-700/40 cursor-not-allowed opacity-50'
                               : 'bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 border border-rose-500/30 hover:border-rose-400 cursor-pointer'
@@ -657,7 +643,7 @@ export default function DashboardClient({ user }: { user: User }) {
                           ) : (
                             <XCircle className="w-3.5 h-3.5" />
                           )}
-                          <span>{isCancelado ? 'Cancelado' : 'Cancelar'}</span>
+                          <span>{isBusy ? 'Cancelando...' : isCancelado ? 'Cancelado' : 'Cancelar'}</span>
                         </button>
                       </div>
 
