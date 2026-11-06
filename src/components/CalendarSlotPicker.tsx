@@ -25,19 +25,27 @@ interface CalendarSlotPickerProps {
 }
 
 /**
- * Fechas habilitadas exclusivamente para reserva de turnos.
- * Todas las demás fechas del calendario aparecen deshabilitadas (ocupadas/grises) por defecto.
+ * Fechas bloqueadas por excepción específica (ej. Jueves 12 de noviembre de 2026).
+ * Todos los días laborables habituales (lunes a sábados) están abiertos salvo estas excepciones.
  */
-export const ALLOWED_BOOKING_DATES: readonly string[] = [
-  '2026-11-06', // Viernes 6 de noviembre de 2026
-  '2026-11-07', // Sábado 7 de noviembre de 2026
-  '2026-11-10', // Martes 10 de noviembre de 2026
-  '2026-11-11', // Miércoles 11 de noviembre de 2026
+export const BLOCKED_BOOKING_DATES: readonly string[] = [
+  '2026-11-12', // Jueves 12 de noviembre de 2026
 ];
+
+export const isBlockedDate = (dateString: string): boolean => {
+  if (!dateString) return false;
+  return BLOCKED_BOOKING_DATES.includes(dateString.trim());
+};
 
 export const shouldDisableDate = (dateString: string): boolean => {
   if (!dateString) return true;
-  return !ALLOWED_BOOKING_DATES.includes(dateString.trim());
+  const trimmed = dateString.trim();
+  const parts = trimmed.split('-').map(Number);
+  if (parts.length === 3 && !parts.some(isNaN)) {
+    const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+    if (dateObj.getUTCDay() === 0) return true; // Domingos cerrado
+  }
+  return isBlockedDate(trimmed);
 };
 
 /**
@@ -145,11 +153,11 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
     });
   }, [slots, vehicleType, selectedDate]);
 
-  // Generar los días del calendario cubriendo las fechas permitidas y mostrar todos los no incluidos como deshabilitados/ocupados
+  // Generar los días del calendario habilitando lunes a sábados como ABIERTO, domingos como CERRADO y bloqueando 2026-11-12 como CERRADO
   const nextDays = React.useMemo(() => {
     const days = [];
     const today = new Date();
-    const minEndDate = new Date(2026, 10, 11); // 11 de noviembre de 2026
+    const minEndDate = new Date(2026, 10, 14); // Asegurar cobertura de la ventana de días (incluyendo 12/11)
     const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const diffDays = Math.ceil((minEndDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const totalDays = Math.max(9, diffDays);
@@ -163,13 +171,17 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       const dd = String(d.getDate()).padStart(2, '0');
       const dateString = `${yyyy}-${mm}-${dd}`;
       const isSunday = d.getDay() === 0;
-      const isDisabled = shouldDisableDate(dateString);
+      const isBlocked = isBlockedDate(dateString);
+      const isOpenDay = !isSunday && !isBlocked;
+      const isDisabled = !isOpenDay;
 
       days.push({
         dateString,
         dayName: d.toLocaleDateString('es-AR', { weekday: 'short' }),
         dayNumber: d.getDate(),
         isSunday,
+        isBlocked,
+        isOpen: isOpenDay,
         isDisabled,
       });
     }
@@ -187,7 +199,7 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
       isFetchingRef.current = false;
       setLoading(false);
       setIsOpen(false);
-      setReasonClosed('No hay cupos disponibles para esta fecha.');
+      setReasonClosed('El lavadero permanece cerrado en esta fecha.');
       setSlots([]);
       onSlotChange(null);
       return;
@@ -346,10 +358,8 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                         <Loader2 className="w-2.5 h-2.5 animate-spin text-cyan-300" />
                         <span>...</span>
                       </>
-                    ) : d.isSunday ? (
+                    ) : !d.isOpen ? (
                       'Cerrado'
-                    ) : isDisabled ? (
-                      'Ocupado'
                     ) : (
                       'Abierto'
                     )}
@@ -587,10 +597,8 @@ export const CalendarSlotPicker: React.FC<CalendarSlotPickerProps> = ({
                       <Loader2 className="w-3 h-3 animate-spin text-cyan-300" />
                       <span>Cargando</span>
                     </>
-                  ) : d.isSunday ? (
+                  ) : !d.isOpen ? (
                     'Cerrado'
-                  ) : isDisabled ? (
-                    'Ocupado'
                   ) : (
                     'Abierto'
                   )}

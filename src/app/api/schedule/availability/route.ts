@@ -39,14 +39,6 @@ export async function GET(request: NextRequest) {
       error?.message || error
     );
 
-    if (!isAllowedBookingDate(dateParam)) {
-      return NextResponse.json({
-        isOpen: false,
-        reasonClosed: 'Esta fecha se encuentra completa / no disponible para nuevas reservas.',
-        slots: [],
-      });
-    }
-
     const parts = dateParam.split('-').map(Number);
     const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
     const dayOfWeek = dateObj.getUTCDay();
@@ -55,6 +47,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         isOpen: false,
         reasonClosed: 'El lavadero permanece cerrado los días domingos.',
+        slots: [],
+      });
+    }
+
+    if (!isAllowedBookingDate(dateParam)) {
+      return NextResponse.json({
+        isOpen: false,
+        reasonClosed: 'El lavadero permanece cerrado en esta fecha.',
         slots: [],
       });
     }

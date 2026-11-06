@@ -20,16 +20,24 @@ export interface SlotAvailability {
 
 export const MAX_CAPACITY_PER_SLOT = 1;
 
-export const ALLOWED_BOOKING_DATES: readonly string[] = [
-  '2026-11-06',
-  '2026-11-07',
-  '2026-11-10',
-  '2026-11-11',
+export const BLOCKED_BOOKING_DATES: readonly string[] = [
+  '2026-11-12', // Jueves 12 de noviembre de 2026
 ];
+
+export function isBlockedBookingDate(dateString: string): boolean {
+  if (!dateString) return false;
+  return BLOCKED_BOOKING_DATES.includes(dateString.trim());
+}
 
 export function isAllowedBookingDate(dateString: string): boolean {
   if (!dateString) return false;
-  return ALLOWED_BOOKING_DATES.includes(dateString.trim());
+  const trimmed = dateString.trim();
+  const parts = trimmed.split('-').map(Number);
+  if (parts.length === 3 && !parts.some(isNaN)) {
+    const dateObj = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
+    if (dateObj.getUTCDay() === 0) return false;
+  }
+  return !isBlockedBookingDate(trimmed);
 }
 
 /**
@@ -295,11 +303,11 @@ export class ScheduleService {
       };
     }
 
-    // 1.b Restricción estricta a las fechas habilitadas en el calendario
-    if (!isAllowedBookingDate(dateString)) {
+    // 1.b Bloqueo específico por fecha exacta (ej: Jueves 12 de Noviembre de 2026)
+    if (isBlockedBookingDate(dateString)) {
       return {
         isOpen: false,
-        reasonClosed: 'Esta fecha se encuentra completa / no disponible para nuevas reservas.',
+        reasonClosed: 'El lavadero permanece cerrado en esta fecha.',
         slots: [],
       };
     }
